@@ -26,7 +26,7 @@ You should provide your own TELEGRAM_API, as well.
 
 This bot uses sqlite3 for easiness, and should give you easy time when you simply create a db with name "bot.db" in the root of the project.
 
-It checks every needed table and creates it as needed by the code. 
+It checks every needed table and creates it as necessary by the code. 
 
 
 # Contact
