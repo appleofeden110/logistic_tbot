@@ -235,21 +235,6 @@ func CheckTaskDocsTable(db DBExecutor) error {
 	return err
 }
 
-func CheckSignedDocsTable(db DBExecutor) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS signed_docs (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			file_id INTEGER,
-			task_id INTEGER,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			update_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (file_id) REFERENCES files(id),
-			FOREIGN KEY (task_id) REFERENCES tasks(id)
-		)
-	`)
-	return err
-}
-
 func CheckUsersTable(db DBExecutor) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS users (

@@ -153,6 +153,18 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 func CheckAllTables(db *sql.DB) (err error) {
 	fmt.Println("checking every table if exists...")
 
+	err = CheckTaskDocsTable(db)
+	if err != nil {
+		return fmt.Errorf("Error creating or checking the table task_docs: %v\n", err)
+	}
+	log.Println("task_docs is ok.")
+
+	err = CheckFormStatesTable(db)
+	if err != nil {
+		return fmt.Errorf("Error creating or checking the table form_states: %v\n", err)
+	}
+	log.Println("form_states is ok.")
+
 	err = CheckUsersTable(db)
 	if err != nil {
 		return fmt.Errorf("Error creating or checking the table users: %v\n", err)
@@ -170,6 +182,12 @@ func CheckAllTables(db *sql.DB) (err error) {
 		return fmt.Errorf("Error creating or checking the table drivers: %v\n", err)
 	}
 	log.Println("drivers is ok.")
+
+	err = CheckDriversSessionsTable(db)
+	if err != nil {
+		return fmt.Errorf("Error creating or checking the table drivers_sessions: %v\n", err)
+	}
+	log.Println("drivers_sessions is ok.")
 
 	err = CheckCarsTable(db)
 	if err != nil {
