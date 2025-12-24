@@ -10,7 +10,9 @@ func CheckManagersTable(db DBExecutor) error {
     	updated_at DATETIME default CURRENT_TIMESTAMP,
     	chat_id    integer unique
     	    constraint managers___fk
-    	        references users (chat_id)
+    	        references users (chat_id),
+    	state      TEXT default 'dormant_mng' not null,
+    	check (state in ('dormant_mng', 'waiting_doc', 'waiting_notes', 'waiting_driver'))
 	);
 	`)
 	return err
@@ -47,12 +49,39 @@ func CheckDriversTable(db DBExecutor) error {
 		CREATE TABLE IF NOT EXISTS drivers (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL UNIQUE,
-			car_id TEXT NOT NULL,
+			car_id TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			chat_id INTEGER NOT NULL UNIQUE,
+			state TEXT DEFAULT 'on_rest' NOT NULL,
+			performing_task_id INTEGER,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (chat_id) REFERENCES users(chat_id)
+			FOREIGN KEY (chat_id) REFERENCES users(chat_id),
+			FOREIGN KEY (car_id) REFERENCES cars(id),
+			FOREIGN KEY (performing_task_id) REFERENCES tasks(id),
+			CHECK (state IN ('waiting_loc', 'waiting_form_end', 'on_rest', 'performing_load', 'performing_unload', 
+			                 'performing_collect', 'performing_dropoff', 'performing_cleaning', 'on_the_road', 
+			                 'waiting_photo', 'tracking', 'waiting_km', 'working', 'waiting_attach'))
+		)
+	`)
+	return err
+}
+
+func CheckDriversSessionsTable(db DBExecutor) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS drivers_sessions (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			driver_id TEXT NOT NULL,
+			date DATETIME DEFAULT CURRENT_DATE,
+			started DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			paused DATETIME,
+			worktime TEXT DEFAULT '0h0m' NOT NULL,
+			drivetime TEXT DEFAULT '0h0m' NOT NULL,
+			pausetime TEXT DEFAULT '0h0m' NOT NULL,
+			kilometrage_accumulated INTEGER DEFAULT 0 NOT NULL,
+			starting_kilometrage INTEGER,
+			end_kilometrage INTEGER,
+			FOREIGN KEY (driver_id) REFERENCES drivers(id)
 		)
 	`)
 	return err
@@ -68,7 +97,7 @@ func CheckFilesTable(db DBExecutor) error {
 			filetype TEXT NOT NULL,
 			mimetype TEXT NOT NULL,
 			created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-			deleted_at TEXT DEFAULT CURRENT_TIMESTAMP,
+			deleted_at TEXT,
 			telegram_file_id TEXT,
 			from_chat_id INTEGER,
 			FOREIGN KEY (from_chat_id) REFERENCES users(chat_id),
@@ -85,6 +114,23 @@ func CheckFilesTable(db DBExecutor) error {
 				'text/javascript', 'text/css', 'application/javascript',
 				'application/octet-stream', 'application/epub+zip', 'application/rtf', 'application/vnd.android.package-archive'
 			))
+		)
+	`)
+	return err
+}
+
+func CheckFormStatesTable(db DBExecutor) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS form_states (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			chat_id INTEGER,
+			user_id TEXT,
+			message_text TEXT,
+			form_message_id INTEGER,
+			which_table TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)
 	`)
 	return err
@@ -123,9 +169,13 @@ func CheckShipmentsTable(db DBExecutor) error {
 			generalremark TEXT,
 			created_at TEXT DEFAULT (datetime('now')),
 			updated_at TEXT DEFAULT (datetime('now')),
+			doc_id INTEGER,
+			started DATETIME,
+			finished DATETIME,
+			FOREIGN KEY (car_id) REFERENCES cars(id),
 			FOREIGN KEY (driver_id) REFERENCES drivers(id),
-			CHECK (document_language IN ('fr', 'de', 'en', 'ua', 'pl')),
-			CHECK (instruction_type IN ('unload instruction', 'load instruction', 'transfer instruction'))
+			FOREIGN KEY (doc_id) REFERENCES files(id),
+			CHECK (document_language IN ('fr', 'de', 'en', 'ua', 'pl'))
 		)
 	`)
 	return err
@@ -134,7 +184,7 @@ func CheckShipmentsTable(db DBExecutor) error {
 func CheckTasksTable(db DBExecutor) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS tasks (
-			id TEXT NOT NULL PRIMARY KEY,
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 			type TEXT,
 			shipment_id INTEGER,
 			content TEXT,
@@ -156,10 +206,45 @@ func CheckTasksTable(db DBExecutor) error {
 			destination_address TEXT,
 			created_at TEXT DEFAULT (datetime('now')),
 			updated_at TEXT DEFAULT (datetime('now')),
-			task_doc INTEGER,
+			doc_id INTEGER,
+			start TEXT,
+			end TEXT,
+			current_kilometrage INTEGER,
+			current_weight INTEGER,
+			current_temperature REAL,
 			FOREIGN KEY (shipment_id) REFERENCES shipments(id),
-			FOREIGN KEY (task_doc) REFERENCES files(id),
+			FOREIGN KEY (doc_id) REFERENCES files(id),
 			CHECK (type IN ('load', 'unload', 'collect', 'dropoff', 'cleaning'))
+		)
+	`)
+	return err
+}
+
+func CheckTaskDocsTable(db DBExecutor) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS task_docs (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			file_id INTEGER NOT NULL,
+			task_id INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			FOREIGN KEY (file_id) REFERENCES files(id),
+			FOREIGN KEY (task_id) REFERENCES tasks(id)
+		)
+	`)
+	return err
+}
+
+func CheckSignedDocsTable(db DBExecutor) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS signed_docs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			file_id INTEGER,
+			task_id INTEGER,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			update_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (file_id) REFERENCES files(id),
+			FOREIGN KEY (task_id) REFERENCES tasks(id)
 		)
 	`)
 	return err
