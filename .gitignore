@@ -1,0 +1,8 @@
+.idea/
+.env
+*.db
+identifier.sqlite
+logistictbot
+test
+*/outdocs/
+*/outpics/
