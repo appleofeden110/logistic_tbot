@@ -29,7 +29,8 @@ type File struct {
 }
 
 func (f *File) StoreFile(globalStorage *sql.DB) error {
-	query := `INSERT INTO files 
+	query := `
+	INSERT INTO files 
 		(
 		telegram_file_id,
 		from_chat_id, 
