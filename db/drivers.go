@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"logistictbot/duration"
 	"logistictbot/parser"
 	"strings"
 	"time"
@@ -38,17 +39,17 @@ var (
 )
 
 type DriverSession struct {
-	ID                     int           `json:"id"`
-	DriverID               string        `json:"driver_id"`
-	Date                   time.Time     `json:"date"`
-	Started                time.Time     `json:"started"`
-	Paused                 sql.NullTime  `json:"paused,omitempty"`
-	Worktime               Duration      `json:"worktime"`
-	Drivetime              Duration      `json:"drivetime"`
-	Pausetime              Duration      `json:"pausetime"`
-	KilometrageAccumulated int           `json:"kilometrage_accumulated"`
-	StartingKilometrage    sql.NullInt64 `json:"starting_kilometrage,omitempty"`
-	EndKilometrage         sql.NullInt64 `json:"end_kilometrage,omitempty"`
+	ID                     int               `json:"id"`
+	DriverID               string            `json:"driver_id"`
+	Date                   time.Time         `json:"date"`
+	Started                time.Time         `json:"started"`
+	Paused                 sql.NullTime      `json:"paused,omitempty"`
+	Worktime               duration.Duration `json:"worktime"`
+	Drivetime              duration.Duration `json:"drivetime"`
+	Pausetime              duration.Duration `json:"pausetime"`
+	KilometrageAccumulated int               `json:"kilometrage_accumulated"`
+	StartingKilometrage    sql.NullInt64     `json:"starting_kilometrage,omitempty"`
+	EndKilometrage         sql.NullInt64     `json:"end_kilometrage,omitempty"`
 }
 
 type Driver struct {
@@ -295,7 +296,7 @@ func GetAllDrivers(db DBExecutor) ([]*Driver, error) {
 	query := `
 		SELECT 
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+			u.id, u.chat_id, u.tg_tag, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
 		ORDER BY u.name
@@ -318,7 +319,7 @@ func GetAllDrivers(db DBExecutor) ([]*Driver, error) {
 
 		err := rows.Scan(
 			&driverIdStr, &userIdStr, &carIdStr, &driver.CreatedAt, &driver.UpdatedAt, &driver.ChatId, &driver.State, &performedTaskId,
-			&driver.User.Id, &driver.User.ChatId, &driver.User.Name,
+			&driver.User.Id, &driver.User.ChatId, &driver.User.TgTag, &driver.User.Name,
 			&userDriverIdStr, &userManagerIdStr,
 			&driver.User.CreatedAt, &driver.User.UpdatedAt,
 		)
@@ -663,14 +664,14 @@ func (d *Driver) PauseSession(db DBExecutor) (*DriverSession, error) {
 	return session, nil
 }
 
-func ParseDuration(time string) Duration {
+func ParseDuration(time string) duration.Duration {
 	hours, minutes, f := strings.Cut(time, ":")
 	if !f {
 		hours, minutes, f = strings.Cut(time, ".")
 		if !f {
-			return Duration{}
+			return duration.Duration{}
 		}
 	}
 
-	return NewDurationFromString(hours, minutes)
+	return duration.NewDurationFromString(hours, minutes)
 }

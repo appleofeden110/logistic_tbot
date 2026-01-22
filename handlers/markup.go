@@ -54,6 +54,9 @@ var (
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Список водіїв", "manager:viewdrivers"),
 		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Створити звіт за місяць", "manager:mstmt"),
+		),
 	)
 
 	formTextAddCar   = "<b>Форма для додавання машини в Базу Даних.</b>"

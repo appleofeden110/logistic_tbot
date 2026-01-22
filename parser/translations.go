@@ -63,6 +63,8 @@ type TaskSection struct {
 	Company            string    `form:"За дорученням"`
 	Address            string    `form:"Адреса"`
 	DestinationAddress string    `form:"Адреса доставки"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 type Language string

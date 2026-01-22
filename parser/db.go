@@ -5,10 +5,277 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
 )
+
+type MonthYear struct {
+	Month time.Month
+	Year  int
+}
+
+func GroupByMonth(month time.Month, year int, db *sql.DB) ([]*Shipment, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("err beginning transaction: %v\n", err)
+	}
+	defer tx.Rollback()
+
+	shipmentQuery := `
+		SELECT id, document_language, instruction_type, car_id, driver_id, 
+		       container, chassis, tankdetails, generalremark, doc_id, 
+		       created_at, updated_at, started, finished
+		FROM shipments
+		WHERE strftime('%m', finished) = ? 
+		  AND strftime('%Y', finished) = ?
+		ORDER BY started
+	`
+
+	rows, err := tx.Query(shipmentQuery, fmt.Sprintf("%02d", month), fmt.Sprintf("%d", year))
+	if err != nil {
+		return nil, fmt.Errorf("query shipments: %w", err)
+	}
+	defer rows.Close()
+
+	shipments := make([]*Shipment, 0)
+
+	for rows.Next() {
+		shipment := &Shipment{}
+		var docLang, instrType string
+		var createdAt, updatedAt, started, finished sql.NullString
+
+		err := rows.Scan(
+			&shipment.ShipmentId,
+			&docLang,
+			&instrType,
+			&shipment.CarId,
+			&shipment.DriverId,
+			&shipment.Container,
+			&shipment.Chassis,
+			&shipment.Tankdetails,
+			&shipment.GeneralRemark,
+			&shipment.ShipmentDocId,
+			&createdAt,
+			&updatedAt,
+			&started,
+			&finished,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan shipment: %w", err)
+		}
+
+		shipment.DocLang = Language(docLang)
+		shipment.InstructionType = InstructionType(instrType)
+
+		if createdAt.Valid {
+			shipment.CreatedAt, _ = parseTimeString(createdAt.String)
+		}
+		if updatedAt.Valid {
+			shipment.UpdatedAt, _ = parseTimeString(updatedAt.String)
+		}
+		if started.Valid {
+			shipment.Started, _ = parseTimeString(started.String)
+		}
+		if finished.Valid {
+			shipment.Finished, _ = parseTimeString(finished.String)
+		}
+
+		taskQuery := `
+			SELECT id, type, shipment_id, content, customer_ref, load_ref, 
+			       load_start_date, load_end_date, unload_ref, unload_start_date, 
+			       unload_end_date, tank_status, product, weight, volume, 
+			       temperature, compartment, remark, address, destination_address, 
+			       doc_id, start, end, current_kilometrage, current_weight, 
+			       current_temperature, created_at, updated_at
+			FROM tasks
+			WHERE shipment_id = ?
+			ORDER BY id
+		`
+
+		taskRows, err := tx.Query(taskQuery, shipment.ShipmentId)
+		if err != nil {
+			return nil, fmt.Errorf("query tasks for shipment %d: %w", shipment.ShipmentId, err)
+		}
+
+		tasks := make([]*TaskSection, 0)
+
+		for taskRows.Next() {
+			task := &TaskSection{}
+			var taskType string
+			var loadStartDate, loadEndDate, unloadStartDate, unloadEndDate sql.NullString
+			var start, end sql.NullString
+			var createdAt, updatedAt sql.NullString
+			var compartment sql.NullInt64
+			var currentKm, currentWeight sql.NullInt64
+			var currentTemp sql.NullFloat64
+
+			err := taskRows.Scan(
+				&task.Id,
+				&taskType,
+				&task.ShipmentId,
+				&task.Content,
+				&task.CustomerReference,
+				&task.LoadReference,
+				&loadStartDate,
+				&loadEndDate,
+				&task.UnloadReference,
+				&unloadStartDate,
+				&unloadEndDate,
+				&task.TankStatus,
+				&task.Product,
+				&task.Weight,
+				&task.Volume,
+				&task.Temperature,
+				&compartment,
+				&task.Remark,
+				&task.Address,
+				&task.DestinationAddress,
+				&task.ShipmentDocId,
+				&start,
+				&end,
+				&currentKm,
+				&currentWeight,
+				&currentTemp,
+				&createdAt,
+				&updatedAt,
+			)
+			if err != nil {
+				taskRows.Close()
+				return nil, fmt.Errorf("scan task: %w", err)
+			}
+
+			task.Type = taskType
+
+			if loadStartDate.Valid {
+				task.LoadStartDate, _ = parseTimeString(loadStartDate.String)
+			}
+			if loadEndDate.Valid {
+				task.LoadEndDate, _ = parseTimeString(loadEndDate.String)
+			}
+			if unloadStartDate.Valid {
+				task.UnloadStartDate, _ = parseTimeString(unloadStartDate.String)
+			}
+			if unloadEndDate.Valid {
+				task.UnloadEndDate, _ = parseTimeString(unloadEndDate.String)
+			}
+			if start.Valid {
+				task.Start, _ = parseTimeString(start.String)
+			}
+			if end.Valid {
+				task.End, _ = parseTimeString(end.String)
+			}
+			if createdAt.Valid {
+				task.CreatedAt, _ = parseTimeString(createdAt.String)
+			}
+			if updatedAt.Valid {
+				task.UpdatedAt, _ = parseTimeString(updatedAt.String)
+			}
+
+			if compartment.Valid {
+				task.Compartment = int(compartment.Int64)
+			}
+			if currentKm.Valid {
+				task.CurrentKilometrage = currentKm.Int64
+			}
+			if currentWeight.Valid {
+				task.CurrentWeight = int(currentWeight.Int64)
+			}
+			if currentTemp.Valid {
+				task.CurrentTemperature = currentTemp.Float64
+			}
+
+			tasks = append(tasks, task)
+		}
+		taskRows.Close()
+
+		if err := taskRows.Err(); err != nil {
+			return nil, fmt.Errorf("iterate tasks: %w", err)
+		}
+
+		shipment.Tasks = tasks
+		shipments = append(shipments, shipment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate shipments: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return shipments, nil
+}
+
+func parseTimeString(s string) (time.Time, error) {
+	formats := []string{
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999-07:00",
+		"2006-01-02 15:04:05.999-07:00",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02T15:04:05.999999999Z07:00",
+		"2006-01-02T15:04:05Z07:00",
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, s); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse time: %s", s)
+}
+
+func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
+	query := `
+		SELECT DISTINCT 
+			strftime('%Y', finished) as year,
+			strftime('%m', finished) as month
+		FROM shipments
+		WHERE started IS NOT NULL
+		ORDER BY year DESC, month DESC
+	`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("query available months: %w", err)
+	}
+	defer rows.Close()
+
+	months := make([]MonthYear, 0)
+	for rows.Next() {
+		var yearStr, monthStr sql.NullString
+		if err := rows.Scan(&yearStr, &monthStr); err != nil {
+			return nil, fmt.Errorf("scan month: %w", err)
+		}
+
+		if !yearStr.Valid || !monthStr.Valid {
+			continue
+		}
+
+		year, err := strconv.Atoi(yearStr.String)
+		if err != nil {
+			continue
+		}
+
+		month, err := strconv.Atoi(monthStr.String)
+		if err != nil {
+			continue
+		}
+
+		months = append(months, MonthYear{
+			Year:  year,
+			Month: time.Month(month),
+		})
+	}
+
+	return months, rows.Err()
+}
 
 // StoreShipment stores a shipment and all its tasks in the database
 // Returns the created shipment ID
@@ -187,7 +454,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 
 	s.Started = time.Now()
 
-	_, err := db.Exec(query, s.Started.String(), s.ShipmentId)
+	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
 		return fmt.Errorf("err starting shipment: %v\n", err)
 	}
@@ -204,7 +471,7 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 	s.Finished = time.Now()
 
-	_, err := db.Exec(query, s.Finished.String(), s.ShipmentId)
+	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
 		return fmt.Errorf("err starting shipment: %v\n", err)
 	}
