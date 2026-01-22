@@ -8,6 +8,7 @@ import (
 	"log"
 	"logistictbot/db"
 	"logistictbot/docs"
+	"logistictbot/duration"
 	"logistictbot/parser"
 	"net/http"
 	"strconv"
@@ -50,6 +51,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 			panic(err)
 		}
 	case "test":
+
 	case "add_car":
 		c := db.Car{}
 		err := createForm(chatId, c, formMarkupAddCar, formTextAddCar, "adding a car to the db (ONLY SA)")
@@ -118,6 +120,58 @@ func HandleManagerCommands(chatId int64, command string, globalStorage *sql.DB) 
 		msg := tgbotapi.NewMessage(chatId, "📄 Надішліть документ, який хочете відправити водію.")
 		_, err = Bot.Send(msg)
 		return err
+	case "viewdrivers":
+		drivers, err := db.GetAllDrivers(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting all driver by the ask of the manager: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, "Список водіїв:\n\n")
+		msg.ParseMode = tgbotapi.ModeHTML
+		for _, d := range drivers {
+			if d.CarId != "" {
+				msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - %s\n\n", d.User.Name, d.User.TgTag, d.CarId)
+				continue
+			}
+			msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - Машину водію не призначено\n\n", d.User.Name, d.User.TgTag)
+		}
+
+		Bot.Send(msg)
+
+	case "viewall":
+	case "viewactive":
+
+	case "mstmt":
+
+		availableMonths, err := parser.GetAvailableMonths(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting available months for the shipments: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, "За який місяць?")
+
+		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
+		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
+
+		for i := 0; i < len(availableMonths); i++ {
+			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(
+				fmt.Sprintf("%s %d", duration.MonthToUkrainian(availableMonths[i].Month), availableMonths[i].Year),
+				fmt.Sprintf("mstmt:%d.%d", availableMonths[i].Month, availableMonths[i].Year),
+			))
+
+			if (i+1)%3 == 0 {
+				markup = append(markup, buttons)
+				buttons = make([]tgbotapi.InlineKeyboardButton, 0)
+			}
+		}
+
+		if len(buttons) > 0 {
+			markup = append(markup, buttons)
+		}
+
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
+		Bot.Send(msg)
+
 	}
 	return nil
 }
@@ -302,6 +356,12 @@ func HandleDriverCommands(chatId int64, command string, globalStorage *sql.DB) e
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
+	case "viewactive":
+		break
+	case "viewnonactive":
+		break
+	case "viewnew":
+		break
 	}
 	return nil
 }
@@ -675,7 +735,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		}
 
 		if session.Worktime.Nanoseconds() == 0 {
-			var workTime db.Duration
+			var workTime duration.Duration
 
 			workTime = db.ParseDuration(msg.Text)
 			if workTime.Nanoseconds() == 0 {
@@ -688,7 +748,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			return driver, nil
 		}
 		if session.Drivetime.Nanoseconds() == 0 {
-			var driveTime db.Duration
+			var driveTime duration.Duration
 
 			driveTime = db.ParseDuration(msg.Text)
 			if driveTime.Nanoseconds() == 0 {
@@ -700,7 +760,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			return driver, nil
 		}
 		if session.Pausetime.Nanoseconds() == 0 {
-			var pausedTime db.Duration
+			var pausedTime duration.Duration
 
 			pausedTime = db.ParseDuration(msg.Text)
 			if pausedTime.Nanoseconds() == 0 {
@@ -721,9 +781,9 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				db.FormatKilometrage(int(session.StartingKilometrage.Int64)),
 				db.FormatKilometrage(int(session.EndKilometrage.Int64)),
 				db.FormatKilometrage(session.KilometrageAccumulated),
-				session.Worktime.Format(db.ForPresentation),
-				session.Drivetime.Format(db.ForPresentation),
-				session.Pausetime.Format(db.ForPresentation),
+				session.Worktime.Format(duration.ForPresentation),
+				session.Drivetime.Format(duration.ForPresentation),
+				session.Pausetime.Format(duration.ForPresentation),
 			),
 			)
 			finishMsg.ParseMode = tgbotapi.ModeHTML

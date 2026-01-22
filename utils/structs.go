@@ -13,48 +13,20 @@ func validateStructTypes(data reflect.Type, fields ...string) error {
 	if data.Kind() != reflect.Struct {
 		return fmt.Errorf("data must be a struct, got %v", data.Kind())
 	}
+
 	for i := 0; i < data.NumField(); i++ {
 		field := data.Field(i)
-		fieldType := field.Type
-		kind := fieldType.Kind()
-		for i, v := range fields {
+		// Remove the matched field from the fields list
+		for j, v := range fields {
 			if v == field.Name {
-				fields = append(fields[:i], fields[i+1:]...)
+				fields = append(fields[:j], fields[j+1:]...)
+				break
 			}
-			fmt.Println(fields)
-		}
-
-		if kind == reflect.Ptr {
-			fieldType = fieldType.Elem()
-			kind = fieldType.Kind()
-		}
-
-		switch kind {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Float32, reflect.Float64, reflect.Bool,
-			reflect.String:
-		case reflect.Array:
-			typeName := fieldType.String()
-			if typeName == "uuid.UUID" || fieldType.Name() == "UUID" {
-				continue
-			}
-			return fmt.Errorf("field %s has invalid array type %v", field.Name, field.Type)
-		case reflect.Struct:
-			typeName := fieldType.Name()
-			switch typeName {
-			case "Time", "User", "PendingMessage":
-				continue
-			default:
-				return fmt.Errorf("field %s has invalid type %v (only int, float, string, or allowed structs)",
-					field.Name, field.Type)
-			}
-		default:
-			return fmt.Errorf("field %s has invalid type %v (only int, float, string allowed)",
-				field.Name, field.Type)
 		}
 	}
+
 	if len(fields) > 0 {
-		return fmt.Errorf("Certain fields are not actually in the struct: %v\n", fields)
+		return fmt.Errorf("certain fields are not actually in the struct: %v", fields)
 	}
 	return nil
 }

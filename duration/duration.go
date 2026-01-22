@@ -1,4 +1,4 @@
-package db
+package duration
 
 import (
 	"database/sql/driver"
@@ -106,4 +106,66 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 	d.Duration = duration
 	return nil
+}
+
+func MonthToUkrainian(month time.Month) string {
+	switch month {
+	case time.January:
+		return "Січень"
+	case time.February:
+		return "Лютий"
+	case time.March:
+		return "Березень"
+	case time.April:
+		return "Квітень"
+	case time.May:
+		return "Травень"
+	case time.June:
+		return "Червень"
+	case time.July:
+		return "Липень"
+	case time.August:
+		return "Серпень"
+	case time.September:
+		return "Вересень"
+	case time.October:
+		return "Жовтень"
+	case time.November:
+		return "Листопад"
+	case time.December:
+		return "Грудень"
+	default:
+		return month.String()
+	}
+}
+
+func MonthToPolish(month time.Month) string {
+	switch month {
+	case time.January:
+		return "Styczeń"
+	case time.February:
+		return "Luty"
+	case time.March:
+		return "Marzec"
+	case time.April:
+		return "Kwiecień"
+	case time.May:
+		return "Maj"
+	case time.June:
+		return "Czerwiec"
+	case time.July:
+		return "Lipiec"
+	case time.August:
+		return "Sierpień"
+	case time.September:
+		return "Wrzesień"
+	case time.October:
+		return "Październik"
+	case time.November:
+		return "Listopad"
+	case time.December:
+		return "Grudzień"
+	default:
+		return month.String()
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	data_analysis "logistictbot/data-analysis"
 	"logistictbot/db"
 	"logistictbot/docs"
 	"logistictbot/parser"
@@ -31,6 +32,23 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	log.Printf("(%d - %s - %s) pressed a button %s. msg id: %d", cbq.Message.Chat.ID, user.Name, user.TgTag, cbq.Data, id)
 
 	switch {
+	case strings.HasPrefix(cbq.Data, "mstmt:"):
+		after, _ := strings.CutPrefix(cbq.Data, "mstmt:")
+		m, y, found := strings.Cut(after, ".")
+		if !found {
+			log.Printf("Місяця немає тут: %s\n", cbq.Data)
+			return fmt.Errorf("invalid month format")
+		}
+		month, _ := strconv.Atoi(m)
+		year, _ := strconv.Atoi(y)
+
+		filename, err := data_analysis.CreateMonthlyStatement(time.Month(month), year, globalStorage)
+		if err != nil {
+			return fmt.Errorf("error creating statement: %v", err)
+		}
+
+		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
+
 	case strings.HasPrefix(cbq.Data, "driver:"):
 		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, globalStorage)
 	case strings.HasPrefix(cbq.Data, "manager:"):

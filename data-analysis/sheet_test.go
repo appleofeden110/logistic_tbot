@@ -2,11 +2,13 @@ package data_analysis
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"path/filepath"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	ex "github.com/xuri/excelize/v2"
 )
 
 func TestCreateExcelSheet(t *testing.T) {
@@ -24,8 +26,34 @@ func TestCreateExcelSheet(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	err = CreateExcelSheet(globalStorage, "cleaning_stations")
+	rows, err := globalStorage.Query(fmt.Sprintf("SELECT * FROM cleaning_stations"))
 	if err != nil {
-		t.Fatalf("Err creating an excel sheet: %v\n", err)
+		log.Fatalf("Err querying the table, err: %v\n", err)
+	}
+	defer rows.Close()
+
+	// Get headers from struct
+	headers := getHeaders(ShipmentStatement{})
+
+	f := ex.NewFile()
+	defer f.Close()
+
+	sheet := "Sheet1"
+
+	err = writeHeaders(f, sheet, headers)
+	if err != nil {
+		t.Fatalf("err writing headers from the struct: %v\n", err)
+	}
+
+	style, _ := f.NewStyle(&ex.Style{
+		Font: &ex.Font{Bold: true},
+	})
+	err = f.SetCellStyle(sheet, "A1", fmt.Sprintf("%s1", string(rune('A'+len(headers)-1))), style)
+	if err != nil {
+		t.Fatalf("Err setting style of the cells of the headers: %v\n", err)
+	}
+
+	if err := f.SaveAs("statement.xlsx"); err != nil {
+		fmt.Println(err)
 	}
 }
