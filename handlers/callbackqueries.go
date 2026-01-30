@@ -277,6 +277,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		//var totalDistance string
 		//if wasTracking {
 		//	totalDistance = fmt.Sprintf("Поточний кілометраж по маршруту: %.2f км\n", sesh.TotalDistance)
+
 		//}
 
 		// to driver
@@ -296,6 +297,16 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			pm.ToChatId = driverChatId
 
 			if err := pm.SendDocToDriver(globalStorage, Bot); err != nil {
+				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+					log.Printf("From %d to %d doc unique error: %v\n", pm.FromChatId, pm.ToChatId, err)
+					session.State = db.StateDormantManager
+
+					err = session.ChangeManagerStatus(globalStorage)
+					if err != nil {
+						return fmt.Errorf("err changing status from waiting driver to dormant_mng: %v\n", err)
+					}
+					return nil
+				}
 				return fmt.Errorf("Error sending document: %v\n", err)
 			}
 
