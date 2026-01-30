@@ -386,7 +386,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			fileURL := file.Link(Bot.Token)
 			log.Printf("File download URL: %s", fileURL)
 
-			fullPath := "/Users/appleofeden110/dev/logistictbot/handlers/outdocs/" + strings.Split(fileURL, "/")[6]
+			fullPath := "./handlers/outdocs/" + strings.Split(fileURL, "/")[6]
 
 			sentDoc := docs.File{
 				TgFileId:     msg.Document.FileID,

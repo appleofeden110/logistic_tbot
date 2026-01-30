@@ -4,12 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"log"
+	"logistictbot/config"
 	"logistictbot/docs"
 	"logistictbot/parser"
-	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -29,8 +27,6 @@ const (
 	StateWaitingNotes   ManagerConversationState = "waiting_notes"
 	StateWaitingDriver  ManagerConversationState = "waiting_driver"
 )
-
-var DownloadedDocPath string
 
 type PendingMessage struct {
 	FromChatId      int64
@@ -234,7 +230,7 @@ func (m *Manager) ShowDriverList(exec DBExecutor, chatId int64, bot tgbotapi.Bot
 		))
 	}
 
-	msg := tgbotapi.NewMessage(chatId, "Якому водію ви хочете це надіслати?")
+	msg := tgbotapi.NewMessage(chatId, "👤 Якому водію ви хочете це надіслати?")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	_, err = bot.Send(msg)
 	return err
@@ -255,9 +251,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	fileURL := file.Link(bot.Token)
 	log.Printf("File download URL: %s", fileURL)
 
-	fullPath := "/Users/appleofeden110/dev/logistictbot/handlers/outdocs/" + strings.Split(fileURL, "/")[6]
-
-	err = DownloadFile(fileURL, "/Users/appleofeden110/dev/logistictbot/handlers/outdocs/", strings.Split(fileURL, "/")[6])
+	fullPath, err := config.DownloadFile(fileURL, strings.Split(fileURL, "/")[6])
 	log.Println("Error Downloading: ", err)
 
 	downloadedDoc := docs.File{
@@ -315,31 +309,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	return err
 }
 
-func DownloadFile(url, outDir, fileName string) error {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to download: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	out, err := os.Create(outDir + fileName)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write to file: %w", err)
-	}
-
-	return nil
-}
+// Uses OUTDOCS_PATH in .env or ./storage/ if not set
 
 func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 	query := `

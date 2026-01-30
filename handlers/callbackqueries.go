@@ -203,7 +203,6 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 	case strings.HasPrefix(cbq.Data, "task_data:"):
 
-		// Cut only "task_data:" to check what comes after
 		suffix, found := strings.CutPrefix(cbq.Data, "task_data:")
 		if !found {
 			return fmt.Errorf("err founding task data: %s\n", suffix)
@@ -211,7 +210,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		task, _, found := strings.Cut(suffix, ":")
 		fmt.Println("task found? ", found)
 
-		sections, err := parser.GetSequenceOfTasks(db.DownloadedDocPath)
+		sections, err := parser.GetSequenceOfTasks("")
 		if err != nil {
 			return fmt.Errorf("Error sections: %v\n", err)
 		}
@@ -230,16 +229,16 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 		msg.Text += temp
 
-		trackingSessionsMutex.Lock()
-		sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
-		trackingSessionsMutex.Unlock()
+		/*	trackingSessionsMutex.Lock()
+				sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
+				trackingSessionsMutex.Unlock()
 
-		var totalDistance string
-		if wasTracking {
-			totalDistance = fmt.Sprintf("\n\nПоточний кілометраж по маршруту: %.2f км", sesh.TotalDistance)
-		}
-		msg.Text += totalDistance
-
+			var totalDistance string
+			if wasTracking {
+				totalDistance = fmt.Sprintf("\n\nПоточний кілометраж по маршруту: %.2f км", sesh.TotalDistance)
+			}
+			msg.Text += totalDistance
+		*/
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("Так", "yesend:"+task),
@@ -256,7 +255,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		task, _, found := strings.Cut(suffix, ":")
 		fmt.Println("task found? ", found)
 
-		sections, err := parser.GetSequenceOfTasks(db.DownloadedDocPath)
+		sections, err := parser.GetSequenceOfTasks("")
 		if err != nil {
 			return fmt.Errorf("Error sections: %v\n", err)
 		}
@@ -270,20 +269,20 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 				}
 			}
 		}
-
-		trackingSessionsMutex.Lock()
-		sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
-		trackingSessionsMutex.Unlock()
-
-		var totalDistance string
-		if wasTracking {
-			totalDistance = fmt.Sprintf("Поточний кілометраж по маршруту: %.2f км\n", sesh.TotalDistance)
-		}
+		//
+		//trackingSessionsMutex.Lock()
+		//sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
+		//trackingSessionsMutex.Unlock()
+		//
+		//var totalDistance string
+		//if wasTracking {
+		//	totalDistance = fmt.Sprintf("Поточний кілометраж по маршруту: %.2f км\n", sesh.TotalDistance)
+		//}
 
 		// to driver
 		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Інфо відправлено Логісту Nazar Kaniuka"))
 		// to manager
-		Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Дані від Назар Канюка (790133 LU454TW) для задачі %s на завданні %d:\n\n%s\n\nЧас закінчення: %s;\nВсього тривалість: %s\n\n%s", task, sections.ShipmentId, temp, time.Now().Format("2006-01-02 15:04:05"), time.Since(now).String(), totalDistance)))
+		Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Дані від Назар Канюка (790133 LU454TW) для задачі %s на завданні %d:\n\n%s\n\nЧас закінчення: %s;\nВсього тривалість: %s\n\n", task, sections.ShipmentId, temp, time.Now().Format("2006-01-02 15:04:05"), time.Since(now).String() /*, totalDistance*/)))
 	case strings.HasPrefix(cbq.Data, "selectdriverfortask:"):
 		driverChatIdStr := strings.TrimPrefix(cbq.Data, "selectdriverfortask:")
 		driverChatId, _ := strconv.ParseInt(driverChatIdStr, 10, 64)
