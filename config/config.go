@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func GetOutDocsPath() string {
@@ -46,4 +48,8 @@ func DownloadFile(url, fileName string) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+func VERY_BAD(chatId int64, bot *tgbotapi.BotAPI) {
+	bot.Send(tgbotapi.NewMessage(chatId, "Щось пішло сильно не так, якщо подальші дії бот не сприйматиме - пишіть або звоніть розробнику: @pinkfloydfan або +447990932300"))
 }
