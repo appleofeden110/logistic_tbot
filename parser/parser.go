@@ -52,7 +52,7 @@ var TaskKeywords = map[string][]string{
 	TaskUnload:   {"unload", "entladen", "rozładunek", "déchargement"},
 	TaskLoad:     {"load", "laden", "załadunek", "prise en charge", "chargement"},
 	TaskCollect:  {"collect", "aufnehmen", "aufnehmer bei", "odbiór", "collecte"},
-	TaskDropoff:  {"dropoff", "absatteln", "absetzen", "odstawienie", "odczepienie", "dépose", "dételage", "décroche"},
+	TaskDropoff:  {"dropoff", "absatteln", "absetzen", "odstawienie", "odczepienie", "dépose", "dételage", "décroche", "decouple"},
 	TaskCleaning: {"cleaning", "reinigen", "czyszczenie", "nettoyage"},
 }
 
@@ -61,8 +61,8 @@ var DetailsKeywords = map[string][]string{
 	Company: {"im auftrag von", "pour le compte de", "in order of"},
 
 	Instruction:                   {"instructions de", "anweisung", "instruction"},
-	InstructionDescriptionGerman:  {"lade", "entlade", "umfuhr"},
-	InstructionDescriptionEnglish: {"load", "unload", "transfer"},
+	InstructionDescriptionGerman:  {"lade", "entlade", "umfuhr", "absetz"},
+	InstructionDescriptionEnglish: {"load", "unload", "transfer", "shunt"},
 	InstructionDescriptionFrench:  {"chargement", "déchargement", "shunt"},
 
 	Truck:       {"truck", "n° camion"},
@@ -313,7 +313,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 		line = strings.TrimSpace(line)
 		lineLower := strings.ToLower(line)
 
-		// Check for CarId
 		if len(s.CarId) == 0 {
 			for _, truckKeyword := range DetailsKeywords[Truck] {
 				if a, f := strings.CutPrefix(lineLower, truckKeyword); f {
@@ -324,7 +323,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			}
 		}
 
-		// Check for DriverName
 		if len(s.DriverName) == 0 {
 			for _, driverKeyword := range DetailsKeywords[Driver] {
 				if a, f := strings.CutPrefix(lineLower, driverKeyword); f {
@@ -335,7 +333,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			}
 		}
 
-		// Check for Chassis
 		if len(s.Chassis) == 0 {
 			for _, chassis := range DetailsKeywords[Chassis] {
 				if a, f := strings.CutPrefix(lineLower, chassis); f {
@@ -346,7 +343,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			}
 		}
 
-		// Check for Container
 		if len(s.Container) == 0 {
 			for _, containerKeyword := range DetailsKeywords[Container] {
 				if a, f := strings.CutPrefix(lineLower, containerKeyword); f {
@@ -360,7 +356,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			}
 		}
 
-		// Check for Tankdetails (multi-line handling)
 		if len(s.Tankdetails) == 0 {
 			for _, tankDetailsKeyword := range DetailsKeywords[Tankdetails] {
 				if a, f := strings.CutPrefix(lineLower, tankDetailsKeyword); f {
@@ -371,7 +366,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			}
 		}
 
-		// If we found tank details, check next few lines for weight (kg)
 		if !kgFound && len(s.Tankdetails) > 0 && strings.Contains(strings.ToLower(line), "kg") {
 			b, _, f := strings.Cut(strings.ToLower(line), "kg")
 
@@ -416,7 +410,7 @@ func identifyTaskTypes(line string) (taskType string, found bool) {
 
 	for taskType, keywords := range TaskKeywords {
 		for _, keyword := range keywords {
-			if strings.Contains(normalized, strings.ToUpper(keyword)) {
+			if strings.Index(normalized, strings.ToUpper(keyword)) == 0 {
 				return taskType, true
 			}
 		}
