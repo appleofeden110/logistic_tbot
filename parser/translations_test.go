@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtractTaskSections(t *testing.T) {
-	deArray, err := os.ReadDir("./samples")
+	deArray, err := os.ReadDir("../examples")
 	if err != nil {
 		t.Fatalf("failed reading sample dir: %v", err)
 	}
@@ -16,7 +16,7 @@ func TestExtractTaskSections(t *testing.T) {
 	for _, doc := range deArray {
 
 		// Read PDF
-		docText, err := ReadPdfDoc("./samples/" + doc.Name())
+		docText, err := ReadPdfDoc("../examples/" + doc.Name())
 		if err != nil {
 			t.Fatalf("failed reading doc %s: %v", doc.Name(), err)
 		}
