@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/docs"
 	"logistictbot/duration"
@@ -204,6 +205,11 @@ func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalS
 			readDocMsg := tgbotapi.NewMessage(msg.Chat.ID, "⬇️ Натисніть тут що б прочитати документ")
 			readDocMsg.ParseMode = tgbotapi.ModeHTML
 			readDocMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Прочитати документ", "readdoc:"+strconv.Itoa(id))))
+
+			_, err = Bot.Send(readDocMsg)
+			if err != nil {
+				config.VERY_BAD(msg.Chat.ID, Bot)
+			}
 
 			msg := tgbotapi.NewMessage(msg.Chat.ID, "✏️ Введіть нотатки або опис до документа:")
 			_, err = Bot.Send(msg)
