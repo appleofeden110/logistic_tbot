@@ -236,16 +236,10 @@ func (m *Manager) ShowDriverList(exec DBExecutor, chatId int64, bot tgbotapi.Bot
 	return err
 }
 
-func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) error {
-	if manager, err := GetManagerByChatId(exec, pm.FromChatId); err != nil && manager == nil {
-		bot.Send(tgbotapi.NewMessage(pm.FromChatId, "Користувач повинен бути менеджером для використання цієї команди"))
-	} else {
-		fmt.Println(manager)
-	}
-
+func (pm *PendingMessage) StoreDocForShipment(exec *sql.DB, bot *tgbotapi.BotAPI) (int, error) {
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: pm.FileId})
 	if err != nil {
-		return fmt.Errorf("error getting file info: %v", err)
+		return 0, fmt.Errorf("error getting file info: %v", err)
 	}
 
 	fileURL := file.Link(bot.Token)
@@ -265,8 +259,20 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	}
 
 	err = downloadedDoc.StoreFile(exec)
+	return downloadedDoc.Id, err
+}
+
+func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) error {
+	if manager, err := GetManagerByChatId(exec, pm.FromChatId); err != nil && manager == nil {
+		bot.Send(tgbotapi.NewMessage(pm.FromChatId, "Користувач повинен бути менеджером для використання цієї команди"))
+	} else {
+		fmt.Println(manager)
+	}
+
+	f := docs.File{TgFileId: pm.FileId}
+	err := f.GetFile(exec)
 	if err != nil {
-		return fmt.Errorf("Err storing the document: %v\n", err)
+		return fmt.Errorf("Err getting file from file id of tg: %v\n", err)
 	}
 
 	driver, err := GetDriverByChatId(exec, pm.ToChatId)
@@ -274,14 +280,15 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 		return fmt.Errorf("err getting driver from chat id: %v\n", err)
 	}
 
-	shipment, err := parser.GetSequenceOfTasks(downloadedDoc.Path)
+	shipment, err := parser.GetSequenceOfTasks(f.Path)
 	if err != nil {
 		return fmt.Errorf("err reading the shipment doc: %v\n", err)
 	}
 
 	shipment.CarId = driver.CarId
 	shipment.DriverId = driver.Id
-	shipment.ShipmentDocId = downloadedDoc.Id
+	shipment.ShipmentDocId = f.Id
+	fmt.Println(f.Id, f.Path)
 
 	err = shipment.StoreShipment(exec)
 	if err != nil {
@@ -297,7 +304,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	docMsg.ParseMode = tgbotapi.ModeHTML
 	docMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Прочитати документ", fmt.Sprintf("readdoc:%d", downloadedDoc.Id)),
+			tgbotapi.NewInlineKeyboardButtonData("Прочитати документ", fmt.Sprintf("readdoc:%d", f.Id)),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Почати маршрут", fmt.Sprintf("shipment:accept:%d", shipment.ShipmentId)),

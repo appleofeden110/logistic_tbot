@@ -235,7 +235,6 @@ func (s *Shipment) IdentifyInstructionForDoc(docText string) (after string, foun
 }
 
 func identifyInstruction(line string, isNextLine bool) (instructionType string, language Language, found bool) {
-	// isNextLine works only for things that are most likely
 
 	for _, instructionKeyword := range DetailsKeywords[Instruction] {
 		if strings.Contains(line, strings.ToUpper(instructionKeyword)) {

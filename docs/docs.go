@@ -177,7 +177,7 @@ func (f *File) AttachFileToTask(globalStorage *sql.DB, taskId int) error {
 	return nil
 }
 
-// Will fill in any missing details from the db. Gotta have either TgFileId, Name, Id
+// Will fill in any missing details from the db. Gotta have either TgFileId, Name or Id
 func (f *File) GetFile(globalStorage *sql.DB) error {
 	var query string
 	var arg interface{}
