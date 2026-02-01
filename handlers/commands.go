@@ -102,7 +102,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 	}
 	return nil
 }
-func HandleManagerCommands(chatId int64, command string, globalStorage *sql.DB) error {
+func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	cmd, f := strings.CutPrefix(command, "manager:")
 	if !f {
 		return fmt.Errorf("not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
@@ -110,7 +110,6 @@ func HandleManagerCommands(chatId int64, command string, globalStorage *sql.DB) 
 
 	managerSessionsMu.Lock()
 	managerSesh, exists := managerSessions[chatId]
-	log.Println(exists)
 	managerSessionsMu.Unlock()
 
 	if !exists {
@@ -139,16 +138,29 @@ func HandleManagerCommands(chatId int64, command string, globalStorage *sql.DB) 
 		msg.ParseMode = tgbotapi.ModeHTML
 		for _, d := range drivers {
 			if d.CarId != "" {
-				msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - %s\n\n", d.User.Name, d.User.TgTag, d.CarId)
+				msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - %s\n", d.User.Name, d.User.TgTag, d.CarId)
 				continue
 			}
-			msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - Машину водію не призначено\n\n", d.User.Name, d.User.TgTag)
+			msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - Машину водію не призначено\n", d.User.Name, d.User.TgTag)
 		}
 
 		Bot.Send(msg)
 
 	case "viewall":
-	case "viewactive":
+		shipments, err := parser.GetAllShipments(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewall")
+		if err != nil {
+			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+		}
+
+		_, err = Bot.Send(msg)
+		if err != nil {
+			return fmt.Errorf("Err sending message: %v\n", err)
+		}
 
 	case "mstmt":
 
@@ -247,7 +259,7 @@ func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalS
 	return session, err
 }
 
-func HandleDriverCommands(chatId int64, command string, globalStorage *sql.DB) error {
+func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	var cmd string
 	var f bool
 
@@ -737,9 +749,9 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			car.Kilometrage = km
 			kmAccum := int(km - oldKm)
 			if kmAccum < 0 {
-				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Новий кілометраж менше за ваш старий, спробуйте ще раз"))
+				message, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Новий кілометраж менше за ваш старий, спробуйте ще раз"))
 				log.Printf("Trying to end the day again\n\tendDayerr: %v\n\tbotSendErr: %v\n\n",
-					HandleDriverCommands(msg.Chat.ID, "driver:endDay", globalStorage),
+					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage),
 					err,
 				)
 				return driver, nil
@@ -873,7 +885,7 @@ func savePhotoToTask(
 	return sentPic.AttachFileToTask(globalStorage, taskId)
 }
 
-func HandleSACommands(chatId int64, command string, globalStorage *sql.DB) error {
+func HandleSACommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	a, f := strings.CutPrefix(command, "sa:")
 	if !f {
 		return fmt.Errorf("command is incorrect: %v\n", command)
@@ -1023,7 +1035,7 @@ func HandleSACommands(chatId int64, command string, globalStorage *sql.DB) error
 	return nil
 }
 
-func HandleDevCommands(chatId int64, command string, globalStorage *sql.DB) error {
+func HandleDevCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	cmd, f := strings.CutPrefix(command, "dev:")
 	if !f {
 		return fmt.Errorf("not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)

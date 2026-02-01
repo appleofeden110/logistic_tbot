@@ -50,13 +50,13 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
 
 	case strings.HasPrefix(cbq.Data, "driver:"):
-		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, globalStorage)
+		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "manager:"):
-		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, globalStorage)
+		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "sa:"):
-		return HandleSACommands(cbq.Message.Chat.ID, cbq.Data, globalStorage)
+		return HandleSACommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "dev:"):
-		return HandleDevCommands(cbq.Message.Chat.ID, cbq.Data, globalStorage)
+		return HandleDevCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "startform:"):
 
 		after, found := strings.CutPrefix(cbq.Data, "startform:")
@@ -246,6 +246,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			),
 		)
 		Bot.Send(msg)
+
 	case strings.HasPrefix(cbq.Data, "yesend:"):
 
 		suffix, found := strings.CutPrefix(cbq.Data, "yesend:")
