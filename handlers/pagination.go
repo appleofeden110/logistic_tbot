@@ -125,14 +125,6 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		shipments, err = parser.GetAllShipments(globalStorage)
 		callbackPrefix = "page:viewall"
-		/*case "bycar":
-			// You'd need to store carId somewhere or in the callback
-			// shipments, err = parser.GetAllShipmentsByCarId(carId, globalStorage)
-			// callbackPrefix = "page:bycar"
-		default:
-			return fmt.Errorf("unknown page type: %s", pageType)
-		}
-		*/
 		if err != nil {
 			return fmt.Errorf("Err getting shipments: %v", err)
 		}
@@ -144,7 +136,8 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		// Edit the existing message instead of sending a new one
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
-		edit.ReplyMarkup = msg.ReplyMarkup.(*tgbotapi.InlineKeyboardMarkup)
+		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
+		edit.ReplyMarkup = &keyboard
 
 		_, err = Bot.Send(edit)
 		if err != nil {
