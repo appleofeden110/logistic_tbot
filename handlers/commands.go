@@ -52,7 +52,13 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 			panic(err)
 		}
 	case "mngrreset":
-		return db.SetAllManagersToDormant(globalStorage)
+		err := db.SetAllManagersToDormant(globalStorage)
+		if err != nil {
+			Bot.Send(tgbotapi.NewMessage(chatId, fmt.Sprintf("Не вийшло резетнути всі статуси менеджерів, ось помилка: %v\n", err)))
+			return err
+		}
+		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі менеджери тепер в дефолтному статусі"))
+		return err
 	case "test":
 
 	case "add_car":
