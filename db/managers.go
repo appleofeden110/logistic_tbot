@@ -51,6 +51,27 @@ type Manager struct {
 	User *User
 }
 
+func SetAllManagersToDormant(db DBExecutor) error {
+	query := `
+		UPDATE managers 
+		SET state = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE state != ?
+	`
+
+	result, err := db.Exec(query, StateDormantManager, StateDormantManager)
+	if err != nil {
+		return fmt.Errorf("error setting all managers to dormant state: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %v", err)
+	}
+
+	log.Printf("Set %d manager(s) to dormant state", rowsAffected)
+	return nil
+}
+
 func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 	query := `
 		UPDATE managers 

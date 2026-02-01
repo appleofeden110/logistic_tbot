@@ -51,6 +51,8 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		if err != nil {
 			panic(err)
 		}
+	case "mngrreset":
+		return db.SetAllManagersToDormant(globalStorage)
 	case "test":
 
 	case "add_car":
