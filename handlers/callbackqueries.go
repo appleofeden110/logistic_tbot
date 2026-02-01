@@ -57,6 +57,8 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		return HandleSACommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "dev:"):
 		return HandleDevCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
+	case strings.HasPrefix(cbq.Data, "page:"):
+		return HandlePaginationCommands(cbq, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "startform:"):
 
 		after, found := strings.CutPrefix(cbq.Data, "startform:")

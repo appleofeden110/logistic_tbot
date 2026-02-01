@@ -103,14 +103,14 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 	return msg, nil
 }
 
-func HandlePaginationCommands(cbq tgbotapi.CallbackQuery, msgId int, globalStorage *sql.DB) error {
-	cmd, f := strings.CutPrefix(cbq.Data, "page:")
+func HandlePaginationCommands(chatId int64, command string, msgId int, globalStorage *sql.DB) error {
+	cmd, f := strings.CutPrefix(command, "page:")
 	if !f {
-		config.VERY_BAD(cbq.Message.Chat.ID, Bot)
+		config.VERY_BAD(chatId, Bot)
 	}
 	switch {
 	case strings.Contains(cmd, "viewall:"):
-		parts := strings.Split(cbq.Data, ":")
+		parts := strings.Split(cmd, ":")
 		if len(parts) < 2 {
 			return fmt.Errorf("invalid pagination callback data")
 		}
@@ -137,13 +137,13 @@ func HandlePaginationCommands(cbq tgbotapi.CallbackQuery, msgId int, globalStora
 			return fmt.Errorf("Err getting shipments: %v", err)
 		}
 
-		msg, err := CreateShipmentListMessage(shipments, page, cbq.Message.Chat.ID, callbackPrefix)
+		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
 			return fmt.Errorf("Err creating message: %v", err)
 		}
 
 		// Edit the existing message instead of sending a new one
-		edit := tgbotapi.NewEditMessageText(cbq.Message.Chat.ID, msgId, msg.Text)
+		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
 		edit.ReplyMarkup = msg.ReplyMarkup.(*tgbotapi.InlineKeyboardMarkup)
 
 		_, err = Bot.Send(edit)
