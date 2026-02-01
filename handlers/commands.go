@@ -223,6 +223,10 @@ func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalS
 		}
 	case db.StateWaitingNotes:
 		if msg.Text != "" {
+			if session.PendingMessage == nil {
+				session.State = db.StateDormantManager
+				return session, session.ChangeManagerStatus(globalStorage)
+			}
 			session.PendingMessage.Caption = msg.Text
 			session.State = db.StateWaitingDriver
 
