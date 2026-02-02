@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	data_analysis "logistictbot/data-analysis"
 	"logistictbot/db"
 	"logistictbot/docs"
@@ -59,8 +60,19 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		return HandleDevCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "page:"):
 		return HandlePaginationCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
-	case strings.HasPrefix(cbq.Data, "startform:"):
+	case strings.HasPrefix(cbq.Data, "shipment:details:"):
+		shipmentIdString, f := strings.CutPrefix(cbq.Data, "shipment:details:")
+		if !f {
+			fmt.Printf("Error: there is no shipment id when it should be in here: %s (chatId: %d)\n", cbq.Data, cbq.Message.Chat.ID)
+			config.VERY_BAD(cbq.Message.Chat.ID, Bot)
+		}
 
+		shipmentId, err := strconv.ParseInt(shipmentIdString, 16, 64)
+		if err != nil {
+			return fmt.Errorf("Error: parsing shipment id (og str: %s) was not successful: %v\n", shipmentIdString, err)
+		}
+		return HandleShipmentDetails(cbq.Message.Chat.ID, shipmentId, globalStorage)
+	case strings.HasPrefix(cbq.Data, "startform:"):
 		after, found := strings.CutPrefix(cbq.Data, "startform:")
 		var whichTable db.TableType
 		if found {

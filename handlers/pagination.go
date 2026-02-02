@@ -134,7 +134,6 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 			return fmt.Errorf("Err creating message: %v", err)
 		}
 
-		// Edit the existing message instead of sending a new one
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
 		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
 		edit.ReplyMarkup = &keyboard
@@ -143,6 +142,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		if err != nil {
 			return fmt.Errorf("Err editing message: %v", err)
 		}
+	case strings.Contains(cmd, "viewallbycar:"):
 
 	}
 	return nil

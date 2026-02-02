@@ -30,6 +30,34 @@ var photoGroups = struct {
 
 var Bot *tgbotapi.BotAPI
 
+func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) error {
+	shipment, err := parser.GetShipment(globalStorage, shipmentId)
+	if err != nil {
+		return fmt.Errorf("Error: getting shipment for the details: %v\n", err)
+	}
+
+	f := docs.File{Id: shipment.ShipmentDocId}
+	err = f.GetFile(globalStorage)
+	if err != nil {
+		return fmt.Errorf("Error: getting file from ShipmentDocId (%d): %v\n", shipment.ShipmentDocId, err)
+	}
+
+	driver, err := db.GetDriverById(globalStorage, shipment.DriverId)
+	if err != nil {
+		return fmt.Errorf("Error: getting driver by id: %v\n", err)
+	}
+
+	msg := tgbotapi.NewDocument(chatId, tgbotapi.FileID(f.TgFileId))
+	msg.ParseMode = tgbotapi.ModeHTML
+	msg.Caption = fmt.Sprintf("Shipment №%d:\n\tВодій: %s (@%s) - %s\n\tЗавдання:\n", shipment.ShipmentId, driver.User.Name, driver.User.TgTag, driver.CarId)
+	for i, task := range shipment.Tasks {
+		msg.Caption += fmt.Sprintf("\t%d. %s\n\tАдреса в документі:%s\n\n", i, task.Type, task.Address)
+	}
+
+	_, err = Bot.Send(msg)
+	return err
+}
+
 func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 	cmd, found := strings.CutPrefix(command, "/")
 	if !found {
