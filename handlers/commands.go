@@ -66,6 +66,11 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		return fmt.Errorf("it is not a command: %s\n", command)
 	}
 
+	cmd, found = strings.CutSuffix(cmd, "@logistictbot")
+	if found {
+		log.Printf("GROUP cmd: %s", cmd)
+	}
+
 	switch cmd {
 	case "start":
 		u := new(db.User)
