@@ -441,11 +441,36 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		_, err = Bot.Send(msg)
 		return err
 	case "viewactive":
-		break
-	case "viewnonactive":
-		break
-	case "viewnew":
-		break
+		shipments, err := parser.GetAllActiveShipmentsByCarId(driverSesh.CarId, globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactivebycar:"+driverSesh.CarId)
+		if err != nil {
+			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+		}
+
+		_, err = Bot.Send(msg)
+		if err != nil {
+			return fmt.Errorf("Err sending message: %v\n", err)
+		}
+
+	case "viewall":
+		shipments, err := parser.GetAllShipmentsByCarId(driverSesh.CarId, globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewallbycar:"+driverSesh.CarId)
+		if err != nil {
+			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+		}
+
+		_, err = Bot.Send(msg)
+		if err != nil {
+			return fmt.Errorf("Err sending message: %v\n", err)
+		}
 	}
 	return nil
 }
