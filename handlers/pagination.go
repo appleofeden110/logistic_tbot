@@ -22,11 +22,12 @@ func FormatShipmentForList(s *parser.Shipment, index int) string {
 	}
 
 	return fmt.Sprintf(
-		"%d. %s\n"+
-			"   🚛 Авто: %s\n"+
-			"   📦 Контейнер: %s\n"+
-			"   📋 Завдань: %d\n",
-		index+1,
+		"%d. Shipment №%d\n"+
+			"	 Статус: %s\n"+
+			"    Авто: %s\n"+
+			"    Контейнер: %s\n"+
+			"    Завдань: %d\n",
+		index+1, s.ShipmentId,
 		status,
 		s.CarId,
 		s.Container,
@@ -143,7 +144,107 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 			return fmt.Errorf("Err editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewallbycar:"):
+		parts := strings.Split(cmd, ":")
+		if len(parts) < 3 {
+			return fmt.Errorf("invalid pagination callback data")
+		}
 
+		carId := parts[1]
+		page, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return fmt.Errorf("invalid page number: %v", err)
+		}
+
+		var shipments []*parser.Shipment
+		var callbackPrefix string
+
+		shipments, err = parser.GetAllShipmentsByCarId(carId, globalStorage)
+		callbackPrefix = "page:viewallbycar:" + carId
+		if err != nil {
+			return fmt.Errorf("Err getting shipments: %v", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
+		if err != nil {
+			return fmt.Errorf("Err creating message: %v", err)
+		}
+
+		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
+		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
+		edit.ReplyMarkup = &keyboard
+
+		_, err = Bot.Send(edit)
+		if err != nil {
+			return fmt.Errorf("Err editing message: %v", err)
+		}
+
+	case strings.Contains(cmd, "viewactivebycar:"):
+		parts := strings.Split(cmd, ":")
+		if len(parts) < 3 {
+			return fmt.Errorf("invalid pagination callback data")
+		}
+
+		carId := parts[1]
+		page, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return fmt.Errorf("invalid page number: %v", err)
+		}
+
+		var shipments []*parser.Shipment
+		var callbackPrefix string
+
+		shipments, err = parser.GetAllActiveShipmentsByCarId(carId, globalStorage)
+		callbackPrefix = "page:viewactivebycar:" + carId
+		if err != nil {
+			return fmt.Errorf("Err getting shipments: %v", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
+		if err != nil {
+			return fmt.Errorf("Err creating message: %v", err)
+		}
+
+		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
+		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
+		edit.ReplyMarkup = &keyboard
+
+		_, err = Bot.Send(edit)
+		if err != nil {
+			return fmt.Errorf("Err editing message: %v", err)
+		}
+	case strings.Contains(cmd, "viewactive:"):
+		parts := strings.Split(cmd, ":")
+		if len(parts) < 2 {
+			return fmt.Errorf("invalid pagination callback data")
+		}
+
+		page, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return fmt.Errorf("invalid page number: %v", err)
+		}
+
+		var shipments []*parser.Shipment
+		var callbackPrefix string
+
+		shipments, err = parser.GetAllActiveShipments(globalStorage)
+		callbackPrefix = "page:viewactive"
+		if err != nil {
+			return fmt.Errorf("Err getting shipments: %v", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
+		if err != nil {
+			return fmt.Errorf("Err creating message: %v", err)
+		}
+
+		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
+		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
+		edit.ReplyMarkup = &keyboard
+
+		_, err = Bot.Send(edit)
+		if err != nil {
+			return fmt.Errorf("Err editing message: %v", err)
+		}
 	}
 	return nil
 }

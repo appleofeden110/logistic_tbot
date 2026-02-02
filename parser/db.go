@@ -446,10 +446,16 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 
 // GetShipment retrieves a shipment by ID (without tasks)
 func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("Error: beginning transaction for the shipment: %w\n", err)
+	}
+	defer tx.Rollback()
+
 	query := `SELECT id, document_language, instruction_type, car_id, driver_id, 
 		container, chassis, tankdetails, generalremark, doc_id, created_at, updated_at, started, finished 
 		FROM shipments WHERE id = ?`
-	row := db.QueryRow(query, shipmentId)
+	row := tx.QueryRow(query, shipmentId)
 	s := &Shipment{}
 	var driverIdStr string
 	var docLang, instrType string
@@ -458,7 +464,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	var started sql.NullTime
 	var finished sql.NullTime
 
-	err := row.Scan(
+	err = row.Scan(
 		&s.ShipmentId,
 		&docLang,
 		&instrType,
@@ -512,6 +518,11 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 
 	if finished.Valid {
 		s.Finished = finished.Time
+	}
+
+	s.Tasks, err = loadTasksForShipment(tx, s.ShipmentId)
+	if err != nil {
+		return nil, fmt.Errorf("Error: getting tasks for the shipment: %v\n", err)
 	}
 
 	return s, nil

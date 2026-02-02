@@ -49,9 +49,11 @@ func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) erro
 
 	msg := tgbotapi.NewDocument(chatId, tgbotapi.FileID(f.TgFileId))
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.Caption = fmt.Sprintf("Shipment №%d:\n\tВодій: %s (@%s) - %s\n\tЗавдання:\n", shipment.ShipmentId, driver.User.Name, driver.User.TgTag, driver.CarId)
+	msg.Caption = fmt.Sprintf("<b><i>Shipment</i></b> №%d:\n<b>Водій</b>: %s (@%s) - %s\nЗавдання:\n\n", shipment.ShipmentId, driver.User.Name, driver.User.TgTag, driver.CarId)
+
+	log.Println(shipment.Tasks)
 	for i, task := range shipment.Tasks {
-		msg.Caption += fmt.Sprintf("\t%d. %s\n\tАдреса в документі:%s\n\n", i, task.Type, task.Address)
+		msg.Caption += fmt.Sprintf("%d. <b><i>%s</i></b>\n<b>Адреса в документі</b>: %s\n\n", i+1, strings.ToUpper(string(task.Type[0]))+task.Type[1:], task.Address)
 	}
 
 	_, err = Bot.Send(msg)
@@ -190,6 +192,21 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 			return fmt.Errorf("Err sending message: %v\n", err)
 		}
 
+	case "viewactive":
+		shipments, err := parser.GetAllActiveShipments(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+		}
+
+		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactive")
+		if err != nil {
+			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+		}
+
+		_, err = Bot.Send(msg)
+		if err != nil {
+			return fmt.Errorf("Err sending message: %v\n", err)
+		}
 	case "mstmt":
 
 		availableMonths, err := parser.GetAvailableMonths(globalStorage)
