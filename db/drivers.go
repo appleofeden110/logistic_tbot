@@ -181,7 +181,7 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 		JOIN users u ON d.user_id = u.id
 		WHERE d.id = ?
 	`
-	var driver Driver
+	driver := new(Driver)
 	var driverIdStr, userIdStr string
 	var carIdStr sql.NullString
 	var userDriverIdStr, userManagerIdStr sql.NullString
