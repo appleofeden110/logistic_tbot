@@ -21,9 +21,7 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Активні маршрути", "driver:viewactive"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Нові неприйняті маршрути", "driver:viewnonactive")),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewnew"),
+			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
 		),
 	)
 
@@ -35,9 +33,7 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Активні маршрути", "driver:viewactive"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Нові неприйняті маршрути", "driver:viewnonactive")),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewnew"),
+			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
 		),
 	)
 
