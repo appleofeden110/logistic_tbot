@@ -67,7 +67,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			config.VERY_BAD(cbq.Message.Chat.ID, Bot)
 		}
 
-		shipmentId, err := strconv.ParseInt(shipmentIdString, 16, 64)
+		shipmentId, err := strconv.ParseInt(shipmentIdString, 10, 64)
 		if err != nil {
 			return fmt.Errorf("Error: parsing shipment id (og str: %s) was not successful: %v\n", shipmentIdString, err)
 		}
