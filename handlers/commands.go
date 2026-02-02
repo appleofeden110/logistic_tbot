@@ -33,7 +33,7 @@ var Bot *tgbotapi.BotAPI
 func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) error {
 	shipment, err := parser.GetShipment(globalStorage, shipmentId)
 	if err != nil {
-		return fmt.Errorf("Error: getting shipment for the details: %v\n", err)
+		return fmt.Errorf("Error: getting shipment for the details (shipmentId: %d): %v\n", shipmentId, err)
 	}
 
 	f := docs.File{Id: shipment.ShipmentDocId}
