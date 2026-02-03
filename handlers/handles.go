@@ -96,15 +96,15 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	log.Printf("%s(%d - %s - %d) wrote %s. msg id: %d", user.FirstName, user.ID, user.LanguageCode, msg.Chat.ID, text, id)
 
 	inputMu.Lock()
-	state, isWaitingForInput := waitingForInput[msg.Chat.ID]
+	state, isWaitingForInput := waitingForInput[msg.From.ID]
 	inputMu.Unlock()
 
 	managerSessionsMu.Lock()
-	managerSesh, isManagerSesh := managerSessions[msg.Chat.ID]
+	managerSesh, isManagerSesh := managerSessions[msg.From.ID]
 	managerSessionsMu.Unlock()
 
 	driverSessionsMu.Lock()
-	driverSesh, isDriverSesh := driverSessions[msg.Chat.ID]
+	driverSesh, isDriverSesh := driverSessions[msg.From.ID]
 	driverSessionsMu.Unlock()
 
 	devSessionMu.Lock()
