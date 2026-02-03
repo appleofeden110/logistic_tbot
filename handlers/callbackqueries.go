@@ -23,7 +23,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	var err error
 	id := cbq.Message.MessageID
 
-	user := &db.User{ChatId: cbq.Message.Chat.ID}
+	user := &db.User{ChatId: cbq.Message.From.ID}
 	err = user.GetUserByChatId(globalStorage)
 	if err != nil {
 		user.Name = "NEU"

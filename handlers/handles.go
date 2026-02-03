@@ -108,7 +108,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	driverSessionsMu.Unlock()
 
 	devSessionMu.Lock()
-	devSesh, isDev := devSession[msg.Chat.ID]
+	devSesh, isDev := devSession[msg.From.ID]
 	devSessionMu.Unlock()
 
 	if isDriverSesh {
@@ -120,7 +120,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	}
 
 	if isWaitingForInput {
-		return HandleFormInput(msg.Chat.ID, msg.Text, state, globalStorage, user)
+		return HandleFormInput(msg.From.ID, msg.Text, state, globalStorage, user)
 	}
 
 	if isDev {
