@@ -329,15 +329,12 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Почати маршрут", fmt.Sprintf("shipment:accept:%d", shipment.ShipmentId)),
-			//tgbotapi.NewInlineKeyboardButtonData("Відмовитись", fmt.Sprintf("shipment:decline:%d", shipment.ShipmentId)),
 		),
 	)
 
 	_, err = bot.Send(docMsg)
 	return err
 }
-
-// Uses OUTDOCS_PATH in .env or ./storage/ if not set
 
 func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 	query := `

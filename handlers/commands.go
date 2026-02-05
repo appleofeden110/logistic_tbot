@@ -418,7 +418,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("err getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
-		// Get all photos attached to this task
 		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
 			return fmt.Errorf("err getting attached files: %v\n", err)
@@ -439,8 +438,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		// Send photos to manager
-		managerText := fmt.Sprintf("📸 Фотографії від водія %s (%s)\nМашина: %s\nЗавдання: %s (#%d)",
+		managerText := fmt.Sprintf("📸 Фотографії від водія %s (%s)\nМашина: %s\nЗавдання: %s (Shipment №%d)",
 			driverSesh.User.Name,
 			driverSesh.User.TgTag,
 			driverSesh.CarId,
@@ -723,10 +721,19 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					tgbotapi.NewInlineKeyboardButtonData("Додати фотографії", fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
 				),
 			)
-			_, err = Bot.Send(startTaskMsg)
+			var pinMsg tgbotapi.Message
+			pinMsg, err = Bot.Send(startTaskMsg)
 			if err != nil {
 				return driver, err
 			}
+
+			pin := tgbotapi.PinChatMessageConfig{
+				ChatID:              pinMsg.Chat.ID,
+				MessageID:           pinMsg.MessageID,
+				DisableNotification: true,
+			}
+
+			Bot.Send(pin)
 
 			driverInfo := fmt.Sprintf("Водій %s (%s) почав завдання %s для маршруту %d\nМашина: %s\n\n", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
 			startTaskMsg.ReplyMarkup = nil

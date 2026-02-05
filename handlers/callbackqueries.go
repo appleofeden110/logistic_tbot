@@ -164,7 +164,17 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		msg.ParseMode = tgbotapi.ModeHTML
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
 
-		_, err = Bot.Send(msg)
+		var pinMsg tgbotapi.Message
+		pinMsg, err = Bot.Send(msg)
+		if err != nil {
+			return err
+		}
+
+		_, err = Bot.Send(tgbotapi.PinChatMessageConfig{
+			ChatID:              pinMsg.Chat.ID,
+			MessageID:           pinMsg.MessageID,
+			DisableNotification: true,
+		})
 		return err
 	case strings.HasPrefix(cbq.Data, "shipment:end:"):
 		shipmentIdString, _ := strings.CutPrefix(cbq.Data, "shipment:end:")
