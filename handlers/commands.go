@@ -407,7 +407,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "📸 Відправте фотографії які ви маєте прикріпити, та натисніть <b>\"Відправити Фотографії\" знизу")
+		msg := tgbotapi.NewMessage(chatId, "📸 Відправте фотографії які ви маєте прикріпити, та натисніть <b>\"Відправити Фотографії\"</b> знизу")
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відправити фотографії", "driver:send_pics")))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
