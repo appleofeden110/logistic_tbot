@@ -407,10 +407,71 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Відправте фотографії одним повідомленням який ви хочете прикріпити\n\nПри закінчені воно відправиться менеджеру разом з завданням")
+		msg := tgbotapi.NewMessage(chatId, "📸 Відправте фотографії які ви маєте прикріпити, та натисніть <b>\"Відправити Фотографії\" знизу")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відправити фотографії", "driver:send_pics")))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
+	case "send_pics":
+		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
+		if err != nil {
+			return fmt.Errorf("err getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+		}
+
+		// Get all photos attached to this task
+		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
+		if err != nil {
+			return fmt.Errorf("err getting attached files: %v\n", err)
+		}
+
+		photos, _ := splitFiles(files)
+
+		if len(photos) == 0 {
+			msg := tgbotapi.NewMessage(chatId, "Немає фотографій для відправки")
+			_, err = Bot.Send(msg)
+			return err
+		}
+
+		// Confirm to driver
+		confirmMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Відправлено %d фотографій менеджеру ✅", len(photos)))
+		_, err = Bot.Send(confirmMsg)
+		if err != nil {
+			return err
+		}
+
+		// Send photos to manager
+		managerText := fmt.Sprintf("📸 Фотографії від водія %s (%s)\nМашина: %s\nЗавдання: %s (#%d)",
+			driverSesh.User.Name,
+			driverSesh.User.TgTag,
+			driverSesh.CarId,
+			task.Type,
+			task.Id,
+		)
+
+		err = sendPhotosToManager(TestManagerChatId, photos, managerText)
+		if err != nil {
+			return fmt.Errorf("err sending photos to manager: %v\n", err)
+		}
+
+		// Reset driver state back to task state
+		switch task.Type {
+		case parser.TaskLoad:
+			driverSesh.State = db.StateLoad
+		case parser.TaskUnload:
+			driverSesh.State = db.StateUnload
+		case parser.TaskCollect:
+			driverSesh.State = db.StateCollect
+		case parser.TaskDropoff:
+			driverSesh.State = db.StateDropoff
+		case parser.TaskCleaning:
+			driverSesh.State = db.StateCleaning
+		default:
+			return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+		}
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		return err
+
 	case "beginday":
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
@@ -559,14 +620,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		}
 
 		if len(msg.Photo) > 0 {
-
 			if msg.MediaGroupID != "" {
+				// Collect photos from media group
 				photoGroups.Lock()
 				photoGroups.m[msg.MediaGroupID] = append(photoGroups.m[msg.MediaGroupID], msg)
 				photoGroups.Unlock()
 
-				go func(groupID string, task *parser.TaskSection, driver *db.Driver) {
-					time.Sleep(1200 * time.Millisecond)
+				go func(groupID string, taskId int) {
+					time.Sleep(1000 * time.Millisecond)
 
 					photoGroups.Lock()
 					msgs := photoGroups.m[groupID]
@@ -574,7 +635,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					photoGroups.Unlock()
 
 					for _, m := range msgs {
-						if err := savePhotoToTask(m, task.Id, globalStorage); err != nil {
+						if err := savePhotoToTask(m, taskId, globalStorage); err != nil {
 							log.Printf("err saving album photo: %v", err)
 						}
 					}
@@ -585,34 +646,19 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 							fmt.Sprintf("Додано %d фотографій 📸", len(msgs)),
 						))
 					}
+				}(msg.MediaGroupID, task.Id)
 
-					// ✅ CHANGE STATE ONLY AFTER ALL PHOTOS ARE SAVED
-					switch task.Type {
-					case parser.TaskLoad:
-						driver.State = db.StateLoad
-					case parser.TaskUnload:
-						driver.State = db.StateUnload
-					case parser.TaskCollect:
-						driver.State = db.StateCollect
-					case parser.TaskDropoff:
-						driver.State = db.StateDropoff
-					case parser.TaskCleaning:
-						driver.State = db.StateCleaning
-					default:
-						log.Printf("wrong task type: %s", task.Type)
-						return
-					}
+				return driver, nil
+			} else {
+				// Single photo
+				if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
+					return driver, fmt.Errorf("err saving single photo: %v", err)
+				}
 
-					if err := driver.ChangeDriverStatus(globalStorage); err != nil {
-						log.Printf("err changing driver status: %v", err)
-					}
-
-				}(msg.MediaGroupID, task, driver)
-
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Додано 1 фотографію 📸"))
 				return driver, nil
 			}
 		}
-
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
 		task := new(parser.TaskSection)
 
