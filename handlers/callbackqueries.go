@@ -195,7 +195,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return err
 		}
 
-		if shipment.Finished.IsZero() {
+		if !shipment.Finished.IsZero() {
 			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут вже був закінчений"))
 			return err
 		}
