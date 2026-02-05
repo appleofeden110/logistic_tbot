@@ -396,9 +396,76 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Відправте документ який ви хочете прикріпити\n\nПри закінчені воно відправиться менеджеру разом з завданням")
+		msg := tgbotapi.NewMessage(chatId, "Відправте документ який ви хочете прикріпити, та натисніть <b>\"Відправити Документи\"</b> знизу")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Відправити документи", "driver:send_docs"),
+			),
+		)
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
+		return err
+	case "send_docs":
+		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
+		if err != nil {
+			return fmt.Errorf("err getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+		}
+
+		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
+		if err != nil {
+			return fmt.Errorf("err getting attached files: %v\n", err)
+		}
+
+		_, docsFiles := splitFiles(files)
+
+		if len(docsFiles) == 0 {
+			msg := tgbotapi.NewMessage(chatId, "Немає документів для відправки")
+			_, err = Bot.Send(msg)
+			return err
+		}
+
+		confirmMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Відправлено %d документів менеджеру ✅", len(docsFiles)))
+		_, err = Bot.Send(confirmMsg)
+		if err != nil {
+			return err
+		}
+
+		managerText := fmt.Sprintf("📄 Документи від водія %s (%s)\nМашина: %s\nЗавдання: %s (#%d)",
+			driverSesh.User.Name,
+			driverSesh.User.TgTag,
+			driverSesh.CarId,
+			task.Type,
+			task.Id,
+		)
+
+		headerMsg := tgbotapi.NewMessage(TestManagerChatId, managerText)
+		headerMsg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(headerMsg)
+		if err != nil {
+			return err
+		}
+
+		err = sendDocumentsToManager(TestManagerChatId, docsFiles)
+		if err != nil {
+			return fmt.Errorf("err sending documents to manager: %v\n", err)
+		}
+
+		switch task.Type {
+		case parser.TaskLoad:
+			driverSesh.State = db.StateLoad
+		case parser.TaskUnload:
+			driverSesh.State = db.StateUnload
+		case parser.TaskCollect:
+			driverSesh.State = db.StateCollect
+		case parser.TaskDropoff:
+			driverSesh.State = db.StateDropoff
+		case parser.TaskCleaning:
+			driverSesh.State = db.StateCleaning
+		default:
+			return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+		}
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
 		return err
 	case "add_picstotask":
 		driverSesh.State = db.StateWaitingPhoto
@@ -580,6 +647,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				Mimetype:     docs.Mimetype(msg.Document.MimeType),
 				Filetype:     docs.Document,
 			}
+
 			err = sentDoc.StoreFile(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("err storing file: %v\n", err)
@@ -590,27 +658,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("err attaching file to task %d: %v\n", task.Id, err)
 			}
 
-			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Документ додано до завдання!"))
+			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Документ додано до завдання! 📄"))
 			return driver, err
 		}
 
-		switch task.Type {
-		case parser.TaskLoad:
-			driver.State = db.StateLoad
-		case parser.TaskUnload:
-			driver.State = db.StateUnload
-		case parser.TaskCollect:
-			driver.State = db.StateCollect
-		case parser.TaskDropoff:
-			driver.State = db.StateDropoff
-		case parser.TaskCleaning:
-			driver.State = db.StateCleaning
-		default:
-			return driver, fmt.Errorf("err wrong type of task: %s\n", task.Type)
-		}
-
-		err = driver.ChangeDriverStatus(globalStorage)
-		return driver, err
+		return driver, nil
 	case db.StateWaitingPhoto:
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {
@@ -721,6 +773,19 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					tgbotapi.NewInlineKeyboardButtonData("Додати фотографії", fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
 				),
 			)
+
+			car, err1 := db.GetCarById(globalStorage, driver.CarId)
+			if err1 != nil {
+				return driver, err1
+			}
+
+			car.Kilometrage = task.CurrentKilometrage
+
+			err = car.UpdateCarKilometrage(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
 			var pinMsg tgbotapi.Message
 			pinMsg, err = Bot.Send(startTaskMsg)
 			if err != nil {
