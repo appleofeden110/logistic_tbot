@@ -374,7 +374,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("err changing driver's status while performing a task: %v\n", err)
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Введіть поточний кілометраж автомобіля.\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)")
+		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
+		if err != nil {
+			return fmt.Errorf("err getting a car for ending a task: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Введіть поточний кілометраж автомобіля. \n<b><i>(попередньо: %d km)</i></b>\n\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)", car.Kilometrage))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -441,7 +446,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return nil
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Введіть поточний кілометраж автомобіля.\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)")
+		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
+		if err != nil {
+			return fmt.Errorf("Error: getting car for the end of the day: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Введіть поточний кілометраж автомобіля. \n<b><i>(попередньо: %d km)</i></b>\n\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)", car.Kilometrage))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err

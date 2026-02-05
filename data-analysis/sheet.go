@@ -3,6 +3,7 @@ package data_analysis
 import (
 	"database/sql"
 	"fmt"
+	"logistictbot/config"
 	"logistictbot/duration"
 	"logistictbot/parser"
 	"reflect"
@@ -153,7 +154,7 @@ func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, err
 		f.SetColWidth(sheet, col, col, 15)
 	}
 
-	filename := fmt.Sprintf("./handlers/outdocs/V R_statement_%s_%d.xlsx", month.String(), year)
+	filename := fmt.Sprintf(config.GetOutDocsPath()+"V R_statement_%s_%d.xlsx", month.String(), year)
 	if err := f.SaveAs(filename); err != nil {
 		return "", fmt.Errorf("error saving file: %w", err)
 	}

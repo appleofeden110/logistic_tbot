@@ -30,7 +30,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		user.TgTag = "@nil"
 	}
 
-	log.Printf("(%d - %s - %s) pressed a button %s. msg id: %d", cbq.Message.Chat.ID, user.Name, user.TgTag, cbq.Data, id)
+	log.Printf("(%d - %s - %s) pressed a button %s. msg id: %d", cbq.Message.From.ID, user.Name, user.TgTag, cbq.Data, id)
 
 	switch {
 	case strings.HasPrefix(cbq.Data, "mstmt:"):
