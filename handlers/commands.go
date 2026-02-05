@@ -396,7 +396,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Відправте документ який ви хочете прикріпити, та натисніть <b>\"Відправити Документи\"</b> знизу")
+		msg := tgbotapi.NewMessage(chatId, "📃 Відправте документ який ви хочете прикріпити, та натисніть <b>\"Відправити Документи\"</b> знизу")
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("Відправити документи", "driver:send_docs"),
@@ -671,7 +671,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		if len(msg.Photo) > 0 {
 			if msg.MediaGroupID != "" {
-				// Collect photos from media group
 				photoGroups.Lock()
 				photoGroups.m[msg.MediaGroupID] = append(photoGroups.m[msg.MediaGroupID], msg)
 				photoGroups.Unlock()
@@ -699,15 +698,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				}(msg.MediaGroupID, task.Id)
 
 				return driver, nil
-			} else {
-				// Single photo
-				if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
-					return driver, fmt.Errorf("err saving single photo: %v", err)
-				}
-
-				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Додано 1 фотографію 📸"))
-				return driver, nil
 			}
+
+			if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
+				return driver, fmt.Errorf("err saving single photo: %v", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Додано 1 фотографію 📸"))
+			return driver, nil
 		}
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
 		task := new(parser.TaskSection)

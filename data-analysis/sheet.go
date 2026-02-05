@@ -224,7 +224,7 @@ func formatDateTime(start time.Time) string {
 	if start.IsZero() {
 		return ""
 	}
-	return start.Format("2006-01-02 15:04")
+	return start.Format("02-01-2006 15:04")
 }
 
 func formatDateTimeRange(start, end time.Time) string {
@@ -233,18 +233,18 @@ func formatDateTimeRange(start, end time.Time) string {
 	}
 
 	if end.IsZero() {
-		return start.Format("2006-01-02 15:04")
+		return start.Format("02-01-2006 15:04")
 	}
 
-	if start.Format("2006-01-02") == end.Format("2006-01-02") {
+	if start.Format("02-01-2006") == end.Format("02-01-2006") {
 		return fmt.Sprintf("%s %s - %s",
-			start.Format("2006-01-02"),
+			start.Format("02-01-2006"),
 			start.Format("15:04"),
 			end.Format("15:04"))
 	} else {
 		return fmt.Sprintf("%s - %s",
-			start.Format("2006-01-02 15:04"),
-			end.Format("2006-01-02 15:04"))
+			start.Format("02-01-2006 15:04"),
+			end.Format("02-01-2006 15:04"))
 	}
 }
 func calculateDuration(start, end time.Time) duration.Duration {
