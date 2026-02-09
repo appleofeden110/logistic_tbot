@@ -94,6 +94,14 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		}
 		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі менеджери тепер в дефолтному статусі"))
 		return err
+	case "drvrreset":
+		err := db.SetAllDriversToDormant(globalStorage)
+		if err != nil {
+			Bot.Send(tgbotapi.NewMessage(chatId, fmt.Sprintf("Не війшло резетнути всі статуси водіїв, ось помилка: %v\n", err)))
+			return err
+		}
+		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі водії тепер в дефолтному статусі"))
+		return err
 	case "test":
 
 	case "add_car":
@@ -379,16 +387,206 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("err getting a car for ending a task: %v\n", err)
 		}
 
+		taskSessionsMu.Lock()
+		taskSessions[driverSesh.Id] = task
+		taskSessionsMu.Unlock()
+
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Введіть поточний кілометраж автомобіля. \n<b><i>(попередньо: %d km)</i></b>\n\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)", car.Kilometrage))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
 
 	case "endtask":
-		msg := tgbotapi.NewMessage(chatId, "Введіть вагу продукту\n(Доступні формати: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 кг; 1234 kg)")
-		msg.ParseMode = tgbotapi.ModeHTML
-		_, err := Bot.Send(msg)
-		return err
+		taskSessionsMu.Lock()
+		task, f := taskSessions[driverSesh.Id]
+		taskSessionsMu.Unlock()
+
+		if f {
+			switch task.Type {
+			case parser.TaskLoad, parser.TaskUnload:
+				driverSesh.State = db.StateWaitingWeight
+				err := driverSesh.ChangeDriverStatus(globalStorage)
+				if err != nil {
+					return err
+				}
+
+				msg := tgbotapi.NewMessage(chatId, "Введіть вагу продукту\n(Доступні формати: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 кг; 1234 kg)")
+				msg.ParseMode = tgbotapi.ModeHTML
+				_, err = Bot.Send(msg)
+				return err
+
+			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
+				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
+			/*	country, _ := parser.ExtractCountry(task.Address)
+
+				shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+				if err != nil {
+					return fmt.Errorf("err getting shipment from a task: %v\n", err)
+				}
+				err = task.FinishTaskById(globalStorage)
+				if err != nil {
+					return err
+				}
+
+				err = driverSesh.DeletePerformingTask(globalStorage)
+				if err != nil {
+					return err
+				}
+
+				driverSesh.State = db.StateWorking
+				err = driverSesh.ChangeDriverStatus(globalStorage)
+				if err != nil {
+					return err
+				}
+
+				driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
+				files := make([]*docs.File, 0)
+
+				endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
+					task.ShipmentId,
+					strings.ToUpper(task.Type),
+					shipment.Chassis,
+					shipment.Container,
+					time.Now().Format("02.01.2006"),
+					task.Start.Format("15:04"),
+					task.End.Format("15:04"),
+					db.FormatKilometrage(int(task.CurrentKilometrage)),
+					task.Address,
+					country.Name,
+					country.Emoji,
+					task.CurrentWeight,
+					task.CurrentTemperature),
+				)
+				endMsg.ParseMode = tgbotapi.ModeHTML
+
+				_, err = Bot.Send(endMsg)
+				if err != nil {
+					return err
+				}
+
+				files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
+				if err != nil {
+					return fmt.Errorf("err getting attached to task files: %v\n", err)
+				}
+
+				photos, docsFiles := splitFiles(files)
+				managerText := driverInfo + endMsg.Text
+
+				if len(photos) > 0 {
+					err = sendPhotosToManager(TestManagerChatId, photos, managerText)
+					if err != nil {
+						return err
+					}
+				} else {
+					msg := tgbotapi.NewMessage(TestManagerChatId, managerText)
+					msg.ParseMode = tgbotapi.ModeHTML
+					if _, err = Bot.Send(msg); err != nil {
+						return err
+					}
+				}
+
+				if len(docsFiles) > 0 {
+					if err = sendDocumentsToManager(TestManagerChatId, docsFiles); err != nil {
+						return err
+					}
+				}*/
+
+			default:
+				return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+			}
+		}
+
+	case "sumtask":
+		taskSessionsMu.Lock()
+		task, f := taskSessions[driverSesh.Id]
+		taskSessionsMu.Unlock()
+
+		if f {
+			country, _ := parser.ExtractCountry(task.Address)
+
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return fmt.Errorf("err getting shipment from a task: %v\n", err)
+			}
+			err = task.FinishTaskById(globalStorage)
+			if err != nil {
+				return err
+			}
+
+			err = driverSesh.DeletePerformingTask(globalStorage)
+			if err != nil {
+				return err
+			}
+
+			driverSesh.State = db.StateWorking
+			err = driverSesh.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return err
+			}
+
+			driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
+			files := make([]*docs.File, 0)
+
+			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
+				task.ShipmentId,
+				strings.ToUpper(task.Type),
+				shipment.Chassis,
+				shipment.Container,
+				time.Now().Format("02.01.2006"),
+				task.Start.Format("15:04"),
+				task.End.Format("15:04"),
+				db.FormatKilometrage(int(task.CurrentKilometrage)),
+				task.Address,
+				country.Name,
+				country.Emoji,
+				task.CurrentWeight,
+				task.CurrentTemperature),
+			)
+			endMsg.ParseMode = tgbotapi.ModeHTML
+
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				return err
+			}
+
+			files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
+			if err != nil {
+				return fmt.Errorf("err getting attached to task files: %v\n", err)
+			}
+
+			photos, docsFiles := splitFiles(files)
+			managerText := driverInfo + endMsg.Text
+
+			if len(photos) > 0 {
+				err = sendPhotosToManager(TestManagerChatId, photos, managerText)
+				if err != nil {
+					return err
+				}
+			} else {
+				msg := tgbotapi.NewMessage(TestManagerChatId, managerText)
+				msg.ParseMode = tgbotapi.ModeHTML
+				if _, err = Bot.Send(msg); err != nil {
+					return err
+				}
+			}
+
+			if len(docsFiles) > 0 {
+				if err = sendDocumentsToManager(TestManagerChatId, docsFiles); err != nil {
+					return err
+				}
+			}
+		}
+		//_, err = Bot.Send(endMsg)
+		/*managerSessionsMu.Lock()
+		defer managerSessionsMu.Unlock()
+		for mChatId := range managerSessions {
+			endMsg.ChatID = mChatId
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				return driver, fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
+			}
+		}*/
+
 	case "add_doctotask":
 		driverSesh.State = db.StateWaitingAttachment
 		err := driverSesh.ChangeDriverStatus(globalStorage)
@@ -805,8 +1003,13 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			_, err = Bot.Send(startTaskMsg)
 			return driver, err
 		}
+	case db.StateWaitingWeight:
+		taskSessionsMu.Lock()
+		task, exists := taskSessions[driver.Id]
+		taskSessionsMu.Unlock()
 
-		if task.CurrentWeight == 0 && task.End.IsZero() {
+		if exists {
+
 			kg, err := db.ParseWeight(msg.Text)
 			if err != nil {
 				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неправильний формат ваги, спробуйте ще раз"))
@@ -819,13 +1022,24 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("err updating weight by task id: %v\n", err)
 			}
 
+			driver.State = db.StateWaitingTemp
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("Err changing status for waiting temp: %v\n", err)
+			}
+
 			tempMsg := tgbotapi.NewMessage(msg.Chat.ID, "Введіть температуру.\n(Доступні формати: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)")
 			tempMsg.ParseMode = tgbotapi.ModeHTML
 			_, err = Bot.Send(tempMsg)
 			return driver, err
 		}
 
-		if task.CurrentTemperature == 0 && task.End.IsZero() {
+	case db.StateWaitingTemp:
+		taskSessionsMu.Lock()
+		task, exists := taskSessions[driver.Id]
+		taskSessionsMu.Unlock()
+		if exists {
+
 			celcius, err := db.ParseTemperature(msg.Text)
 			if err != nil {
 				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неправильний формат температури, спробуйте ще раз"))
@@ -839,83 +1053,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		}
 
-		err = task.FinishTaskById(globalStorage)
-		if err != nil {
-			return driver, err
-		}
-
-		err = driver.DeletePerformingTask(globalStorage)
-		if err != nil {
-			return driver, err
-		}
-
-		driver.State = db.StateWorking
-		err = driver.ChangeDriverStatus(globalStorage)
-		if err != nil {
-			return driver, err
-		}
-
-		driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driver.User.Name, driver.User.TgTag, driver.CarId)
-		files := make([]*docs.File, 0)
-
-		endMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
-			task.ShipmentId,
-			strings.ToUpper(task.Type),
-			shipment.Chassis,
-			shipment.Container,
-			time.Now().Format("02.01.2006"),
-			task.Start.Format("15:04"),
-			task.End.Format("15:04"),
-			db.FormatKilometrage(int(task.CurrentKilometrage)),
-			task.Address,
-			country.Name,
-			country.Emoji,
-			task.CurrentWeight,
-			task.CurrentTemperature),
-		)
-		endMsg.ParseMode = tgbotapi.ModeHTML
-
-		_, err = Bot.Send(endMsg)
-		if err != nil {
-			return driver, err
-		}
-
-		files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
-		if err != nil {
-			return driver, fmt.Errorf("err getting attached to task files: %v\n", err)
-		}
-
-		photos, docsFiles := splitFiles(files)
-		managerText := driverInfo + endMsg.Text
-
-		if len(photos) > 0 {
-			err = sendPhotosToManager(TestManagerChatId, photos, managerText)
-			if err != nil {
-				return driver, err
-			}
-		} else {
-			msg := tgbotapi.NewMessage(TestManagerChatId, managerText)
-			msg.ParseMode = tgbotapi.ModeHTML
-			if _, err = Bot.Send(msg); err != nil {
-				return driver, err
-			}
-		}
-
-		if len(docsFiles) > 0 {
-			if err = sendDocumentsToManager(TestManagerChatId, docsFiles); err != nil {
-				return driver, err
-			}
-		}
-		//_, err = Bot.Send(endMsg)
-		/*managerSessionsMu.Lock()
-		defer managerSessionsMu.Unlock()
-		for mChatId := range managerSessions {
-			endMsg.ChatID = mChatId
-			_, err = Bot.Send(endMsg)
-			if err != nil {
-				return driver, fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
-			}
-		}*/
+		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage)
 
 		return driver, err
 

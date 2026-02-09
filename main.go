@@ -14,10 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Excel tables - today
-// users perfect - today
-// shipments perfect - today
-// in group? maybe later - later, maybe after stage 1
+// temp and weight checking
 // direct comms between manager and driver probs - later, maybe tomorrow
 
 func main() {

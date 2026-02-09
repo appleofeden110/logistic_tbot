@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/db"
+	"logistictbot/parser"
 	"logistictbot/tracking"
 	"sync"
+
+	"github.com/gofrs/uuid"
 )
 
 var (
+	// takes in DRIVER's id
+	taskSessions   = make(map[uuid.UUID]*parser.TaskSection)
+	taskSessionsMu sync.Mutex
+
 	managerSessions   = make(map[int64]*db.Manager)
 	managerSessionsMu sync.Mutex
 

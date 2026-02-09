@@ -29,6 +29,8 @@ const (
 	StateCleaning          DriverConversationState = "performing_cleaning"
 	StateOnTheRoad         DriverConversationState = "on_the_road"
 	StateWaitingPhoto      DriverConversationState = "waiting_photo"
+	StateWaitingWeight     DriverConversationState = "waiting_weight"
+	StateWaitingTemp       DriverConversationState = "waiting_temp"
 	StateWaitingAttachment DriverConversationState = "waiting_attach"
 	StateEndingDay         DriverConversationState = "waiting_km"
 	StateTracking          DriverConversationState = "tracking"
@@ -65,6 +67,24 @@ type Driver struct {
 	User    *User
 	Tasks   *parser.Shipment // should not be empty if performing a shipment
 	Session *DriverSession
+}
+
+func SetAllDriversToDormant(db DBExecutor) error {
+	query := `
+		UPDATE drivers 
+		SET state = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE state != ?
+	`
+	result, err := db.Exec(query, StatePause, StatePause)
+	if err != nil {
+		return fmt.Errorf("error setting all drivers to pause state: %v", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %v", err)
+	}
+	log.Printf("Set %d driver(s) to pause state", rowsAffected)
+	return nil
 }
 
 func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
