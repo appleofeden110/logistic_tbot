@@ -52,7 +52,7 @@ var TaskKeywords = map[string][]string{
 	TaskUnload:   {"unload", "entladen", "rozładunek", "déchargement"},
 	TaskLoad:     {"load", "laden", "załadunek", "prise en charge", "chargement"},
 	TaskCollect:  {"collect", "aufnehmen", "aufnehmer bei", "odbiór", "collecte"},
-	TaskDropoff:  {"dropoff", "absatteln", "absetzen", "odstawienie", "odczepienie", "dépose", "dételage", "décroche", "decouple"},
+	TaskDropoff:  {"drop off", "absatteln", "absetzen", "odstawienie", "odczepienie", "dépose", "dételage", "décroche", "decouple"},
 	TaskCleaning: {"cleaning", "reinigen", "czyszczenie", "nettoyage"},
 }
 
