@@ -380,12 +380,15 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			for _, generalRemark := range DetailsKeywords[GenerellerHinweis] {
 				if a, f := strings.CutPrefix(lineLower, generalRemark); f {
 					s.GeneralRemark = strings.TrimSpace(a)
+					log.Println("generreler > ", s.GeneralRemark)
 					found = true
 					break
 				}
 			}
 
 		}
+
+		log.Println("generreler > ", s.GeneralRemark)
 
 	}
 
