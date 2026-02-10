@@ -420,6 +420,7 @@ func identifyTaskTypes(line string) (taskType string, found bool) {
 
 func (t *TaskSection) findAddress() (string, bool) {
 	addressLines := make([]string, 0)
+	log.Println("Lines: ", t.Lines)
 	for i := 0; i < 3; i++ {
 		line := strings.TrimSpace(t.Lines[i])
 

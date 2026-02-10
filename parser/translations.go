@@ -364,18 +364,15 @@ func (t *TaskSection) ParseTaskDetails() bool {
 	found := false
 
 	a, f := t.findAddress()
-	fmt.Println("address: ", f)
-	found = true
+	found = f
 	t.Address = a
 
 	c, f := t.findCompany()
-	fmt.Println("company: ", f)
-	found = true
+	found = f
 	t.Company = c
 
 	f = t.getTaskDetails()
-	fmt.Println("other details: ", f)
-	found = true
+	found = f
 
 	return found
 }
