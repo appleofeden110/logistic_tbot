@@ -307,10 +307,33 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 	lines := strings.Split(docText, "\n")
 	found = false
 	kgFound := false
+	generalRemarkStartIdx := -1
 
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		lineLower := strings.ToLower(line)
+
+		if generalRemarkStartIdx >= 0 {
+			isNewSection := false
+			for _, keywords := range DetailsKeywords {
+				for _, keyword := range keywords {
+					if strings.HasPrefix(lineLower, keyword) {
+						isNewSection = true
+						break
+					}
+				}
+				if isNewSection {
+					break
+				}
+			}
+
+			if !isNewSection {
+				s.GeneralRemark += " " + strings.TrimSpace(line)
+				continue
+			} else {
+				generalRemarkStartIdx = -1
+			}
+		}
 
 		if len(s.CarId) == 0 {
 			for _, truckKeyword := range DetailsKeywords[Truck] {
@@ -380,7 +403,7 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			for _, generalRemark := range DetailsKeywords[GenerellerHinweis] {
 				if a, f := strings.CutPrefix(lineLower, generalRemark); f {
 					s.GeneralRemark = strings.TrimSpace(a)
-					log.Println("generreler > ", s.GeneralRemark)
+					generalRemarkStartIdx = i
 					found = true
 					break
 				}
