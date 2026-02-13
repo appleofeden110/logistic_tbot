@@ -62,7 +62,7 @@ var DetailsKeywords = map[string][]string{
 
 	Instruction:                   {"instructions de", "anweisung", "instruction"},
 	InstructionDescriptionGerman:  {"lade", "entlade", "umfuhr", "absetz"},
-	InstructionDescriptionEnglish: {"load", "unload", "transfer", "shunt"},
+	InstructionDescriptionEnglish: {"load", "unload", "transfer", "shunt", "drop"},
 	InstructionDescriptionFrench:  {"chargement", "déchargement", "shunt"},
 
 	Truck:       {"truck", "n° camion"},
@@ -375,29 +375,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				kgFound = true
 			}
 
-			after = strings.Join(lines[i+1:], "\n")
-		}
-
-		if generalRemarkStartIdx >= 0 {
-			isNewSection := false
-			for _, keywords := range DetailsKeywords {
-				for _, keyword := range keywords {
-					if strings.HasPrefix(lineLower, keyword) {
-						isNewSection = true
-						break
-					}
-				}
-				if isNewSection {
-					break
-				}
-			}
-
-			if !isNewSection {
-				s.GeneralRemark += " " + strings.TrimSpace(line)
-				continue
-			} else {
-				generalRemarkStartIdx = -1
-			}
 		}
 
 		if len(s.GeneralRemark) == 0 {
@@ -412,8 +389,29 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 
 		}
 
-		log.Println("generreler > ", s.GeneralRemark)
+		if generalRemarkStartIdx >= 0 {
+			isNewSection := false
+			for _, keywords := range TaskKeywords {
+				for _, keyword := range keywords {
+					if strings.HasPrefix(lineLower, keyword) {
+						log.Println(lineLower, keyword)
+						isNewSection = true
+						break
+					}
+				}
+			}
 
+			if !isNewSection {
+				s.GeneralRemark += " " + strings.TrimSpace(line)
+				continue
+			} else {
+
+			}
+
+			generalRemarkStartIdx = -1
+			after = strings.Join(lines[i:], "\n")
+			fmt.Println(after)
+		}
 	}
 
 	return after, found

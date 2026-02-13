@@ -215,11 +215,8 @@ func GetSequenceOfTasks(pdfFilePath string) (*Shipment, error) {
 
 	sections := details.ExtractTaskSections(after)
 	log.Println(sections)
-	for _, section := range sections {
-		if len(section.Lines) < 2 || string(section.Lines[0][0]) == " " {
-			section = nil
-			continue
-		}
+	for i, section := range sections {
+		log.Println("Lines for: ", i, section.Lines)
 		section.ParseTaskDetails()
 	}
 	details.Tasks = sections
@@ -309,7 +306,7 @@ func ReadPdfDoc(pdfFilePath string) (docText string, err error) {
 func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
 	lines := strings.Split(docText, "\n")
 	sections := make([]*TaskSection, 0)
-	currentSection := new(TaskSection)
+	var currentSection *TaskSection
 	var isNextType bool
 	var isTask bool
 
@@ -345,6 +342,7 @@ func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
 				Content:    line + "\n",
 				Lines:      []string{line},
 			}
+
 			s.Tasks = append(s.Tasks, currentSection)
 		} else if currentSection != nil {
 			currentSection.Content += line + "\n"
