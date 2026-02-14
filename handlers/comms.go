@@ -2,10 +2,20 @@ package handlers
 
 import (
 	"fmt"
+	"logistictbot/db"
 	"logistictbot/docs"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+type CommunicationMsg struct {
+	Id                int64
+	Receiver          *db.User
+	Sender            *db.User
+	ReceiverMessageId int
+	SenderMessageId   int
+	Content           string
+}
 
 func CreateVideoToSend(chatId int64, videoName string) *tgbotapi.VideoConfig {
 	videoFP := tgbotapi.FilePath("./videos/" + videoName)

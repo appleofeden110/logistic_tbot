@@ -103,7 +103,6 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі водії тепер в дефолтному статусі"))
 		return err
 	case "test":
-
 	case "add_car":
 		c := db.Car{}
 		err := createForm(chatId, c, formMarkupAddCar, formTextAddCar, "adding a car to the db (ONLY SA)")
@@ -417,80 +416,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
 				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
-			/*	country, _ := parser.ExtractCountry(task.Address)
-
-				shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-				if err != nil {
-					return fmt.Errorf("err getting shipment from a task: %v\n", err)
-				}
-				err = task.FinishTaskById(globalStorage)
-				if err != nil {
-					return err
-				}
-
-				err = driverSesh.DeletePerformingTask(globalStorage)
-				if err != nil {
-					return err
-				}
-
-				driverSesh.State = db.StateWorking
-				err = driverSesh.ChangeDriverStatus(globalStorage)
-				if err != nil {
-					return err
-				}
-
-				driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
-				files := make([]*docs.File, 0)
-
-				endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
-					task.ShipmentId,
-					strings.ToUpper(task.Type),
-					shipment.Chassis,
-					shipment.Container,
-					time.Now().Format("02.01.2006"),
-					task.Start.Format("15:04"),
-					task.End.Format("15:04"),
-					db.FormatKilometrage(int(task.CurrentKilometrage)),
-					task.Address,
-					country.Name,
-					country.Emoji,
-					task.CurrentWeight,
-					task.CurrentTemperature),
-				)
-				endMsg.ParseMode = tgbotapi.ModeHTML
-
-				_, err = Bot.Send(endMsg)
-				if err != nil {
-					return err
-				}
-
-				files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
-				if err != nil {
-					return fmt.Errorf("err getting attached to task files: %v\n", err)
-				}
-
-				photos, docsFiles := splitFiles(files)
-				managerText := driverInfo + endMsg.Text
-
-				if len(photos) > 0 {
-					err = sendPhotosToManager(TestManagerChatId, photos, managerText)
-					if err != nil {
-						return err
-					}
-				} else {
-					msg := tgbotapi.NewMessage(TestManagerChatId, managerText)
-					msg.ParseMode = tgbotapi.ModeHTML
-					if _, err = Bot.Send(msg); err != nil {
-						return err
-					}
-				}
-
-				if len(docsFiles) > 0 {
-					if err = sendDocumentsToManager(TestManagerChatId, docsFiles); err != nil {
-						return err
-					}
-				}*/
-
 			default:
 				return fmt.Errorf("err wrong type of task: %s\n", task.Type)
 			}

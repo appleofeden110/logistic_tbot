@@ -14,7 +14,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// temp and weight checking
 // direct comms between manager and driver probs - later, maybe tomorrow
 
 func main() {
