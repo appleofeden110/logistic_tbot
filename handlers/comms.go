@@ -128,6 +128,11 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 	}
 
 	_, err = Bot.Send(msg)
+	if err != nil {
+		return err
+	}
+
+	_, err = Bot.Send(tgbotapi.NewMessage(comms.Sender.ChatId, "✅ Успішно було відправлено повідомлення для "+comms.Receiver.Name))
 	return err
 }
 
@@ -147,6 +152,11 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 	}
 
 	_, err = Bot.Send(msg)
+	if err != nil {
+		return err
+	}
+
+	_, err = Bot.Send(tgbotapi.NewMessage(comms.Sender.ChatId, "✅ Успішно було відправлено відповідь для "+comms.Sender.Name))
 	return err
 }
 
