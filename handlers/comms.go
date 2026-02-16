@@ -24,6 +24,49 @@ type CommunicationMsg struct {
 	RepliedAt      time.Time
 }
 
+const tickRate = 2 * time.Minute
+
+func PingNonReplies(globalStorage *sql.DB) {
+	ticker := time.NewTicker(tickRate)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		messages, err := GetAllNonRepliedMessages(globalStorage)
+		if err != nil {
+			log.Printf("ERR: getting non-replied messages: %v\n", err)
+			continue
+		}
+
+		for _, comms := range messages {
+			if time.Since(comms.CreatedAt) > tickRate {
+				msg := tgbotapi.NewMessage(
+					comms.Receiver.ChatId,
+					fmt.Sprintf("❗️<b>НАГАДУВАННЯ - ПОВІДОМЛЕННЯ ВІД: %s (@%s)</b>\n\n<i>%s</i>",
+						comms.Sender.Name,
+						comms.Sender.TgTag,
+						comms.MessageContent,
+					),
+				)
+				msg.ParseMode = tgbotapi.ModeHTML
+				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("Відповісти", "reply:"+strconv.Itoa(int(comms.Id))),
+					),
+				)
+
+				_, err := Bot.Send(msg)
+				if err != nil {
+					log.Printf("ERR: sending reminder for message %d: %v\n", comms.Id, err)
+				} else {
+					log.Printf("Sent reminder for message %d to user %d\n", comms.Id, comms.Receiver.ChatId)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // GetCommsMessage just needs the id
 func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 	query := `
@@ -112,9 +155,177 @@ func SendWithCommsAndChat(globalStorage *sql.DB, msgId int64, chatId int64) erro
 	return comms.Send(globalStorage)
 }
 
+func GetAllNonRepliedMessages(globalStorage *sql.DB) ([]*CommunicationMsg, error) {
+	query := `
+		SELECT 
+			cm.id,
+			cm.sender_id,
+			cm.reciever_id,
+			cm.message_content,
+			cm.reply_content,
+			cm.created_at,
+			cm.replied_at
+		FROM communication_messages cm
+		WHERE cm.replied_at IS NULL
+		AND cm.reciever_id IS NOT NULL
+		ORDER BY cm.created_at DESC
+	`
+	rows, err := globalStorage.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: querying non-replied messages: %v\n", err)
+	}
+	defer rows.Close()
+
+	var messages []*CommunicationMsg
+	for rows.Next() {
+		var senderID, receiverID sql.NullString
+		var replyContent sql.NullString
+		var repliedAt sql.NullTime
+		var msg CommunicationMsg
+
+		err := rows.Scan(
+			&msg.Id,
+			&senderID,
+			&receiverID,
+			&msg.MessageContent,
+			&replyContent,
+			&msg.CreatedAt,
+			&repliedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: scanning message row: %v\n", err)
+		}
+
+		if senderID.Valid {
+			senderUUID, err := uuid.FromString(senderID.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing sender_id: %v\n", err)
+			}
+			msg.Sender = &db.User{Id: senderUUID}
+			err = msg.Sender.GetUserById(globalStorage)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: getting sender user: %v\n", err)
+			}
+		}
+
+		if receiverID.Valid {
+			receiverUUID, err := uuid.FromString(receiverID.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing receiver_id: %v\n", err)
+			}
+			msg.Receiver = &db.User{Id: receiverUUID}
+			err = msg.Receiver.GetUserById(globalStorage)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: getting receiver user: %v\n", err)
+			}
+		}
+
+		if replyContent.Valid {
+			msg.ReplyContent = replyContent.String
+		}
+		if repliedAt.Valid {
+			msg.RepliedAt = repliedAt.Time
+		}
+
+		messages = append(messages, &msg)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("ERR: iterating message rows: %v\n", err)
+	}
+
+	return messages, nil
+}
+
+func GetNonRepliedMessagesByUserId(globalStorage *sql.DB, userId uuid.UUID) ([]*CommunicationMsg, error) {
+	query := `
+		SELECT 
+			cm.id,
+			cm.sender_id,
+			cm.reciever_id,
+			cm.message_content,
+			cm.reply_content,
+			cm.created_at,
+			cm.replied_at
+		FROM communication_messages cm
+		WHERE cm.reciever_id = ?
+		AND cm.replied_at IS NULL
+		ORDER BY cm.created_at DESC
+	`
+
+	rows, err := globalStorage.Query(query, userId.String())
+	if err != nil {
+		return nil, fmt.Errorf("ERR: querying non-replied messages for user: %v\n", err)
+	}
+	defer rows.Close()
+
+	var messages []*CommunicationMsg
+	for rows.Next() {
+		var senderID, receiverID sql.NullString
+		var replyContent sql.NullString
+		var repliedAt sql.NullTime
+		var msg CommunicationMsg
+
+		err := rows.Scan(
+			&msg.Id,
+			&senderID,
+			&receiverID,
+			&msg.MessageContent,
+			&replyContent,
+			&msg.CreatedAt,
+			&repliedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: scanning message row: %v\n", err)
+		}
+
+		// Parse sender ID
+		if senderID.Valid {
+			senderUUID, err := uuid.FromString(senderID.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing sender_id: %v\n", err)
+			}
+			msg.Sender = &db.User{Id: senderUUID}
+			err = msg.Sender.GetUserById(globalStorage)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: getting sender user: %v\n", err)
+			}
+		}
+
+		// Parse receiver ID
+		if receiverID.Valid {
+			receiverUUID, err := uuid.FromString(receiverID.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing receiver_id: %v\n", err)
+			}
+			msg.Receiver = &db.User{Id: receiverUUID}
+			err = msg.Receiver.GetUserById(globalStorage)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: getting receiver user: %v\n", err)
+			}
+		}
+
+		// Handle nullable fields
+		if replyContent.Valid {
+			msg.ReplyContent = replyContent.String
+		}
+		if repliedAt.Valid {
+			msg.RepliedAt = repliedAt.Time
+		}
+
+		messages = append(messages, &msg)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("ERR: iterating message rows: %v\n", err)
+	}
+
+	return messages, nil
+}
+
 func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 
-	msg := tgbotapi.NewMessage(comms.Receiver.ChatId, fmt.Sprintf("<b>Від: %s (@%s)</b>\n\n<i>%s</i>", comms.Sender.Name, comms.Sender.TgTag, comms.MessageContent))
+	msg := tgbotapi.NewMessage(comms.Receiver.ChatId, fmt.Sprintf("<b>⚠️❗️ПОВІДОМЛЕННЯ ВІД: %s (@%s)</b>\n\n<i>%s</i>", comms.Sender.Name, comms.Sender.TgTag, comms.MessageContent))
 	msg.ParseMode = tgbotapi.ModeHTML
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відповісти", "reply:"+strconv.Itoa(int(comms.Id)))))
 
@@ -128,6 +339,10 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
 
+	nonRepliedMessagesMu.Lock()
+	nonRepliedMessages[comms.Receiver.Id] = comms
+	nonRepliedMessagesMu.Unlock()
+
 	_, err = Bot.Send(msg)
 	if err != nil {
 		return err
@@ -138,7 +353,7 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 }
 
 func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
-	msg := tgbotapi.NewMessage(comms.Sender.ChatId, fmt.Sprintf("<b>Відповідь від: %s (@%s)</b>\n\n<i>%s</i>", comms.Receiver.Name, comms.Receiver.TgTag, comms.ReplyContent))
+	msg := tgbotapi.NewMessage(comms.Sender.ChatId, fmt.Sprintf("<b> ⚠️❗️ВІДПОВІДЬ ВІД: %s (@%s)</b>\n\n<i>%s</i>", comms.Receiver.Name, comms.Receiver.TgTag, comms.ReplyContent))
 	msg.ParseMode = tgbotapi.ModeHTML
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Написати знову", "writeback:"+strconv.Itoa(int(comms.Receiver.ChatId)))))
 
@@ -151,6 +366,10 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
+
+	nonRepliedMessagesMu.Lock()
+	delete(nonRepliedMessages, comms.Receiver.Id)
+	nonRepliedMessagesMu.Unlock()
 
 	_, err = Bot.Send(msg)
 	if err != nil {

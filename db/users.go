@@ -30,6 +30,87 @@ type User struct {
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
+func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
+	query := `
+		SELECT
+			id,
+			chat_id,
+			name,
+			driver_id,
+			manager_id,
+			created_at,
+			updated_at,
+			is_super_admin,
+			tg_tag
+		FROM users
+		ORDER BY created_at DESC
+	`
+
+	rows, err := globalStorage.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: querying all users: %v\n", err)
+	}
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		var driverIdNull, managerIdNull, tgTagNull sql.NullString
+
+		err := rows.Scan(
+			&user.Id,
+			&user.ChatId,
+			&user.Name,
+			&driverIdNull,
+			&managerIdNull,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.IsSuperAdmin,
+			&tgTagNull,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: scanning user row: %v\n", err)
+		}
+
+		// Handle driver_id
+		if driverIdNull.Valid {
+			driverId, err := uuid.FromString(driverIdNull.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing driver_id: %v\n", err)
+			}
+			user.DriverId = driverId
+		} else {
+			user.DriverId = uuid.Nil
+		}
+
+		// Handle manager_id
+		if managerIdNull.Valid {
+			managerId, err := uuid.FromString(managerIdNull.String)
+			if err != nil {
+				return nil, fmt.Errorf("ERR: parsing manager_id: %v\n", err)
+			}
+			user.ManagerId = managerId
+		} else {
+			user.ManagerId = uuid.Nil
+		}
+
+		// Handle tg_tag
+		if tgTagNull.Valid {
+			user.TgTag = tgTagNull.String
+		} else {
+			user.TgTag = ""
+		}
+
+		users = append(users, &user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("ERR: iterating user rows: %v\n", err)
+	}
+
+	return users, nil
+}
 func (u *User) GetUserById(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag FROM users WHERE id = ?", u.Id)
 	var driverIdNull, managerIdNull, tgTagNull sql.NullString

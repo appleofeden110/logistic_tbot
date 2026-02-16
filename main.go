@@ -58,6 +58,7 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	go handlers.PingNonReplies(globalStorage)
 	go handlers.ReceiveUpdates(ctx, updates, globalStorage)
 
 	// Start the HTTP server and listen on the PORT specified by Heroku

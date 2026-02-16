@@ -356,9 +356,9 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 
 	case db.StateReplyingDriver:
 		if msg.Text != "" {
-			replyingToMessageMapMu.Lock()
-			commsId, found := replyingToMessageMap[manager.ChatId]
-			replyingToMessageMapMu.Unlock()
+			replyingToMessageMu.Lock()
+			commsId, found := replyingToMessage[manager.ChatId]
+			replyingToMessageMu.Unlock()
 			if !found {
 				return manager, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
 			}
@@ -374,9 +374,9 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 			}
 			comms.ReplyContent = msg.Text
 
-			replyingToMessageMapMu.Lock()
-			delete(replyingToMessageMap, manager.ChatId)
-			replyingToMessageMapMu.Unlock()
+			replyingToMessageMu.Lock()
+			delete(replyingToMessage, manager.ChatId)
+			replyingToMessageMu.Unlock()
 
 			return manager, comms.Reply(globalStorage)
 		}
@@ -859,9 +859,9 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		}
 	case db.StateReplyingManager:
 		if msg.Text != "" {
-			replyingToMessageMapMu.Lock()
-			commsId, found := replyingToMessageMap[driver.ChatId]
-			replyingToMessageMapMu.Unlock()
+			replyingToMessageMu.Lock()
+			commsId, found := replyingToMessage[driver.ChatId]
+			replyingToMessageMu.Unlock()
 			if !found {
 				return driver, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
 			}
@@ -878,9 +878,9 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			comms.ReplyContent = msg.Text
 
 			// Clean up the reply map
-			replyingToMessageMapMu.Lock()
-			delete(replyingToMessageMap, driver.ChatId)
-			replyingToMessageMapMu.Unlock()
+			replyingToMessageMu.Lock()
+			delete(replyingToMessage, driver.ChatId)
+			replyingToMessageMu.Unlock()
 
 			return driver, comms.Reply(globalStorage)
 		}

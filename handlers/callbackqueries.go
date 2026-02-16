@@ -322,9 +322,9 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting comms message for a reply")
 		}
 
-		replyingToMessageMapMu.Lock()
-		replyingToMessageMap[comms.Receiver.ChatId] = comms.Id
-		replyingToMessageMapMu.Unlock()
+		replyingToMessageMu.Lock()
+		replyingToMessage[comms.Receiver.ChatId] = comms.Id
+		replyingToMessageMu.Unlock()
 
 		isM, err := comms.Receiver.IsManager(globalStorage)
 		if err != nil {

@@ -17,8 +17,11 @@ var (
 	taskSessions   = make(map[uuid.UUID]*parser.TaskSection)
 	taskSessionsMu sync.Mutex
 
-	replyingToMessageMap   = make(map[int64]int64) // chatId -> commsId
-	replyingToMessageMapMu sync.RWMutex
+	replyingToMessage   = make(map[int64]int64) // chatId -> commsId
+	replyingToMessageMu sync.RWMutex
+
+	nonRepliedMessages   = make(map[uuid.UUID]*CommunicationMsg) // userId -> comms
+	nonRepliedMessagesMu sync.Mutex
 
 	writingToChatMap   = make(map[int64]int64) // senderChatId -> receiverChatId
 	writingToChatMapMu sync.RWMutex
@@ -69,6 +72,18 @@ func FillSessions(globalStorage *sql.DB) error {
 	managerSessionsMu.Unlock()
 
 	log.Printf("Manager sessions are filled (len: %d)\n", len(managerSessions))
+
+	comms, err := GetAllNonRepliedMessages(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting all non replied messages: %v\n", err)
+	}
+	nonRepliedMessagesMu.Lock()
+	for _, c := range comms {
+		nonRepliedMessages[c.Receiver.Id] = c
+	}
+	nonRepliedMessagesMu.Unlock()
+
+	log.Printf("Non-replied messages are filled (len: %d)\n", len(nonRepliedMessages))
 
 	return nil
 }
