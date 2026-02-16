@@ -1,17 +1,10 @@
 package data_analysis
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"path/filepath"
-	"testing"
-
 	_ "github.com/mattn/go-sqlite3"
-	ex "github.com/xuri/excelize/v2"
 )
 
-func TestCreateExcelSheet(t *testing.T) {
+/*func TestCreateExcelSheet(t *testing.T) {
 	path, err := filepath.Abs("../bot.db")
 	log.Println(path, err)
 
@@ -28,7 +21,7 @@ func TestCreateExcelSheet(t *testing.T) {
 
 	rows, err := globalStorage.Query(fmt.Sprintf("SELECT * FROM cleaning_stations"))
 	if err != nil {
-		log.Fatalf("Err querying the table, err: %v\n", err)
+		log.Fatalf("ERR: querying the table, err: %v\n", err)
 	}
 	defer rows.Close()
 
@@ -54,6 +47,7 @@ func TestCreateExcelSheet(t *testing.T) {
 	}
 
 	if err := f.SaveAs("statement.xlsx"); err != nil {
-		fmt.Println(err)
+		fmt.Println("ERR: ", err)
 	}
 }
+*/

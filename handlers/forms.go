@@ -19,7 +19,7 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 	questionAnswers := make(map[string]string)
 	tags, err := utils.GetAllFormTags[T](entity)
 	if err != nil {
-		return fmt.Errorf("error getting tags: %v", err)
+		return fmt.Errorf("ERR: getting tags: %v", err)
 	}
 
 	for _, question := range tags {
@@ -28,7 +28,7 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 
 	_, err = RegisterFormMessage(chatId, questionAnswers, markup, text)
 	if err != nil {
-		return fmt.Errorf("could not create a form message: %v", err)
+		return fmt.Errorf("ERR: could not create a form message: %v", err)
 	}
 
 	log.Println("New form:", logMsg)
@@ -72,7 +72,7 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 			chosenFormText = formTextAddCarDone
 			chosenFormMarkup = formMarkupAddCarDone
 		default:
-			return fmt.Errorf("unknown form type: %T", state.Form.Data)
+			return fmt.Errorf("ERR: unknown form type: %T", state.Form.Data)
 		}
 
 		if chosenFormMarkup.InlineKeyboard == nil {
@@ -101,7 +101,7 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 
 	err = db.CheckFormTable(globalStorage)
 	if err != nil {
-		return fmt.Errorf("Error checking if the form states table exists: %v\n", err)
+		return fmt.Errorf("ERR: checking if the form states table exists: %v\n", err)
 	}
 
 	return state.Form.StoreForm(globalStorage, Bot)
@@ -199,18 +199,18 @@ func setField(field reflect.Value, answer string, fieldName string) error {
 			strings.Contains(strings.ToLower(fieldName), "km") {
 			val, err := db.ParseKilometrage(answer)
 			if err != nil {
-				return fmt.Errorf("invalid kilometrage for %s: %v", fieldName, err)
+				return fmt.Errorf("ERR: invalid kilometrage for %s: %v", fieldName, err)
 			}
 			field.SetInt(val)
 		} else {
 			val, err := strconv.ParseInt(answer, 10, 64)
 			if err != nil {
-				return fmt.Errorf("invalid number for %s: %v", fieldName, err)
+				return fmt.Errorf("ERR: invalid number for %s: %v", fieldName, err)
 			}
 			field.SetInt(val)
 		}
 	default:
-		return fmt.Errorf("unsupported type for field %s: %v", fieldName, field.Kind())
+		return fmt.Errorf("ERR: unsupported type for field %s: %v", fieldName, field.Kind())
 	}
 	return nil
 }
@@ -224,14 +224,14 @@ func GatherInfo(f db.Form) error {
 	case db.CarsTable:
 		return gatherFormInfo[db.Car](f, db.Car{})
 	default:
-		return fmt.Errorf("unsupported table type: %s", f.WhichTable)
+		return fmt.Errorf("ERR: unsupported table type: %s", f.WhichTable)
 	}
 }
 
 func gatherFormInfo[T any](f db.Form, entity T) error {
 	tags, err := utils.GetAllFormTags[T](entity)
 	if err != nil {
-		return fmt.Errorf("error getting form tags from the struct: %w", err)
+		return fmt.Errorf("ERR: getting form tags from the struct: %w", err)
 	}
 
 	fieldNames, questions := getAllFieldsAndQuestions(tags)

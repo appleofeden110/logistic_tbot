@@ -11,7 +11,7 @@ func validateStructTypes(data reflect.Type, fields ...string) error {
 		data = data.Elem()
 	}
 	if data.Kind() != reflect.Struct {
-		return fmt.Errorf("data must be a struct, got %v", data.Kind())
+		return fmt.Errorf("ERR: data must be a struct, got %v", data.Kind())
 	}
 
 	for i := 0; i < data.NumField(); i++ {
@@ -26,7 +26,7 @@ func validateStructTypes(data reflect.Type, fields ...string) error {
 	}
 
 	if len(fields) > 0 {
-		return fmt.Errorf("certain fields are not actually in the struct: %v", fields)
+		return fmt.Errorf("ERR: certain fields are not actually in the struct: %v", fields)
 	}
 	return nil
 }
@@ -50,7 +50,7 @@ func GetFormTagValue[T any](formStruct T, field string) (string, error) {
 			for j := 0; j < currentType.NumField(); j++ {
 				availableFields[j] = currentType.Field(j).Name
 			}
-			return "", fmt.Errorf("field %s not found at level %d, available fields: %v\n", part, i, availableFields)
+			return "", fmt.Errorf("ERR: field %s not found at level %d, available fields: %v\n", part, i, availableFields)
 		}
 
 		// If this is the last part, return the tag
@@ -64,11 +64,11 @@ func GetFormTagValue[T any](formStruct T, field string) (string, error) {
 			currentType = currentType.Elem()
 		}
 		if currentType.Kind() != reflect.Struct {
-			return "", fmt.Errorf("field %s is not a struct, cannot traverse further", part)
+			return "", fmt.Errorf("ERR: field %s is not a struct, cannot traverse further", part)
 		}
 	}
 
-	return "", fmt.Errorf("unexpected error traversing field path")
+	return "", fmt.Errorf("ERR: unexpected error traversing field path")
 }
 
 // same as with GetFormTagValue, but gets you a map of ["fieldName"]: "value of the tag"

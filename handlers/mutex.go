@@ -45,14 +45,14 @@ var (
 func FillSessions(globalStorage *sql.DB) error {
 	drivers, err := db.GetAllDrivers(globalStorage)
 	if err != nil {
-		return fmt.Errorf("err getting all drivers: %v\n", err)
+		return fmt.Errorf("ERR: getting all drivers: %v\n", err)
 	}
 
 	driverSessionsMu.Lock()
 	for _, d := range drivers {
 		d.Session, err = d.GetLastActiveSession(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err getting a session for driver %s: %v\n", d.User.Name, err)
+			return fmt.Errorf("ERR: getting a session for driver %s: %v\n", d.User.Name, err)
 		}
 		driverSessions[d.ChatId] = d
 	}
@@ -62,7 +62,7 @@ func FillSessions(globalStorage *sql.DB) error {
 
 	managers, err := db.GetAllManagers(globalStorage)
 	if err != nil {
-		return fmt.Errorf("err getting all the managers: %v\n", err)
+		return fmt.Errorf("ERR: getting all the managers: %v\n", err)
 	}
 
 	managerSessionsMu.Lock()

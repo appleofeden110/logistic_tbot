@@ -149,12 +149,12 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllShipments(globalStorage)
 		callbackPrefix = "page:viewall"
 		if err != nil {
-			return fmt.Errorf("Err getting shipments: %v", err)
+			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
-			return fmt.Errorf("Err creating message: %v", err)
+			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
@@ -163,7 +163,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
-			return fmt.Errorf("Err editing message: %v", err)
+			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewallbycar:"):
 		parts := strings.Split(cmd, ":")
@@ -183,12 +183,12 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllShipmentsByCarId(carId, globalStorage)
 		callbackPrefix = "page:viewallbycar:" + carId
 		if err != nil {
-			return fmt.Errorf("Err getting shipments: %v", err)
+			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
-			return fmt.Errorf("Err creating message: %v", err)
+			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
@@ -197,7 +197,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
-			return fmt.Errorf("Err editing message: %v", err)
+			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 
 	case strings.Contains(cmd, "viewactivebycar:"):
@@ -218,12 +218,12 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllActiveShipmentsByCarId(carId, globalStorage)
 		callbackPrefix = "page:viewactivebycar:" + carId
 		if err != nil {
-			return fmt.Errorf("Err getting shipments: %v", err)
+			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
-			return fmt.Errorf("Err creating message: %v", err)
+			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
@@ -232,7 +232,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
-			return fmt.Errorf("Err editing message: %v", err)
+			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewactive:"):
 		parts := strings.Split(cmd, ":")
@@ -251,12 +251,12 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllActiveShipments(globalStorage)
 		callbackPrefix = "page:viewactive"
 		if err != nil {
-			return fmt.Errorf("Err getting shipments: %v", err)
+			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
-			return fmt.Errorf("Err creating message: %v", err)
+			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
 		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
@@ -265,7 +265,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
-			return fmt.Errorf("Err editing message: %v", err)
+			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	}
 	return nil

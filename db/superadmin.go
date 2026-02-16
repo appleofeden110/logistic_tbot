@@ -30,7 +30,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 	var chatIds []int64
 	rows, err := exec.Query("SELECT chat_id FROM users where is_super_admin=1")
 	if err != nil {
-		return fmt.Errorf("Error getting superadmin's chatids: %v\n", err)
+		return fmt.Errorf("ERR: getting superadmin's chatids: %v\n", err)
 	}
 	defer rows.Close()
 
@@ -40,7 +40,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 		i++
 		err = rows.Scan(&temp)
 		if err != nil {
-			return fmt.Errorf("Error scanning rows (i: %d): %v\n", i, err)
+			return fmt.Errorf("ERR: scanning rows (i: %d): %v\n", i, err)
 		}
 		chatIds = append(chatIds, temp)
 	}
@@ -58,7 +58,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 	}
 
 	if role == "" {
-		return fmt.Errorf("User does not have driver or manager id: %v\n", u)
+		return fmt.Errorf("ERR: User does not have driver or manager id: %v\n", u)
 	}
 
 	bot.Send(tgbotapi.NewMessage(u.ChatId, "Дані відправлені Адміністратору для перевірки..."))
@@ -85,11 +85,11 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 func (u *User) FindSuperAdmin(storage DBExecutor) error {
 	isManager, err := u.IsManager(storage)
 	if err != nil {
-		return fmt.Errorf("err checking if super admin or not: %v\n", err)
+		return fmt.Errorf("ERR: checking if super admin or not: %v\n", err)
 	}
 
 	if !isManager {
-		return fmt.Errorf("not even a manager")
+		return fmt.Errorf("ERR: not even a manager")
 	}
 
 	row := storage.QueryRow("SELECT is_super_admin from users where id = ?", u.Id)
@@ -128,7 +128,7 @@ func GetDev(globalStorage *sql.DB, chat_id int64) (*DevSesh, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("not a dev")
 		}
-		return nil, fmt.Errorf("error scanning user: %w", err)
+		return nil, fmt.Errorf("ERR: scanning user: %w", err)
 	}
 
 	if chat_id > 0 {

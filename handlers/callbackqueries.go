@@ -38,14 +38,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		m, y, found := strings.Cut(after, ".")
 		if !found {
 			log.Printf("Місяця немає тут: %s\n", cbq.Data)
-			return fmt.Errorf("invalid month format")
+			return fmt.Errorf("ERR: invalid month format")
 		}
 		month, _ := strconv.Atoi(m)
 		year, _ := strconv.Atoi(y)
 
 		filename, err := data_analysis.CreateMonthlyStatement(time.Month(month), year, globalStorage)
 		if err != nil {
-			return fmt.Errorf("error creating statement: %v", err)
+			return fmt.Errorf("ERR: creating statement: %v", err)
 		}
 
 		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
@@ -63,13 +63,13 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	case strings.HasPrefix(cbq.Data, "shipment:details:"):
 		shipmentIdString, f := strings.CutPrefix(cbq.Data, "shipment:details:")
 		if !f {
-			fmt.Printf("Error: there is no shipment id when it should be in here: %s (chatId: %d)\n", cbq.Data, cbq.Message.Chat.ID)
+			fmt.Printf("ERR: there is no shipment id when it should be in here: %s (chatId: %d)\n", cbq.Data, cbq.Message.Chat.ID)
 			config.VERY_BAD(cbq.Message.Chat.ID, Bot)
 		}
 
 		shipmentId, err := strconv.ParseInt(shipmentIdString, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error: parsing shipment id (og str: %s) was not successful: %v\n", shipmentIdString, err)
+			return fmt.Errorf("ERR: parsing shipment id (og str: %s) was not successful: %v\n", shipmentIdString, err)
 		}
 		return HandleShipmentDetails(cbq.Message.Chat.ID, shipmentId, globalStorage)
 	case strings.HasPrefix(cbq.Data, "startform:"):
@@ -101,7 +101,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		inputSesh.Finished = true
 		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Опрацювання..."))
 		if err != nil {
-			return fmt.Errorf("Err sending acceptform message to a user: %v\n", err)
+			return fmt.Errorf("ERR: sending acceptform message to a user: %v\n", err)
 		}
 		return finishForm(cbq.Message.Chat.ID, inputSesh, globalStorage, cbq.Message.From)
 
@@ -129,12 +129,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		var shipmentId int64
 
 		if shipmentId, err = strconv.ParseInt(shipmentIdString, 10, 64); err != nil {
-			return fmt.Errorf("err parsing shipment id: %v\n", err)
+			return fmt.Errorf("ERR: parsing shipment id: %v\n", err)
 		}
 
 		shipment, err := parser.GetShipment(globalStorage, shipmentId)
 		if err != nil {
-			return fmt.Errorf("err getting shipment by id: %v\n", err)
+			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
 		}
 
 		if !shipment.Started.IsZero() {
@@ -144,12 +144,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 		err = shipment.StartShipment(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err starting shipment: %v\n", err)
+			return fmt.Errorf("ERR: starting shipment: %v\n", err)
 		}
 
 		shipment.Tasks, err = parser.GetAllTasksByShipmentId(globalStorage, shipmentId)
 		if err != nil {
-			return fmt.Errorf("err getting all the tasks for the shipment: %v\n", err)
+			return fmt.Errorf("ERR: getting all the tasks for the shipment: %v\n", err)
 		}
 
 		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "Початок маршруту: "+shipment.Started.Format("02/01/2006 15:04"))
@@ -181,12 +181,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		var shipmentId int64
 
 		if shipmentId, err = strconv.ParseInt(shipmentIdString, 10, 64); err != nil {
-			return fmt.Errorf("err parsing shipment id: %v\n", err)
+			return fmt.Errorf("ERR: parsing shipment id: %v\n", err)
 		}
 
 		shipment, err := parser.GetShipment(globalStorage, shipmentId)
 		if err != nil {
-			return fmt.Errorf("err getting shipment by id: %v\n", err)
+			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
 		}
 		log.Println(shipment.Started)
 
@@ -202,7 +202,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 		err = shipment.FinishShipment(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err starting shipment: %v\n", err)
+			return fmt.Errorf("ERR: starting shipment: %v\n", err)
 		}
 
 		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Маршрут %d було закінчено!", shipmentId)))
@@ -214,13 +214,13 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if f {
 			docId, err := strconv.Atoi(docIdString)
 			if err != nil {
-				return fmt.Errorf("err getting id from docIdstring: %v\n", err)
+				return fmt.Errorf("ERR: getting id from docIdstring: %v\n", err)
 			}
 
 			f := docs.File{Id: docId}
 			err = f.GetFile(globalStorage)
 			if err != nil {
-				return fmt.Errorf("err getting a file to read: %v\n", err)
+				return fmt.Errorf("ERR: getting a file to read: %v\n", err)
 			}
 
 			return parser.ReadDocAndSend(f.Path, cbq.Message.Chat.ID, Bot)
@@ -229,14 +229,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 		suffix, found := strings.CutPrefix(cbq.Data, "task_data:")
 		if !found {
-			return fmt.Errorf("err founding task data: %s\n", suffix)
+			return fmt.Errorf("ERR: founding task data: %s\n", suffix)
 		}
 		task, _, found := strings.Cut(suffix, ":")
 		fmt.Println("task found? ", found)
 
 		sections, err := parser.GetSequenceOfTasks("")
 		if err != nil {
-			return fmt.Errorf("Error sections: %v\n", err)
+			return fmt.Errorf("ERR: sections: %v\n", err)
 		}
 		_, secRes := parser.ReadDoc(sections)
 
@@ -275,14 +275,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 		suffix, found := strings.CutPrefix(cbq.Data, "yesend:")
 		if !found {
-			return fmt.Errorf("err founding task data: %s\n", suffix)
+			return fmt.Errorf("ERR: founding task data: %s\n", suffix)
 		}
 		task, _, found := strings.Cut(suffix, ":")
 		fmt.Println("task found? ", found)
 
 		sections, err := parser.GetSequenceOfTasks("")
 		if err != nil {
-			return fmt.Errorf("Error sections: %v\n", err)
+			return fmt.Errorf("ERR: sections: %v\n", err)
 		}
 		_, secRes := parser.ReadDoc(sections)
 
@@ -397,7 +397,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		msgId, err = strconv.ParseInt(msgIdStr, 10, 64)
 		chatId, err = strconv.ParseInt(chatIdStr, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
+			return fmt.Errorf("ERR: parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
 		}
 
 		return SendWithCommsAndChat(globalStorage, msgId, chatId)
@@ -411,7 +411,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		msgId, err = strconv.ParseInt(msgIdStr, 10, 64)
 		chatId, err = strconv.ParseInt(chatIdStr, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
+			return fmt.Errorf("ERR: parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
 		}
 
 		return SendWithCommsAndChat(globalStorage, msgId, chatId)
@@ -434,18 +434,18 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 					err = session.ChangeManagerStatus(globalStorage)
 					if err != nil {
-						return fmt.Errorf("err changing status from waiting driver to dormant_mng: %v\n", err)
+						return fmt.Errorf("ERR: changing status from waiting driver to dormant_mng: %v\n", err)
 					}
 					return nil
 				}
-				return fmt.Errorf("Error sending document: %v\n", err)
+				return fmt.Errorf("ERR: sending document: %v\n", err)
 			}
 
 			session.State = db.StateDormantManager
 
 			err = session.ChangeManagerStatus(globalStorage)
 			if err != nil {
-				return fmt.Errorf("err changing status from waiting driver to dormant_mng: %v\n", err)
+				return fmt.Errorf("ERR: changing status from waiting driver to dormant_mng: %v\n", err)
 			}
 			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "✅ Завдання відправлено водію!")
 			_, err = Bot.Send(msg)
@@ -479,20 +479,20 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 			return err
 		}
-		log.Println("Cannot find video name: ", cbq.Data)
+		log.Println("ERR: Cannot find video name: ", cbq.Data)
 		return nil
 	case strings.HasPrefix(cbq.Data, "deletevid:"):
 		messageToDel, f := strings.CutPrefix(cbq.Data, "deletevid:")
 		if f {
 			messageId, err := strconv.Atoi(messageToDel)
 			if err != nil {
-				log.Println("could not find the video to delete: ", cbq.Data)
+				log.Println("ERR: could not find the video to delete: ", cbq.Data)
 				return nil
 			}
 			_, err = Bot.Send(tgbotapi.NewDeleteMessage(cbq.Message.Chat.ID, messageId))
 			return err
 		}
-		log.Println("could not find the video to delete: ", cbq.Data)
+		log.Println("ERR: could not find the video to delete: ", cbq.Data)
 		return nil
 	case strings.HasPrefix(cbq.Data, "end_route:"):
 		var shipment int64
@@ -500,7 +500,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if f {
 			shipment, err = strconv.ParseInt(shipmentId, 0, 64)
 			if err != nil {
-				log.Println(err)
+				log.Println("ERR: ", err)
 			}
 		}
 
@@ -522,7 +522,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Закінчувальний кілометраж для водія Назар Канюка по маршруту %d: %.2f км", shipment, sesh.TotalDistance)))
 
 		} else {
-			log.Println("ЩО ЗАКІНЧУВАТИ ТО?")
+			log.Println("ERR: ЩО ЗАКІНЧУВАТИ ТО?")
 		}
 
 	default:

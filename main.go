@@ -22,23 +22,23 @@ func main() {
 
 	globalStorage, err := sql.Open("sqlite3", "./bot.db")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln("ERR: ", err)
 	}
 	defer globalStorage.Close()
 
 	_, err = globalStorage.Exec("PRAGMA foreign_keys = ON;")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln("ERR: ", err)
 	}
 
 	err = db.CheckAllTables(globalStorage)
 	if err != nil {
-		log.Fatalf("Err with the table: %v\n", err)
+		log.Fatalf("ERR: with the table: %v\n", err)
 	}
 
 	err = handlers.FillSessions(globalStorage)
 	if err != nil {
-		log.Fatalf("Err filling sessions: %v\n", err)
+		log.Fatalf("ERR: filling sessions: %v\n", err)
 	}
 
 	handlers.Bot, err = tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_API"))
@@ -68,6 +68,6 @@ func main() {
 	}
 	log.Printf("Listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("ERR:Failed to start server: %v", err)
 	}
 }

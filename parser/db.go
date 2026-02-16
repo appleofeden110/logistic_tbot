@@ -38,7 +38,7 @@ func scanShipment(rows *sql.Rows) (*Shipment, error) {
 		&finished,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("scan shipment: %w", err)
+		return nil, fmt.Errorf("ERR: scan shipment: %w", err)
 	}
 
 	shipment.DocLang = Language(docLang)
@@ -101,7 +101,7 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 		&updatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("scan task: %w", err)
+		return nil, fmt.Errorf("ERR: scan task: %w", err)
 	}
 
 	task.Type = taskType
@@ -162,7 +162,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 
 	taskRows, err := tx.Query(taskQuery, shipmentId)
 	if err != nil {
-		return nil, fmt.Errorf("query tasks for shipment %d: %w", shipmentId, err)
+		return nil, fmt.Errorf("ERR: query tasks for shipment %d: %w", shipmentId, err)
 	}
 	defer taskRows.Close()
 
@@ -177,7 +177,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 	}
 
 	if err := taskRows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate tasks: %w", err)
+		return nil, fmt.Errorf("ERR: iterate tasks: %w", err)
 	}
 
 	return tasks, nil
@@ -186,13 +186,13 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment, error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("err beginning transaction: %v", err)
+		return nil, fmt.Errorf("ERR: beginning transaction: %v", err)
 	}
 	defer tx.Rollback()
 
 	rows, err := tx.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query shipments: %w", err)
+		return nil, fmt.Errorf("ERR: query shipments: %w", err)
 	}
 	defer rows.Close()
 
@@ -214,11 +214,11 @@ func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment,
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate shipments: %w", err)
+		return nil, fmt.Errorf("ERR: iterate shipments: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
+		return nil, fmt.Errorf("ERR: commit transaction: %w", err)
 	}
 
 	return shipments, nil
@@ -301,7 +301,7 @@ func parseTimeString(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, fmt.Errorf("unable to parse time: %s", s)
+	return time.Time{}, fmt.Errorf("ERR: unable to parse time: %s", s)
 }
 
 func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
@@ -315,7 +315,7 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 	`
 	rows, err := db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("query available months: %w", err)
+		return nil, fmt.Errorf("ERR: query available months: %w", err)
 	}
 	defer rows.Close()
 
@@ -323,7 +323,7 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 	for rows.Next() {
 		var yearStr, monthStr sql.NullString
 		if err := rows.Scan(&yearStr, &monthStr); err != nil {
-			return nil, fmt.Errorf("scan month: %w", err)
+			return nil, fmt.Errorf("ERR: scan month: %w", err)
 		}
 
 		if !yearStr.Valid || !monthStr.Valid {
@@ -354,7 +354,7 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 func (s *Shipment) StoreShipment(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return fmt.Errorf("ERR: begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -381,7 +381,7 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		time.Now(),
 	)
 	if err != nil {
-		return fmt.Errorf("insert shipment: %w", err)
+		return fmt.Errorf("ERR: insert shipment: %w", err)
 	}
 
 	taskQuery := `INSERT INTO tasks 
@@ -427,18 +427,18 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 			time.Now(),
 		)
 		if err != nil {
-			return fmt.Errorf("insert task: %w", err)
+			return fmt.Errorf("ERR: insert task: %w", err)
 		}
 
 		taskId, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("get task id: %w", err)
+			return fmt.Errorf("ERR: get task id: %w", err)
 		}
 		task.Id = int(taskId)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
+		return fmt.Errorf("ERR: commit transaction: %w", err)
 	}
 
 	return nil
@@ -448,7 +448,7 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("Error: beginning transaction for the shipment: %w\n", err)
+		return nil, fmt.Errorf("ERR: beginning transaction for the shipment: %w\n", err)
 	}
 	defer tx.Rollback()
 
@@ -522,7 +522,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 
 	s.Tasks, err = loadTasksForShipment(tx, s.ShipmentId)
 	if err != nil {
-		return nil, fmt.Errorf("Error: getting tasks for the shipment: %v\n", err)
+		return nil, fmt.Errorf("ERR: getting tasks for the shipment: %v\n", err)
 	}
 
 	return s, nil
@@ -539,7 +539,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 
 	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
-		return fmt.Errorf("err starting shipment: %v\n", err)
+		return fmt.Errorf("ERR: starting shipment: %v\n", err)
 	}
 
 	return nil
@@ -556,7 +556,7 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
-		return fmt.Errorf("err starting shipment: %v\n", err)
+		return fmt.Errorf("ERR: starting shipment: %v\n", err)
 	}
 
 	return nil

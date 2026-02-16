@@ -189,7 +189,7 @@ func (s *Shipment) IdentifyInstructionForDoc(docText string) (after string, foun
 				after = strings.Join(lines[2:], "\n")
 				continue
 			}
-			log.Println("french: not included in the dictionary")
+			log.Println("PARSER ERR: french: not included in the dictionary")
 
 			return docText, false
 		case German:
@@ -207,7 +207,7 @@ func (s *Shipment) IdentifyInstructionForDoc(docText string) (after string, foun
 				after = strings.Join(lines[1:], "\n")
 				return after, true
 			}
-			log.Println("german: not included in the dictionary")
+			log.Println("PARSER ERR: german: not included in the dictionary")
 			return docText, false
 		case English:
 			for _, englishKeyword := range DetailsKeywords[InstructionDescriptionEnglish] {
@@ -224,7 +224,7 @@ func (s *Shipment) IdentifyInstructionForDoc(docText string) (after string, foun
 				after = strings.Join(lines[1:], "\n")
 				return docText, true
 			}
-			log.Println("english: not included in the dictionary")
+			log.Println("PARSER ERR: english: not included in the dictionary")
 			return docText, false
 		default:
 			continue
@@ -266,7 +266,7 @@ func identifyInstruction(line string, isNextLine bool) (instructionType string, 
 			}
 
 			if isNextLine {
-				log.Println("french: not included in the dictionary")
+				log.Println("PARSER ERR: french: not included in the dictionary")
 				return "", "", false
 			}
 			return "nextline", language, true
@@ -281,7 +281,7 @@ func identifyInstruction(line string, isNextLine bool) (instructionType string, 
 				}
 				return strings.Join([]string{germanKeyword, instructionKeyword}, " "), language, true
 			}
-			log.Println("german: not included in the dictionary")
+			log.Println("PARSER ERR: german: not included in the dictionary")
 			return "", "", false
 		case English:
 			for _, englishKeyword := range DetailsKeywords[InstructionDescriptionEnglish] {
@@ -294,7 +294,7 @@ func identifyInstruction(line string, isNextLine bool) (instructionType string, 
 				}
 				return strings.Join([]string{englishKeyword, instructionKeyword}, " "), language, true
 			}
-			log.Println("english: not included in the dictionary")
+			log.Println("PARSER ERR: english: not included in the dictionary")
 			return "", "", false
 		default:
 			continue
@@ -508,7 +508,7 @@ func (t *TaskSection) getTaskDetails() bool {
 				if a, f := strings.CutPrefix(line, loadDate); f {
 					start, end, err := parseTimeRange(strings.TrimSpace(a))
 					if err != nil {
-						log.Printf("err parsing time range for load in doc with shipment id: %v; ERR: %v\n", t.ShipmentId, err)
+						log.Fatalf("ERR: parsing time range for load in doc with shipment id: %v; ERR: %v\n", t.ShipmentId, err)
 						continue
 					}
 					t.LoadStartDate = start

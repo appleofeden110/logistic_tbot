@@ -118,7 +118,7 @@ func WriteRow(f *ex.File, sheet string, row int, data ShipmentStatement) error {
 func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, error) {
 	shipments, err := parser.GroupByMonth(month, year, db)
 	if err != nil {
-		return "", fmt.Errorf("error getting shipments: %w", err)
+		return "", fmt.Errorf("ERR: getting shipments: %w", err)
 	}
 
 	f := ex.NewFile()
@@ -127,14 +127,14 @@ func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, err
 	sheet := "Statement"
 	index, err := f.NewSheet(sheet)
 	if err != nil {
-		return "", fmt.Errorf("error creating sheet: %w", err)
+		return "", fmt.Errorf("ERR: creating sheet: %w", err)
 	}
 	f.SetActiveSheet(index)
 	f.DeleteSheet("Sheet1")
 
 	headers := GetHeaders(ShipmentStatement{})
 	if err := WriteHeaders(f, sheet, headers); err != nil {
-		return "", fmt.Errorf("error writing headers: %w", err)
+		return "", fmt.Errorf("ERR: writing headers: %w", err)
 	}
 
 	currentRow := 2
@@ -143,7 +143,7 @@ func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, err
 
 		for _, statement := range statements {
 			if err := WriteRow(f, sheet, currentRow, statement); err != nil {
-				return "", fmt.Errorf("error writing row %d: %w", currentRow, err)
+				return "", fmt.Errorf("ERR: writing row %d: %w", currentRow, err)
 			}
 			currentRow++
 		}
@@ -156,7 +156,7 @@ func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, err
 
 	filename := fmt.Sprintf(config.GetOutDocsPath()+"V R_statement_%s_%d.xlsx", month.String(), year)
 	if err := f.SaveAs(filename); err != nil {
-		return "", fmt.Errorf("error saving file: %w", err)
+		return "", fmt.Errorf("ERR: saving file: %w", err)
 	}
 
 	return filename, nil
@@ -201,14 +201,14 @@ func ConvertShipmentToStatements(shipment *parser.Shipment) []ShipmentStatement 
 
 				loadTask = nil
 			} else {
-				fmt.Printf("  WARNING: Found unload without preceding load task\n")
+				fmt.Printf("WARN:  WARNING: Found unload without preceding load task\n")
 			}
 		} else if taskType == "cleaning" {
 			idStmt := slices.IndexFunc(statements, func(s ShipmentStatement) bool {
 				return s.ShipmentId == task.ShipmentId
 			})
 			if idStmt == -1 {
-				fmt.Printf("WARNING: found cleaning task, but could not find the shipment with the same shipment id: task - %d\n", task.ShipmentId)
+				fmt.Printf("WARN:WARNING: found cleaning task, but could not find the shipment with the same shipment id: task - %d\n", task.ShipmentId)
 				continue
 			}
 			statements[idStmt].CleaningStationAddress = task.Address

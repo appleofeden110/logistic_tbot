@@ -64,7 +64,7 @@ func PingNonReplies(globalStorage *sql.DB) {
 		}
 	}
 
-	return nil
+	return
 }
 
 // GetCommsMessage just needs the id
@@ -98,9 +98,9 @@ func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("communication message with id %d not found", comms.Id)
+			return fmt.Errorf("ERR: communication message with id %d not found", comms.Id)
 		}
-		return fmt.Errorf("error fetching communication message: %w", err)
+		return fmt.Errorf("ERR: fetching communication message: %w", err)
 	}
 
 	if replyContent.Valid {
@@ -114,24 +114,24 @@ func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 	if receiverID.Valid && receiverID.String != "" {
 		receiverUUID, err := uuid.FromString(receiverID.String)
 		if err != nil {
-			return fmt.Errorf("error parsing receiver_id: %w", err)
+			return fmt.Errorf("ERR: parsing receiver_id: %w", err)
 		}
 
 		comms.Receiver = &db.User{Id: receiverUUID}
 		if err := comms.Receiver.GetUserById(globalStorage); err != nil {
-			return fmt.Errorf("error fetching receiver user: %w", err)
+			return fmt.Errorf("ERR: fetching receiver user: %w", err)
 		}
 	}
 
 	if senderID.Valid && senderID.String != "" {
 		senderUUID, err := uuid.FromString(senderID.String)
 		if err != nil {
-			return fmt.Errorf("error parsing sender_id: %w", err)
+			return fmt.Errorf("ERR: parsing sender_id: %w", err)
 		}
 
 		comms.Sender = &db.User{Id: senderUUID}
 		if err := comms.Sender.GetUserById(globalStorage); err != nil {
-			return fmt.Errorf("error fetching sender user: %w", err)
+			return fmt.Errorf("ERR: fetching sender user: %w", err)
 		}
 	}
 

@@ -64,12 +64,12 @@ func SetAllManagersToDormant(db DBExecutor) error {
 
 	result, err := db.Exec(query, StateDormantManager, StateDormantManager)
 	if err != nil {
-		return fmt.Errorf("error setting all managers to dormant state: %v", err)
+		return fmt.Errorf("ERR: setting all managers to dormant state: %v", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("error getting rows affected: %v", err)
+		return fmt.Errorf("ERR: getting rows affected: %v", err)
 	}
 
 	log.Printf("Set %d manager(s) to dormant state", rowsAffected)
@@ -83,12 +83,12 @@ func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if m.Id == uuid.Nil {
-		return fmt.Errorf("Err getting id for changing manager's status: %v\n", m.Id)
+		return fmt.Errorf("ERR: getting id for changing manager's status: %v\n", m.Id)
 	}
 
 	_, err := globalStorage.Exec(query, m.State, m.Id)
 	if err != nil {
-		return fmt.Errorf("err changing manager's status: %v\n", err)
+		return fmt.Errorf("ERR: changing manager's status: %v\n", err)
 	}
 
 	return nil
@@ -121,23 +121,23 @@ func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no manager found for chat_id %d", chatId)
 		}
-		return nil, fmt.Errorf("error querying manager by chat_id: %v", err)
+		return nil, fmt.Errorf("ERR: querying manager by chat_id: %v", err)
 	}
 
 	manager.Id, err = uuid.FromString(managerIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing manager id: %v", err)
+		return nil, fmt.Errorf("ERR: parsing manager id: %v", err)
 	}
 
 	manager.UserId, err = uuid.FromString(userIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing user id: %v", err)
+		return nil, fmt.Errorf("ERR: parsing user id: %v", err)
 	}
 
 	if userDriverIdStr.Valid {
 		driverId, err := uuid.FromString(userDriverIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing user driver_id: %v", err)
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
 		}
 		manager.User.DriverId = driverId
 	}
@@ -145,7 +145,7 @@ func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
 	if userManagerIdStr.Valid {
 		managerId, err := uuid.FromString(userManagerIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing user manager_id: %v", err)
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
 		}
 		manager.User.ManagerId = managerId
 	}
@@ -162,7 +162,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err creating a new uuid for a manager: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: creating a new uuid for a manager: %v (txErr: %v)\n", err, txErr)
 	}
 
 	stmt, err := db.Prepare(`
@@ -173,7 +173,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err preparing statement for insert manager: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: preparing statement for insert manager: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmt.Close()
 
@@ -182,7 +182,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err executing prep insert manager stmt: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: executing prep insert manager stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
 	m.Id = id
@@ -197,7 +197,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err preparing statement for update user manager_id: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: preparing statement for update user manager_id: %v (txErr: %v)\n", err, txErr)
 	}
 	defer updateStmt.Close()
 
@@ -206,12 +206,12 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
 	err = m.User.SendRequestToSuperAdmins(db, bot)
 	if err != nil {
-		return fmt.Errorf("Err sending request to accept user to superadmins: %v\n", err)
+		return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
 	}
 
 	return nil
@@ -220,7 +220,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 func (u *User) IsManager(exec DBExecutor) (bool, error) {
 	stmt, err := exec.Prepare("SELECT id, manager_id FROM users where chat_id=?")
 	if err != nil {
-		return false, fmt.Errorf("Err preparing statement to get id and manager_id: %v\n", err)
+		return false, fmt.Errorf("ERR: preparing statement to get id and manager_id: %v\n", err)
 	}
 	defer stmt.Close()
 	row := stmt.QueryRow(u.ChatId)
@@ -230,13 +230,13 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, fmt.Errorf("cannot even find a user somehow: %v\n", err)
 		}
-		return false, fmt.Errorf("Err scanning rows: %v\n", err)
+		return false, fmt.Errorf("ERR: scanning rows: %v\n", err)
 	}
 
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return false, fmt.Errorf("error parsing manager_id: %w", err)
+			return false, fmt.Errorf("ERR: parsing manager_id: %w", err)
 		}
 		u.ManagerId = managerId
 		return true, nil
@@ -249,7 +249,7 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
 	drivers, err := GetAllDrivers(exec)
 	if err != nil {
-		return fmt.Errorf("error getting all drivers: %v", err)
+		return fmt.Errorf("ERR: getting all drivers: %v", err)
 	}
 
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -271,14 +271,14 @@ func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption strin
 func (pm *PendingMessage) StoreDocForShipment(exec *sql.DB, bot *tgbotapi.BotAPI) (int, error) {
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: pm.FileId})
 	if err != nil {
-		return 0, fmt.Errorf("error getting file info: %v", err)
+		return 0, fmt.Errorf("ERR: getting file info: %v", err)
 	}
 
 	fileURL := file.Link(bot.Token)
 	log.Printf("File download URL: %s", fileURL)
 
 	fullPath, err := config.DownloadFile(fileURL, strings.Split(fileURL, "/")[6])
-	log.Println("Error Downloading: ", err)
+	log.Println("ERR: Downloading: ", err)
 
 	downloadedDoc := docs.File{
 		TgFileId:     pm.FileId,
@@ -304,17 +304,17 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	f := docs.File{TgFileId: pm.FileId}
 	err := f.GetFile(exec)
 	if err != nil {
-		return fmt.Errorf("Err getting file from file id of tg: %v\n", err)
+		return fmt.Errorf("ERR: getting file from file id of tg: %v\n", err)
 	}
 
 	driver, err := GetDriverByChatId(exec, pm.ToChatId)
 	if err != nil {
-		return fmt.Errorf("err getting driver from chat id: %v\n", err)
+		return fmt.Errorf("ERR: getting driver from chat id: %v\n", err)
 	}
 
 	shipment, err := parser.GetSequenceOfTasks(f.Path)
 	if err != nil {
-		return fmt.Errorf("err reading the shipment doc: %v\n", err)
+		return fmt.Errorf("ERR: reading the shipment doc: %v\n", err)
 	}
 
 	shipment.CarId = driver.CarId
@@ -359,7 +359,7 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 
 	rows, err := db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("error querying all managers: %v", err)
+		return nil, fmt.Errorf("ERR: querying all managers: %v", err)
 	}
 	defer rows.Close()
 
@@ -379,23 +379,23 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 		)
 
 		if err != nil {
-			return nil, fmt.Errorf("error scanning manager row: %v", err)
+			return nil, fmt.Errorf("ERR: scanning manager row: %v", err)
 		}
 
 		manager.Id, err = uuid.FromString(managerIdStr)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing manager id: %v", err)
+			return nil, fmt.Errorf("ERR: parsing manager id: %v", err)
 		}
 
 		manager.UserId, err = uuid.FromString(userIdStr)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing user id: %v", err)
+			return nil, fmt.Errorf("ERR: parsing user id: %v", err)
 		}
 
 		if userDriverIdStr.Valid {
 			driverId, err := uuid.FromString(userDriverIdStr.String)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing user driver_id: %v", err)
+				return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
 			}
 			manager.User.DriverId = driverId
 		}
@@ -403,7 +403,7 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 		if userManagerIdStr.Valid {
 			managerId, err := uuid.FromString(userManagerIdStr.String)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing user manager_id: %v", err)
+				return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
 			}
 			manager.User.ManagerId = managerId
 		}
@@ -412,7 +412,7 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating manager rows: %v", err)
+		return nil, fmt.Errorf("ERR: iterating manager rows: %v", err)
 	}
 
 	return managers, nil

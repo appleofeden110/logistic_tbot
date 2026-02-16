@@ -33,18 +33,18 @@ var Bot *tgbotapi.BotAPI
 func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) error {
 	shipment, err := parser.GetShipment(globalStorage, shipmentId)
 	if err != nil {
-		return fmt.Errorf("Error: getting shipment for the details (shipmentId: %d): %v\n", shipmentId, err)
+		return fmt.Errorf("ERR: getting shipment for the details (shipmentId: %d): %v\n", shipmentId, err)
 	}
 
 	f := docs.File{Id: shipment.ShipmentDocId}
 	err = f.GetFile(globalStorage)
 	if err != nil {
-		return fmt.Errorf("Error: getting file from ShipmentDocId (%d): %v\n", shipment.ShipmentDocId, err)
+		return fmt.Errorf("ERR: getting file from ShipmentDocId (%d): %v\n", shipment.ShipmentDocId, err)
 	}
 
 	driver, err := db.GetDriverById(globalStorage, shipment.DriverId)
 	if err != nil {
-		return fmt.Errorf("Error: getting driver by id: %v\n", err)
+		return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 	}
 
 	msg := tgbotapi.NewDocument(chatId, tgbotapi.FileID(f.TgFileId))
@@ -63,7 +63,7 @@ func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) erro
 func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 	cmd, found := strings.CutPrefix(command, "/")
 	if !found {
-		return fmt.Errorf("it is not a command: %s\n", command)
+		return fmt.Errorf("ERR: it is not a command: %s\n", command)
 	}
 
 	cmd, found = strings.CutSuffix(cmd, "@logistictbot")
@@ -78,7 +78,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		err := u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("Something wrong with the db: %v\n", err)
+				return fmt.Errorf("ERR: Something wrong with the db: %v\n", err)
 			}
 			u = nil
 		}
@@ -126,7 +126,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 	case "dev:init":
 		devSesh, err := db.GetDev(globalStorage, chatId)
 		if err != nil {
-			log.Println(err)
+			log.Println("ERR: ", err)
 			return nil
 		}
 
@@ -139,14 +139,14 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		_, err = Bot.Send(msg)
 		return err
 	default:
-		return fmt.Errorf("unrecognized command")
+		return fmt.Errorf("ERR: unrecognized command")
 	}
 	return nil
 }
 func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	cmd, f := strings.CutPrefix(command, "manager:")
 	if !f {
-		return fmt.Errorf("not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
+		return fmt.Errorf("ERR: not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
 	}
 
 	managerSessionsMu.Lock()
@@ -154,7 +154,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	managerSessionsMu.Unlock()
 
 	if !exists {
-		return fmt.Errorf("not a manager session, register")
+		return fmt.Errorf("ERR: not a manager session, register")
 	}
 
 	switch cmd {
@@ -172,7 +172,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	case "viewdrivers":
 		drivers, err := db.GetAllDrivers(globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting all driver by the ask of the manager: %v\n", err)
+			return fmt.Errorf("ERR: getting all driver by the ask of the manager: %v\n", err)
 		}
 
 		msg := tgbotapi.NewMessage(chatId, "Список водіїв:\n\n")
@@ -190,33 +190,33 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	case "viewall":
 		shipments, err := parser.GetAllShipments(globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewall")
 		if err != nil {
-			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
-			return fmt.Errorf("Err sending message: %v\n", err)
+			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 
 	case "viewactive":
 		shipments, err := parser.GetAllActiveShipments(globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactive")
 		if err != nil {
-			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
-			return fmt.Errorf("Err sending message: %v\n", err)
+			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 	case "sendmessage":
 		managerSesh.State = db.StateWritingToDriver
@@ -232,7 +232,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 
 		availableMonths, err := parser.GetAvailableMonths(globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting available months for the shipments: %v\n", err)
+			return fmt.Errorf("ERR: getting available months for the shipments: %v\n", err)
 		}
 
 		msg := tgbotapi.NewMessage(chatId, "За який місяць?")
@@ -419,7 +419,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		task, err := parser.GetTaskById(globalStorage, taskId)
 		if err != nil {
-			return fmt.Errorf("err getting task by id (%d): %v\n", taskId, err)
+			return fmt.Errorf("ERR: getting task by id (%d): %v\n", taskId, err)
 		}
 
 		switch task.Type {
@@ -434,24 +434,24 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
-			return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
 		driverSesh.PerformedTaskId = taskId
 
 		err = driverSesh.SetPerformingTask(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err changing driver's performing task: %v\n", err)
+			return fmt.Errorf("ERR: changing driver's performing task: %v\n", err)
 		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err changing driver's status while performing a task: %v\n", err)
+			return fmt.Errorf("ERR: changing driver's status while performing a task: %v\n", err)
 		}
 
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
-			return fmt.Errorf("err getting a car for ending a task: %v\n", err)
+			return fmt.Errorf("ERR: getting a car for ending a task: %v\n", err)
 		}
 
 		taskSessionsMu.Lock()
@@ -485,7 +485,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
 				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
 			default:
-				return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
 		}
 
@@ -511,7 +511,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 			if err != nil {
-				return fmt.Errorf("err getting shipment from a task: %v\n", err)
+				return fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
 			}
 			err = task.FinishTaskById(globalStorage)
 			if err != nil {
@@ -556,7 +556,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
 			if err != nil {
-				return fmt.Errorf("err getting attached to task files: %v\n", err)
+				return fmt.Errorf("ERR: getting attached to task files: %v\n", err)
 			}
 
 			photos, docsFiles := splitFiles(files)
@@ -611,12 +611,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "send_docs":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
-			return fmt.Errorf("err getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
 		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
-			return fmt.Errorf("err getting attached files: %v\n", err)
+			return fmt.Errorf("ERR: getting attached files: %v\n", err)
 		}
 
 		_, docsFiles := splitFiles(files)
@@ -650,7 +650,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		err = sendDocumentsToManager(TestManagerChatId, docsFiles)
 		if err != nil {
-			return fmt.Errorf("err sending documents to manager: %v\n", err)
+			return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
 		}
 
 		switch task.Type {
@@ -665,7 +665,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
-			return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
@@ -685,12 +685,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "send_pics":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
-			return fmt.Errorf("err getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
 		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
-			return fmt.Errorf("err getting attached files: %v\n", err)
+			return fmt.Errorf("ERR: getting attached files: %v\n", err)
 		}
 
 		photos, _ := splitFiles(files)
@@ -718,7 +718,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		err = sendPhotosToManager(TestManagerChatId, photos, managerText)
 		if err != nil {
-			return fmt.Errorf("err sending photos to manager: %v\n", err)
+			return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
 		}
 
 		// Reset driver state back to task state
@@ -734,7 +734,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
-			return fmt.Errorf("err wrong type of task: %s\n", task.Type)
+			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
@@ -743,19 +743,19 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "beginday":
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
-			return fmt.Errorf("err getting a car for the day beggining: %v\n", err)
+			return fmt.Errorf("ERR: getting a car for the day beggining: %v\n", err)
 		}
 		additionalInfo := fmt.Sprintf("%s\nПочатковий кілометраж: %s\n\n", time.Now().Format(time.DateTime), db.FormatKilometrage(int(car.Kilometrage)))
 
 		driverSesh.State = db.StateWorking
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err changing driver's status: %v\n", err)
+			return fmt.Errorf("ERR: changing driver's status: %v\n", err)
 		}
 
 		_, err = driverSesh.UnpauseSession(globalStorage)
 		if err != nil {
-			return fmt.Errorf("err starting a day: %v\n", err)
+			return fmt.Errorf("ERR: starting a day: %v\n", err)
 		}
 
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("%sЛаскаво просимо, водію %s\nЩо ви хочете зробити?", additionalInfo, driverSesh.User.Name))
@@ -777,7 +777,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
-			return fmt.Errorf("Error: getting car for the end of the day: %v\n", err)
+			return fmt.Errorf("ERR: getting car for the end of the day: %v\n", err)
 		}
 
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Введіть поточний кілометраж автомобіля. \n<b><i>(попередньо: %d km)</i></b>\n\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)", car.Kilometrage))
@@ -787,33 +787,33 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "viewactive":
 		shipments, err := parser.GetAllActiveShipmentsByCarId(driverSesh.CarId, globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactivebycar:"+driverSesh.CarId)
 		if err != nil {
-			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
-			return fmt.Errorf("Err sending message: %v\n", err)
+			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 
 	case "viewall":
 		shipments, err := parser.GetAllShipmentsByCarId(driverSesh.CarId, globalStorage)
 		if err != nil {
-			return fmt.Errorf("Err getting all shipments for all drivers: %v\n", err)
+			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewallbycar:"+driverSesh.CarId)
 		if err != nil {
-			return fmt.Errorf("Err creating shipment list message: %v\n", err)
+			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
-			return fmt.Errorf("Err sending message: %v\n", err)
+			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 	}
 	return nil
@@ -887,13 +887,13 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	case db.StateWaitingAttachment:
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {
-			return driver, fmt.Errorf("err getting task by id (%d): %v\n", driver.PerformedTaskId, err)
+			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
 		}
 
 		if msg.Document != nil {
 			file, err := Bot.GetFile(tgbotapi.FileConfig{FileID: msg.Document.FileID})
 			if err != nil {
-				return driver, fmt.Errorf("error getting file info: %v", err)
+				return driver, fmt.Errorf("ERR: getting file info: %v", err)
 			}
 
 			fileURL := file.Link(Bot.Token)
@@ -913,12 +913,12 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			err = sentDoc.StoreFile(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err storing file: %v\n", err)
+				return driver, fmt.Errorf("ERR: storing file: %v\n", err)
 			}
 
 			err = sentDoc.AttachFileToTask(globalStorage, task.Id)
 			if err != nil {
-				return driver, fmt.Errorf("err attaching file to task %d: %v\n", task.Id, err)
+				return driver, fmt.Errorf("ERR: attaching file to task %d: %v\n", task.Id, err)
 			}
 
 			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Документ додано до завдання! 📄"))
@@ -929,7 +929,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	case db.StateWaitingPhoto:
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {
-			return driver, fmt.Errorf("err getting task by id (%d): %v\n", driver.PerformedTaskId, err)
+			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
 		}
 
 		if len(msg.Photo) > 0 {
@@ -948,7 +948,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 					for _, m := range msgs {
 						if err := savePhotoToTask(m, taskId, globalStorage); err != nil {
-							log.Printf("err saving album photo: %v", err)
+							log.Printf("ERR: saving album photo: %v", err)
 						}
 					}
 
@@ -964,7 +964,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
-				return driver, fmt.Errorf("err saving single photo: %v", err)
+				return driver, fmt.Errorf("ERR: saving single photo: %v", err)
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Додано 1 фотографію 📸"))
@@ -975,14 +975,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {
-			return driver, fmt.Errorf("err getting task by id (%d): %v\n", driver.PerformedTaskId, err)
+			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
 		}
 
 		country, _ := parser.ExtractCountry(task.Address)
 
 		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 		if err != nil {
-			return driver, fmt.Errorf("err getting shipment from a task: %v\n", err)
+			return driver, fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
 		}
 
 		log.Println(task.CurrentKilometrage, task.CurrentTemperature, task.CurrentWeight)
@@ -998,12 +998,12 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			err = task.UpdateCurrentKmById(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err updating kilometrage by task id: %v\n", err)
+				return driver, fmt.Errorf("ERR: updating kilometrage by task id: %v\n", err)
 			}
 
 			err = task.StartTaskById(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err starting a task: %v\n", err)
+				return driver, fmt.Errorf("ERR: starting a task: %v\n", err)
 			}
 
 			startTaskMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf(TaskSubmissionFormatText,
@@ -1084,13 +1084,13 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			err = task.UpdateCurrentWeightById(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err updating weight by task id: %v\n", err)
+				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
 			}
 
 			driver.State = db.StateWaitingTemp
 			err = driver.ChangeDriverStatus(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("Err changing status for waiting temp: %v\n", err)
+				return driver, fmt.Errorf("ERR: changing status for waiting temp: %v\n", err)
 			}
 
 			tempMsg := tgbotapi.NewMessage(msg.Chat.ID, "Введіть температуру.\n(Доступні формати: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)")
@@ -1113,7 +1113,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task.CurrentTemperature = celcius
 			err = task.UpdateCurrentWeightById(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err updating weight by task id: %v\n", err)
+				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
 			}
 
 		}
@@ -1127,7 +1127,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		if driver.Session == nil {
 			driver.Session, err = driver.GetLastActiveSession(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err getting last active driver: %v\n", err)
+				return driver, fmt.Errorf("ERR: getting last active driver: %v\n", err)
 			}
 		}
 
@@ -1137,12 +1137,12 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			var oldKm int64
 			km, err := db.ParseKilometrage(msg.Text)
 			if err != nil {
-				return driver, fmt.Errorf("err parsing kmtrage: %v\n", err)
+				return driver, fmt.Errorf("ERR: parsing kmtrage: %v\n", err)
 			}
 
 			car, err := db.GetCarById(globalStorage, driver.CarId)
 			if err != nil {
-				return driver, fmt.Errorf("err getting car by id from the driver's sesh: %v\n", err)
+				return driver, fmt.Errorf("ERR: getting car by id from the driver's sesh: %v\n", err)
 			}
 
 			if car == nil {
@@ -1215,7 +1215,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			session.Pausetime = pausedTime
 			session, err = driver.PauseSession(globalStorage)
 			if err != nil {
-				return driver, fmt.Errorf("err pausing day's session: %v\n", err)
+				return driver, fmt.Errorf("ERR: pausing day's session: %v\n", err)
 			}
 			finishMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("%s\nІнформація по дню:\n\nПочаток зміни: %s\nКінець зміни: %s\nПочатковий кілометраж: %s\nКінцевий кілометраж: %s\nЗагальна дистанція: %s\n\nТривалість:\nПраці (Work) - %s годин\nВодіння (Drive) - %s годин\nПаузи (Pause) - %s годин\n\nДякуємо за вашу працю, гарного дня!",
 				time.Now().Format("02/01/2006"),
@@ -1261,7 +1261,7 @@ func savePhotoToTask(
 
 	file, err := Bot.GetFile(tgbotapi.FileConfig{FileID: photo.FileID})
 	if err != nil {
-		return fmt.Errorf("error getting photo file info: %v", err)
+		return fmt.Errorf("ERR: getting photo file info: %v", err)
 	}
 
 	fileURL := file.Link(Bot.Token)
@@ -1283,7 +1283,7 @@ func savePhotoToTask(
 
 	err = sentPic.StoreFile(globalStorage)
 	if err != nil {
-		return fmt.Errorf("err storing photo: %v", err)
+		return fmt.Errorf("ERR: storing photo: %v", err)
 	}
 
 	return sentPic.AttachFileToTask(globalStorage, taskId)
@@ -1308,7 +1308,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 	case "approve":
 		approvedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Err parsing chatid from string: %s, err:%v\n", _idString, err)
+			return fmt.Errorf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 		}
 
 		u := &db.User{ChatId: approvedChatId}
@@ -1316,7 +1316,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("Error getting this user from the db: %v\n", err)
+				return fmt.Errorf("ERR: getting this user from the db: %v\n", err)
 			}
 			return fmt.Errorf("Could not find this user, maybe already declined?: %v\n", err)
 		}
@@ -1346,14 +1346,14 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 			Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+u.Name+" було підтверджено на роль менеджера!"))
 			_, err = Bot.Send(tgbotapi.NewMessage(approvedChatId, "Вашу реєстрацію було прийнято!"))
 			if err != nil {
-				log.Println(err)
+				log.Println("ERR: ", err)
 			}
 			return HandleMenu(approvedChatId, globalStorage, u)
 		}
 	case "decline":
 		declinedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Err parsing chatid from string: %s, err:%v\n", _idString, err)
+			return fmt.Errorf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 		}
 
 		u := &db.User{ChatId: declinedChatId}
@@ -1361,21 +1361,21 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("Error getting this user from the db: %v\n", err)
+				return fmt.Errorf("ERR: getting this user from the db: %v\n", err)
 			}
 			return fmt.Errorf("Could not find this user, maybe already declined?: %v\n", err)
 		}
 
 		tx, err := globalStorage.Begin()
 		if err != nil {
-			return fmt.Errorf("err starting transaction: %v", err)
+			return fmt.Errorf("ERR: starting transaction: %v", err)
 		}
 		defer tx.Rollback()
 
 		if u.DriverId != uuid.Nil {
 			_, err = tx.Exec("DELETE from drivers where id = ?", u.DriverId.String())
 			if err != nil {
-				return fmt.Errorf("err deleting declined driver: %v\n", err)
+				return fmt.Errorf("ERR: deleting declined driver: %v\n", err)
 			}
 
 			driverSessionsMu.Lock()
@@ -1384,7 +1384,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		} else if u.ManagerId != uuid.Nil {
 			_, err = tx.Exec("DELETE from managers where id = ?", u.ManagerId.String())
 			if err != nil {
-				return fmt.Errorf("err deleting declined manager: %v\n", err)
+				return fmt.Errorf("ERR: deleting declined manager: %v\n", err)
 			}
 
 			managerSessionsMu.Lock()
@@ -1394,7 +1394,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 
 		_, err = tx.Exec("DELETE from users where id = ?", u.Id.String())
 		if err != nil {
-			return fmt.Errorf("err deleting declined user: %v\n", err)
+			return fmt.Errorf("ERR: deleting declined user: %v\n", err)
 		}
 
 		Bot.Send(tgbotapi.NewMessage(chatId, "Користувачу "+u.Name+" не було підтвердженно реєстрацію."))
@@ -1405,34 +1405,34 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 	case "carfor":
 		driverId, carId, f := strings.Cut(_idString, ":")
 		if !f {
-			return fmt.Errorf("Err getting any info from sa:carfor command: %v\n", command)
+			return fmt.Errorf("ERR: getting any info from sa:carfor command: %v\n", command)
 		}
 
 		id, err := strconv.ParseInt(driverId, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Err parsing int chat id of a driver: %v\n", err)
+			return fmt.Errorf("ERR: parsing int chat id of a driver: %v\n", err)
 		}
 
 		driver, err := db.GetDriverByChatId(globalStorage, id)
 		if err != nil {
-			return fmt.Errorf("Error getting driver by id: %v\n", err)
+			return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 		}
 
 		err = driver.UpdateCarId(globalStorage, carId)
 		if err != nil {
-			return fmt.Errorf("Err updating car id: %v\n", err)
+			return fmt.Errorf("ERR: updating car id: %v\n", err)
 		}
 
 		car, err := db.GetCarById(globalStorage, carId)
 		if err != nil {
-			return fmt.Errorf("Err getting car by id: %v\n", err)
+			return fmt.Errorf("ERR: getting car by id: %v\n", err)
 		}
 
 		Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+driver.User.Name+" було підтверджено на роль водія!"))
 
 		_, err = Bot.Send(tgbotapi.NewMessage(driver.User.ChatId, fmt.Sprintf("Вашу реєстрацію було прийнято! Вам було призначено автомобіль %s з кілометражом %d км.", car.Id, car.Kilometrage)))
 		if err != nil {
-			return fmt.Errorf("Err sending driver a msg: %v\n", err)
+			return fmt.Errorf("ERR: sending driver a msg: %v\n", err)
 		}
 		return HandleMenu(id, globalStorage, driver.User)
 	}
@@ -1475,24 +1475,24 @@ func HandleDevCommands(chatId int64, command string, messageId int, globalStorag
 func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *sql.DB) error {
 	fileURL, err := Bot.GetFileDirectURL(doc.FileID)
 	if err != nil {
-		return fmt.Errorf("error getting file URL: %w", err)
+		return fmt.Errorf("ERR: getting file URL: %w", err)
 	}
 
 	resp, err := http.Get(fileURL)
 	if err != nil {
-		return fmt.Errorf("error downloading file: %w", err)
+		return fmt.Errorf("ERR: downloading file: %w", err)
 	}
 	defer resp.Body.Close()
 
 	reader := csv.NewReader(resp.Body)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return fmt.Errorf("error reading CSV: %w", err)
+		return fmt.Errorf("ERR: reading CSV: %w", err)
 	}
 
 	tx, err := globalStorage.Begin()
 	if err != nil {
-		return fmt.Errorf("error starting transaction: %w", err)
+		return fmt.Errorf("ERR: starting transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1508,7 +1508,7 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 			opening_hours = excluded.opening_hours
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing statement: %w", err)
+		return fmt.Errorf("ERR: preparing statement: %w", err)
 	}
 	defer stmt.Close()
 
@@ -1540,12 +1540,12 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 
 		_, err = stmt.Exec(id, record[1], record[2], record[3], lat, lon, record[6])
 		if err != nil {
-			return fmt.Errorf("error inserting row %d: %w", i+1, err)
+			return fmt.Errorf("ERR: inserting row %d: %w", i+1, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction: %w", err)
+		return fmt.Errorf("ERR: committing transaction: %w", err)
 	}
 
 	_, err = Bot.Send(tgbotapi.NewMessage(chatId, "The list has been updated"))
@@ -1579,7 +1579,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("Error getting the user: %v\n", err)
+				return fmt.Errorf("ERR: getting the user: %v\n", err)
 			}
 			role = db.NoRole
 		}
@@ -1603,7 +1603,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 			driver, err = db.GetDriverByChatId(globalStorage, chatId)
 			if err != nil {
 				driverSessionsMu.Unlock()
-				return fmt.Errorf("Err loading driver: %v\n", err)
+				return fmt.Errorf("ERR: loading driver: %v\n", err)
 			}
 			driver.User = u
 		}
@@ -1624,7 +1624,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 			manager, err = db.GetManagerByChatId(globalStorage, chatId)
 			if err != nil {
 				managerSessionsMu.Unlock()
-				return fmt.Errorf("Err loading manager: %v\n", err)
+				return fmt.Errorf("ERR: loading manager: %v\n", err)
 			}
 			manager.User = u
 		}

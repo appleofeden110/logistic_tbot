@@ -177,12 +177,12 @@ func ReadTaskShort(section *TaskSection) string {
 func ReadDocAndSend(filePath string, chatID int64, bot *tgbotapi.BotAPI) error {
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return fmt.Errorf("get absolute path: %w", err)
+		return fmt.Errorf("ERR: get absolute path: %w", err)
 	}
 
 	shipment, err := GetSequenceOfTasks(fullPath)
 	if err != nil {
-		return fmt.Errorf("get sequence of tasks: %w", err)
+		return fmt.Errorf("ERR: get sequence of tasks: %w", err)
 	}
 
 	res, secRes := ReadDoc(shipment)
@@ -204,7 +204,7 @@ func GetSequenceOfTasks(pdfFilePath string) (*Shipment, error) {
 	docText, err := ReadPdfDoc(pdfFilePath)
 	if err != nil {
 		if !strings.Contains(err.Error(), "exit status 1") {
-			return nil, fmt.Errorf("failed reading doc %s: %v", pdfFilePath, err)
+			return nil, fmt.Errorf("ERR: failed reading doc %s: %v", pdfFilePath, err)
 		}
 	}
 

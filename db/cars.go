@@ -68,13 +68,13 @@ func GetCarById(exec DBExecutor, carId string) (*Car, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("car with id %s not found", carId)
 		}
-		return nil, fmt.Errorf("error scanning car: %w", err)
+		return nil, fmt.Errorf("ERR: scanning car: %w", err)
 	}
 
 	if currentDriverId.Valid {
 		car.CurrentDriverId, err = uuid.FromString(currentDriverId.String)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing current_driver_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing current_driver_id: %w", err)
 		}
 	} else {
 		car.CurrentDriverId = uuid.Nil
@@ -92,7 +92,7 @@ func (c *Car) UpdateCarKilometrage(exec DBExecutor) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("err giving updating kilometrage for %s: %v\n", c.Id, err)
+		return fmt.Errorf("ERR: giving updating kilometrage for %s: %v\n", c.Id, err)
 	}
 
 	return nil
@@ -112,12 +112,12 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 			bot.Send(tgbotapi.NewMessage(chatId, "Ви не є адміністратором для виконання цієї дії"))
 			return ErrNotSuperAdmin
 		}
-		return fmt.Errorf("Error checking if you are SA or not. Probably not actually...: %v\n", err)
+		return fmt.Errorf("ERR: checking if you are SA or not. Probably not actually...: %v\n", err)
 	}
 
 	stmt, err := executor.Prepare("INSERT INTO cars (id, current_kilometrage) VALUES (?, ?)")
 	if err != nil {
-		return fmt.Errorf("Err prepping stmt for adding a car to the db: %v\n", err)
+		return fmt.Errorf("ERR: prepping stmt for adding a car to the db: %v\n", err)
 	}
 	defer stmt.Close()
 
@@ -126,7 +126,7 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			bot.Send(tgbotapi.NewMessage(chatId, "Такий автомобіль вже є в базі даних"))
 		}
-		return fmt.Errorf("Err executing stmt to add car to the db: %v\n", err)
+		return fmt.Errorf("ERR: executing stmt to add car to the db: %v\n", err)
 	}
 
 	_, err = bot.Send(tgbotapi.NewMessage(chatId, fmt.Sprintf("Успішно добавили машину %s з кілометражом %d до бази даних", c.Id, c.Kilometrage)))
@@ -142,36 +142,36 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 			bot.Send(tgbotapi.NewMessage(chatId, "Ви не є адміністратором для виконання цієї дії"))
 			return ErrNotSuperAdmin
 		}
-		return fmt.Errorf("error checking if you are SA: %v", err)
+		return fmt.Errorf("ERR: checking if you are SA: %v", err)
 	}
 
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 	if err != nil {
-		return fmt.Errorf("error getting file from Telegram: %v", err)
+		return fmt.Errorf("ERR: getting file from Telegram: %v", err)
 	}
 
 	fileURL := file.Link(bot.Token)
 	resp, err := http.Get(fileURL)
 	if err != nil {
-		return fmt.Errorf("error downloading file: %v", err)
+		return fmt.Errorf("ERR: downloading file: %v", err)
 	}
 	defer resp.Body.Close()
 
 	reader := csv.NewReader(resp.Body)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return fmt.Errorf("error reading CSV: %v", err)
+		return fmt.Errorf("ERR: reading CSV: %v", err)
 	}
 
 	tx, err := globalStorage.Begin()
 	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
+		return fmt.Errorf("ERR: starting transaction: %v", err)
 	}
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare("INSERT INTO cars (id, current_kilometrage) VALUES (?, ?)")
 	if err != nil {
-		return fmt.Errorf("error preparing statement: %v", err)
+		return fmt.Errorf("ERR: preparing statement: %v", err)
 	}
 	defer stmt.Close()
 
@@ -200,7 +200,7 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction: %v", err)
+		return fmt.Errorf("ERR: committing transaction: %v", err)
 	}
 
 	message := fmt.Sprintf("Успішно додано %d машин(и) до бази даних", successCount)

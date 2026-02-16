@@ -129,12 +129,12 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sql.ErrNoRows
 		}
-		return fmt.Errorf("error scanning user: %w", err)
+		return fmt.Errorf("ERR: scanning user: %w", err)
 	}
 	if driverIdNull.Valid {
 		driverId, err := uuid.FromString(driverIdNull.String)
 		if err != nil {
-			return fmt.Errorf("error parsing driver_id: %w", err)
+			return fmt.Errorf("ERR: parsing driver_id: %w", err)
 		}
 		u.DriverId = driverId
 	} else {
@@ -143,7 +143,7 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return fmt.Errorf("error parsing manager_id: %w", err)
+			return fmt.Errorf("ERR: parsing manager_id: %w", err)
 		}
 		u.ManagerId = managerId
 	} else {
@@ -177,13 +177,13 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sql.ErrNoRows
 		}
-		return fmt.Errorf("error scanning user: %w", err)
+		return fmt.Errorf("ERR: scanning user: %w", err)
 	}
 
 	if driverIdNull.Valid {
 		driverId, err := uuid.FromString(driverIdNull.String)
 		if err != nil {
-			return fmt.Errorf("error parsing driver_id: %w", err)
+			return fmt.Errorf("ERR: parsing driver_id: %w", err)
 		}
 		u.DriverId = driverId
 	} else {
@@ -193,7 +193,7 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return fmt.Errorf("error parsing manager_id: %w", err)
+			return fmt.Errorf("ERR: parsing manager_id: %w", err)
 		}
 		u.ManagerId = managerId
 	} else {
@@ -219,7 +219,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err creating a new uuid for a user: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: creating a new uuid for a user: %v (txErr: %v)\n", err, txErr)
 	}
 	fmt.Println(u.Name)
 	fmt.Println(u.ChatId)
@@ -232,7 +232,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err preparing statement for insert user: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: preparing statement for insert user: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmt.Close()
 
@@ -241,7 +241,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
-		return fmt.Errorf("err executing prep insert user stmt: %v (txErr: %v)\n", err, txErr)
+		return fmt.Errorf("ERR: executing prep insert user stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
 	u.Id = id

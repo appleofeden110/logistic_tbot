@@ -23,7 +23,7 @@ var (
 func Check(err error, print bool, message ...string) bool {
 	if err != nil {
 		if print {
-			log.Fatalf("%s: %v\n", strings.Join(message, "; "), err)
+			log.Fatalf("ERR: %s: %v\n", strings.Join(message, "; "), err)
 		}
 		return true
 	}
@@ -37,7 +37,7 @@ func ReceiveUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel, global
 			return
 		case update := <-updates:
 			if err := HandleUpdate(update, globalStorage); err != nil {
-				log.Println(err)
+				log.Println("ERR: ", err)
 			}
 		}
 	}
@@ -65,9 +65,9 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 				if err != nil {
 					if !errors.Is(err, tracking.ErrNotLiveLocation) {
 						trackingSessionsMutex.Unlock()
-						return fmt.Errorf("err parsing location from an edited message: %v\n", err)
+						return fmt.Errorf("ERR: parsing location from an edited message: %v\n", err)
 					}
-					log.Println("Got err: ", tracking.ErrNotLiveLocation.Error())
+					log.Println("ERR: ", tracking.ErrNotLiveLocation.Error())
 				}
 				trackingSessionsMutex.Unlock()
 				return nil
