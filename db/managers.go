@@ -23,9 +23,13 @@ type ManagerConversationState string
 
 const (
 	StateDormantManager ManagerConversationState = "dormant_mng"
-	StateWaitingDoc     ManagerConversationState = "waiting_doc"
-	StateWaitingNotes   ManagerConversationState = "waiting_notes"
-	StateWaitingDriver  ManagerConversationState = "waiting_driver"
+
+	StateWritingToDriver ManagerConversationState = "sending_driver_message"
+	StateReplyingDriver  ManagerConversationState = "replying_driver"
+
+	StateWaitingDoc    ManagerConversationState = "waiting_doc"
+	StateWaitingNotes  ManagerConversationState = "waiting_notes"
+	StateWaitingDriver ManagerConversationState = "waiting_driver"
 )
 
 type PendingMessage struct {
@@ -79,7 +83,7 @@ func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if m.Id == uuid.Nil {
-		return fmt.Errorf("Err getting id: %v\n", m.Id)
+		return fmt.Errorf("Err getting id for changing manager's status: %v\n", m.Id)
 	}
 
 	_, err := globalStorage.Exec(query, m.State, m.Id)
@@ -219,23 +223,30 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 		return false, fmt.Errorf("Err preparing statement to get id and manager_id: %v\n", err)
 	}
 	defer stmt.Close()
-
 	row := stmt.QueryRow(u.ChatId)
-	if err := row.Scan(&u.Id, &u.ManagerId); err != nil {
+
+	var managerIdNull sql.NullString
+	if err := row.Scan(&u.Id, &managerIdNull); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, fmt.Errorf("cannot even find a user somehow: %v\n", err)
 		}
 		return false, fmt.Errorf("Err scanning rows: %v\n", err)
 	}
 
-	if u.ManagerId != uuid.Nil {
+	if managerIdNull.Valid {
+		managerId, err := uuid.FromString(managerIdNull.String)
+		if err != nil {
+			return false, fmt.Errorf("error parsing manager_id: %w", err)
+		}
+		u.ManagerId = managerId
 		return true, nil
 	}
 
+	u.ManagerId = uuid.Nil
 	return false, nil
 }
 
-func (m *Manager) ShowDriverList(exec DBExecutor, chatId int64, bot tgbotapi.BotAPI) error {
+func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
 	drivers, err := GetAllDrivers(exec)
 	if err != nil {
 		return fmt.Errorf("error getting all drivers: %v", err)
@@ -246,12 +257,12 @@ func (m *Manager) ShowDriverList(exec DBExecutor, chatId int64, bot tgbotapi.Bot
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
 				fmt.Sprintf("%s, Номера авто: %s", d.User.Name, d.CarId),
-				fmt.Sprintf("selectdriverfortask:%d", d.User.ChatId),
+				fmt.Sprintf("%s:%d", callback, d.User.ChatId),
 			),
 		))
 	}
 
-	msg := tgbotapi.NewMessage(chatId, "👤 Якому водію ви хочете це надіслати?")
+	msg := tgbotapi.NewMessage(chatId, "👤 "+caption)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	_, err = bot.Send(msg)
 	return err

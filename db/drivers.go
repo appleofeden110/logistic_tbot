@@ -34,6 +34,8 @@ const (
 	StateWaitingAttachment DriverConversationState = "waiting_attach"
 	StateEndingDay         DriverConversationState = "waiting_km"
 	StateTracking          DriverConversationState = "tracking"
+	StateWritingToManager  DriverConversationState = "sending_manager_message"
+	StateReplyingManager   DriverConversationState = "replying_manager"
 )
 
 var (
@@ -85,6 +87,28 @@ func SetAllDriversToDormant(db DBExecutor) error {
 	}
 	log.Printf("Set %d driver(s) to pause state", rowsAffected)
 	return nil
+}
+
+func (d *Driver) ShowManagerList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
+	managers, err := GetAllManagers(exec)
+	if err != nil {
+		return fmt.Errorf("error getting all drivers: %v", err)
+	}
+
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, m := range managers {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(
+				fmt.Sprintf("%s", m.User.Name),
+				fmt.Sprintf("%s:%d", callback, m.User.ChatId),
+			),
+		))
+	}
+
+	msg := tgbotapi.NewMessage(chatId, "👤 "+caption)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	_, err = bot.Send(msg)
+	return err
 }
 
 func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
@@ -181,7 +205,7 @@ func (d *Driver) ChangeDriverStatus(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if d.Id == uuid.Nil {
-		return fmt.Errorf("Err getting id: %v\n", d.Id)
+		return fmt.Errorf("Err getting id for changing driver's status: %v\n", d.Id)
 	}
 
 	_, err := globalStorage.Exec(query, d.State, d.Id)

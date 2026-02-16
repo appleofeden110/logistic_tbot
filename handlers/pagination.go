@@ -11,7 +11,28 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-const ShipmentsPerPage = 5
+const (
+	ShipmentsPerPage = 5
+	DriversPerPage   = 5
+)
+
+//func CreateDriversListMessage(drivers []*db.Driver, page int, chatId int64) (tgbotapi.MessageConfig, error) {
+//	totalPages := (len(drivers) + DriversPerPage - 1) / DriversPerPage
+//
+//	if page < 0 {
+//		page = 0
+//	}
+//	if page >= totalPages && totalPages > 0 {
+//		page = totalPages - 1
+//	}
+//
+//	start := page * DriversPerPage
+//	end := start + DriversPerPage
+//	if end > len(drivers) {
+//		end = len(drivers)
+//	}
+//
+//}
 
 func FormatShipmentForList(s *parser.Shipment, index int) string {
 	status := "🔴 Не почато"
@@ -110,6 +131,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		config.VERY_BAD(chatId, Bot)
 	}
 	switch {
+	case strings.Contains(cmd, "managers:"):
 	case strings.Contains(cmd, "viewall:"):
 		parts := strings.Split(cmd, ":")
 		if len(parts) < 2 {

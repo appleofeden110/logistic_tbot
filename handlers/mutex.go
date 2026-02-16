@@ -17,6 +17,9 @@ var (
 	taskSessions   = make(map[uuid.UUID]*parser.TaskSection)
 	taskSessionsMu sync.Mutex
 
+	replyingToMessageMap   = make(map[int64]int64) // chatId -> commsId
+	replyingToMessageMapMu sync.RWMutex
+
 	managerSessions   = make(map[int64]*db.Manager)
 	managerSessionsMu sync.Mutex
 

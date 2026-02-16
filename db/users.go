@@ -30,6 +30,52 @@ type User struct {
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
+func (u *User) GetUserById(globalStorage *sql.DB) error {
+	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag FROM users WHERE id = ?", u.Id)
+	var driverIdNull, managerIdNull, tgTagNull sql.NullString
+	err := row.Scan(
+		&u.Id,
+		&u.ChatId,
+		&u.Name,
+		&driverIdNull,
+		&managerIdNull,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&u.IsSuperAdmin,
+		&tgTagNull,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return sql.ErrNoRows
+		}
+		return fmt.Errorf("error scanning user: %w", err)
+	}
+	if driverIdNull.Valid {
+		driverId, err := uuid.FromString(driverIdNull.String)
+		if err != nil {
+			return fmt.Errorf("error parsing driver_id: %w", err)
+		}
+		u.DriverId = driverId
+	} else {
+		u.DriverId = uuid.Nil
+	}
+	if managerIdNull.Valid {
+		managerId, err := uuid.FromString(managerIdNull.String)
+		if err != nil {
+			return fmt.Errorf("error parsing manager_id: %w", err)
+		}
+		u.ManagerId = managerId
+	} else {
+		u.ManagerId = uuid.Nil
+	}
+	if tgTagNull.Valid {
+		u.TgTag = tgTagNull.String
+	} else {
+		u.TgTag = ""
+	}
+	return nil
+}
+
 func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag FROM users WHERE chat_id = ?", u.ChatId)
 

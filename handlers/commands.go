@@ -121,7 +121,6 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		if err != nil {
 			return err
 		}
-	case "send_task":
 	case "menu":
 		return HandleCommand(chatId, "/start", globalStorage)
 	case "dev:init":
@@ -219,6 +218,16 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 		if err != nil {
 			return fmt.Errorf("Err sending message: %v\n", err)
 		}
+	case "sendmessage":
+		managerSesh.State = db.StateWritingToDriver
+		err := managerSesh.ChangeManagerStatus(globalStorage)
+		if err != nil {
+			return err
+		}
+		msg := tgbotapi.NewMessage(chatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
 	case "mstmt":
 
 		availableMonths, err := parser.GetAvailableMonths(globalStorage)
@@ -254,12 +263,12 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	return nil
 }
 
-func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
-	fmt.Printf("Manager session input msg (%s - %d): %s\n", session.State, session.ChatId, msg.Text)
-	switch session.State {
+func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
+	fmt.Printf("Manager manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
+	switch manager.State {
 	case db.StateWaitingDoc:
 		if msg.Document != nil {
-			session.PendingMessage = &db.PendingMessage{
+			manager.PendingMessage = &db.PendingMessage{
 				FromChatId:      msg.Chat.ID,
 				MessageType:     "document",
 				FromUser:        msg.From,
@@ -267,16 +276,16 @@ func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalS
 				DocMimetype:     docs.Mimetype(msg.Document.MimeType),
 				FileId:          msg.Document.FileID,
 			}
-			session.State = db.StateWaitingNotes
+			manager.State = db.StateWaitingNotes
 
-			err = session.ChangeManagerStatus(globalStorage)
+			err = manager.ChangeManagerStatus(globalStorage)
 			if err != nil {
-				return session, err
+				return manager, err
 			}
 
-			id, err := session.PendingMessage.StoreDocForShipment(globalStorage, Bot)
+			id, err := manager.PendingMessage.StoreDocForShipment(globalStorage, Bot)
 			if err != nil {
-				return session, err
+				return manager, err
 			}
 
 			readDocMsg := tgbotapi.NewMessage(msg.Chat.ID, "⬇️ Натисніть тут що б прочитати документ")
@@ -290,30 +299,67 @@ func HandleManagerInputState(session *db.Manager, msg *tgbotapi.Message, globalS
 
 			msg := tgbotapi.NewMessage(msg.Chat.ID, "✏️ Введіть нотатки або опис до документа:")
 			_, err = Bot.Send(msg)
-			return session, err
-		} else {
-			msg := tgbotapi.NewMessage(msg.Chat.ID, "Будь ласка, надішліть саме документ.")
-			_, err = Bot.Send(msg)
-			return session, err
+			return manager, err
 		}
+
+		msg := tgbotapi.NewMessage(msg.Chat.ID, "Будь ласка, надішліть саме документ.")
+		_, err = Bot.Send(msg)
+		return manager, err
+
 	case db.StateWaitingNotes:
 		if msg.Text != "" {
-			if session.PendingMessage == nil {
-				session.State = db.StateDormantManager
-				return session, session.ChangeManagerStatus(globalStorage)
+			if manager.PendingMessage == nil {
+				manager.State = db.StateDormantManager
+				return manager, manager.ChangeManagerStatus(globalStorage)
 			}
-			session.PendingMessage.Caption = msg.Text
-			session.State = db.StateWaitingDriver
+			manager.PendingMessage.Caption = msg.Text
+			manager.State = db.StateWaitingDriver
 
-			err = session.ChangeManagerStatus(globalStorage)
+			err = manager.ChangeManagerStatus(globalStorage)
 			if err != nil {
-				return session, err
+				return manager, err
 			}
 
-			return session, session.ShowDriverList(globalStorage, msg.Chat.ID, *Bot)
+			return manager, manager.ShowDriverList(globalStorage, "selectdriverfortask", "Якому водію ви надсилаєте shipment", msg.Chat.ID, Bot)
+		}
+	case db.StateWritingToDriver:
+		if msg.Text != "" {
+			comms := CommunicationMsg{Sender: manager.User}
+
+			manager.State = db.StateDormantManager
+			err = manager.ChangeManagerStatus(globalStorage)
+			if err != nil {
+				return manager, err
+			}
+
+			return manager, comms.CreateMessage(msg.Text, globalStorage)
+		}
+	case db.StateReplyingDriver:
+		if msg.Text != "" {
+			replyingToMessageMapMu.Lock()
+			commsId, found := replyingToMessageMap[manager.ChatId]
+			replyingToMessageMapMu.Unlock()
+
+			if !found {
+				return manager, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
+			}
+
+			manager.State = db.StateDormantManager
+			err = manager.ChangeManagerStatus(globalStorage)
+			if err != nil {
+				return manager, err
+			}
+
+			comms := &CommunicationMsg{Id: commsId}
+			err = comms.GetCommsMessage(globalStorage)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: getting comms message: %v\n", err)
+			}
+			comms.ReplyContent = msg.Text
+			return manager, comms.Reply(globalStorage)
 		}
 	}
-	return session, err
+	return manager, err
 }
 
 func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
@@ -421,6 +467,18 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			}
 		}
 
+	case "sendmessage":
+		driverSesh.State = db.StateWritingToManager
+		err := driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return err
+		}
+
+		msg := tgbotapi.NewMessage(chatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg.ParseMode = tgbotapi.ModeHTML
+
+		_, err = Bot.Send(msg)
+		return err
 	case "sumtask":
 		taskSessionsMu.Lock()
 		task, f := taskSessions[driverSesh.Id]
@@ -744,6 +802,42 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	log.Printf("Driver driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 
 	switch driver.State {
+	case db.StateWritingToManager:
+		if msg.Text != "" {
+			comms := CommunicationMsg{Sender: driver.User}
+
+			driver.State = db.StateWorking
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
+			return driver, comms.CreateMessage(msg.Text, globalStorage)
+		}
+	case db.StateReplyingManager:
+		if msg.Text != "" {
+			replyingToMessageMapMu.Lock()
+			commsId, found := replyingToMessageMap[driver.ChatId]
+			replyingToMessageMapMu.Unlock()
+
+			if !found {
+				return driver, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
+			}
+
+			driver.State = db.StateWorking
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
+			comms := &CommunicationMsg{Id: commsId}
+			err = comms.GetCommsMessage(globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting comms message: %v\n", err)
+			}
+			comms.ReplyContent = msg.Text
+			return driver, comms.Reply(globalStorage)
+		}
 	case db.StateWaitingAttachment:
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {

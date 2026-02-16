@@ -23,6 +23,9 @@ var (
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
 		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Написати менеджеру", "driver:sendmessage"),
+		),
 	)
 
 	driverStartMarkupWorking = tgbotapi.NewInlineKeyboardMarkup(
@@ -34,6 +37,9 @@ var (
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Написати менеджеру", "driver:sendmessage"),
 		),
 	)
 
@@ -52,6 +58,9 @@ var (
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Створити звіт за місяць", "manager:mstmt"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Написати водію", "manager:sendmessage"),
 		),
 	)
 

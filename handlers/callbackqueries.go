@@ -309,6 +309,84 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Інфо відправлено Логісту Nazar Kaniuka"))
 		// to manager
 		Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Дані від Назар Канюка (790133 LU454TW) для задачі %s на завданні %d:\n\n%s\n\nЧас закінчення: %s;\nВсього тривалість: %s\n\n", task, sections.ShipmentId, temp, time.Now().Format("2006-01-02 15:04:05"), time.Since(now).String() /*, totalDistance*/)))
+	case strings.HasPrefix(cbq.Data, "reply:"):
+		commsIdStr, _ := strings.CutPrefix(cbq.Data, "reply:")
+		commsId, err := strconv.Atoi(commsIdStr)
+		if err != nil {
+			return fmt.Errorf("ERR: getting comms id: %v\n", err)
+		}
+
+		comms := &CommunicationMsg{Id: int64(commsId)}
+		err = comms.GetCommsMessage(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting comms message for a reply")
+		}
+
+		replyingToMessageMapMu.Lock()
+		replyingToMessageMap[comms.Receiver.ChatId] = comms.Id
+		replyingToMessageMapMu.Unlock()
+
+		isM, err := comms.Receiver.IsManager(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: couldn't find if the guy is the manager or the driver: %v\n", err)
+		}
+		if isM {
+			m, err := db.GetManagerByChatId(globalStorage, comms.Receiver.ChatId)
+			if err != nil {
+				return err
+			}
+
+			m.State = db.StateReplyingDriver
+			err = m.ChangeManagerStatus(globalStorage)
+			if err != nil {
+				return err
+			}
+		} else {
+			d, err := db.GetDriverByChatId(globalStorage, comms.Receiver.ChatId)
+			if err != nil {
+				return err
+			}
+
+			d.State = db.StateReplyingManager
+			err = d.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return err
+			}
+		}
+
+		msg := tgbotapi.NewMessage(comms.Receiver.ChatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
+	case strings.HasPrefix(cbq.Data, "senddrivermsg:"):
+		// after trimming - will contain both comms_msg_id and driver's chat_id
+		msgIdChatId := strings.TrimPrefix(cbq.Data, "senddrivermsg:")
+
+		msgIdStr, chatIdStr, _ := strings.Cut(msgIdChatId, ":")
+		var msgId, chatId int64
+
+		msgId, err = strconv.ParseInt(msgIdStr, 10, 64)
+		chatId, err = strconv.ParseInt(chatIdStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Error parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
+		}
+
+		return SendWithCommsAndChat(globalStorage, msgId, chatId)
+	case strings.HasPrefix(cbq.Data, "sendmanagermsg:"):
+		// after trimming - will contain both comms_msg_id and manager's chat_id
+		msgIdChatId := strings.TrimPrefix(cbq.Data, "sendmanagermsg:")
+
+		msgIdStr, chatIdStr, _ := strings.Cut(msgIdChatId, ":")
+		var msgId, chatId int64
+
+		msgId, err = strconv.ParseInt(msgIdStr, 10, 64)
+		chatId, err = strconv.ParseInt(chatIdStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Error parsing communication msg id (%d) and chat id (%d) of the receiver: %v\n", msgId, chatId, err)
+		}
+
+		return SendWithCommsAndChat(globalStorage, msgId, chatId)
 	case strings.HasPrefix(cbq.Data, "selectdriverfortask:"):
 		driverChatIdStr := strings.TrimPrefix(cbq.Data, "selectdriverfortask:")
 		driverChatId, _ := strconv.ParseInt(driverChatIdStr, 10, 64)
