@@ -155,6 +155,21 @@ func CheckShipmentSessionsTable(db DBExecutor) error {
 	return err
 }
 
+func CheckCommunicationMessages(db DBExecutor) error {
+	_, err := db.Exec(`
+		CREATE TABLE communication_messages (
+			    id              INTEGER primary key autoincrement,
+				reciever_id     TEXT references users,
+				sender_id       TEXT not null references users,
+				message_content TEXT not null,
+				reply_content   TEXT,
+				created_at      DATETIME default CURRENT_TIMESTAMP not null,
+				replied_at      DATETIME
+		);
+	`)
+	return err
+}
+
 func CheckShipmentsTable(db DBExecutor) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS shipments (

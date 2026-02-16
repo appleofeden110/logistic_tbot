@@ -225,5 +225,11 @@ func CheckAllTables(db *sql.DB) (err error) {
 	}
 	log.Println("shipment_sessions is ok.")
 
+	err = CheckCommunicationMessages(db)
+	if err != nil {
+		return fmt.Errorf("ERR: creating or checking the table shipment_sessions: %v\n", err)
+	}
+	log.Println("communication_messages is ok.")
+
 	return nil
 }
