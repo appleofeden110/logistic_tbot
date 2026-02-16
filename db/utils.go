@@ -157,7 +157,7 @@ func CheckShipmentSessionsTable(db DBExecutor) error {
 
 func CheckCommunicationMessages(db DBExecutor) error {
 	_, err := db.Exec(`
-		CREATE TABLE communication_messages (
+		CREATE TABLE IF NOT EXISTS communication_messages (
 			    id              INTEGER primary key autoincrement,
 				reciever_id     TEXT references users,
 				sender_id       TEXT not null references users,
