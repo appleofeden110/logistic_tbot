@@ -167,6 +167,23 @@ func ConvertShipmentToStatements(shipment *parser.Shipment) []ShipmentStatement 
 
 	fmt.Printf("Processing shipment %d with %d tasks\n", shipment.ShipmentId, len(shipment.Tasks))
 
+	var startKm, endKm int64
+	var totalWeight string
+
+	if len(shipment.Tasks) > 0 {
+		startKm = shipment.Tasks[0].CurrentKilometrage
+		endKm = shipment.Tasks[len(shipment.Tasks)-1].CurrentKilometrage
+
+		for _, task := range shipment.Tasks {
+			if task.Weight != "" {
+				totalWeight = task.Weight
+				break
+			}
+		}
+	}
+
+	totalDistance := endKm - startKm
+
 	var loadTask *parser.TaskSection
 
 	for _, task := range shipment.Tasks {
@@ -189,26 +206,27 @@ func ConvertShipmentToStatements(shipment *parser.Shipment) []ShipmentStatement 
 					UnloadAddress:  task.Address,
 					UnloadDatetime: formatDateTimeRange(task.Start, task.End),
 					UnloadDuration: calculateDuration(task.Start, task.End),
-					Weight:         task.Weight,
+					Weight:         totalWeight,
+					KmVnR:          int(totalDistance),
 				}
 				statement.DurationLoadAndUnload = duration.Duration{
 					Duration: statement.LoadDuration.Duration + statement.UnloadDuration.Duration,
 				}
 
 				statements = append(statements, statement)
-				fmt.Printf("  Statement added: Shipment %d, Load: %s, Unload: %s\n",
-					statement.ShipmentId, statement.LoadAddress, statement.UnloadAddress)
+				fmt.Printf("  Statement added: Shipment %d, Load: %s, Unload: %s, Distance: %d km, Weight: %s\n",
+					statement.ShipmentId, statement.LoadAddress, statement.UnloadAddress, statement.KmVnR, statement.Weight)
 
 				loadTask = nil
 			} else {
-				fmt.Printf("WARN:  WARNING: Found unload without preceding load task\n")
+				fmt.Printf("WARN: WARNING: Found unload without preceding load task\n")
 			}
 		} else if taskType == "cleaning" {
 			idStmt := slices.IndexFunc(statements, func(s ShipmentStatement) bool {
 				return s.ShipmentId == task.ShipmentId
 			})
 			if idStmt == -1 {
-				fmt.Printf("WARN:WARNING: found cleaning task, but could not find the shipment with the same shipment id: task - %d\n", task.ShipmentId)
+				fmt.Printf("WARN: WARNING: found cleaning task, but could not find the shipment with the same shipment id: task - %d\n", task.ShipmentId)
 				continue
 			}
 			statements[idStmt].CleaningStationAddress = task.Address
