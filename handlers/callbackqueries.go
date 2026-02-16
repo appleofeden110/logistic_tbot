@@ -330,27 +330,34 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if err != nil {
 			return fmt.Errorf("ERR: couldn't find if the guy is the manager or the driver: %v\n", err)
 		}
-		if isM {
-			m, err := db.GetManagerByChatId(globalStorage, comms.Receiver.ChatId)
-			if err != nil {
-				return err
-			}
 
-			m.State = db.StateReplyingDriver
-			err = m.ChangeManagerStatus(globalStorage)
-			if err != nil {
-				return err
+		if isM {
+			managerSessionsMu.Lock()
+			manager, f := managerSessions[comms.Receiver.ChatId]
+			managerSessionsMu.Unlock()
+
+			if f {
+				manager.State = db.StateReplyingDriver
+				err = manager.ChangeManagerStatus(globalStorage)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("ERR: couldn't find the manager with this chatid: %v\n", comms.Receiver.ChatId)
 			}
 		} else {
-			d, err := db.GetDriverByChatId(globalStorage, comms.Receiver.ChatId)
-			if err != nil {
-				return err
-			}
+			driverSessionsMu.Lock()
+			driver, f := driverSessions[comms.Receiver.ChatId]
+			driverSessionsMu.Unlock()
 
-			d.State = db.StateReplyingManager
-			err = d.ChangeDriverStatus(globalStorage)
-			if err != nil {
-				return err
+			if f {
+				driver.State = db.StateReplyingManager
+				err = driver.ChangeDriverStatus(globalStorage)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("Couldn't find the driver with this id: %v\n", comms.Receiver.ChatId)
 			}
 		}
 

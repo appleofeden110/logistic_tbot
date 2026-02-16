@@ -156,7 +156,7 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 		return err
 	}
 
-	_, err = Bot.Send(tgbotapi.NewMessage(comms.Sender.ChatId, "✅ Успішно було відправлено відповідь для "+comms.Sender.Name))
+	_, err = Bot.Send(tgbotapi.NewMessage(comms.Receiver.ChatId, "✅ Успішно було відправлено відповідь для "+comms.Sender.Name))
 	return err
 }
 
