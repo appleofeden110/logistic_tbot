@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"logistictbot/db"
 	"logistictbot/docs"
 	"strconv"
@@ -139,7 +140,7 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 	msg := tgbotapi.NewMessage(comms.Sender.ChatId, fmt.Sprintf("<b>Відповідь від: %s (@%s)</b>\n\n<i>%s</i>", comms.Receiver.Name, comms.Receiver.TgTag, comms.ReplyContent))
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Написати знову", "writeagain:"+strconv.Itoa(int(comms.Sender.ChatId)))))
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Написати знову", "writeback:"+strconv.Itoa(int(comms.Receiver.ChatId)))))
 
 	_, err := globalStorage.Exec(
 		`UPDATE communication_messages 
@@ -176,6 +177,50 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		return fmt.Errorf("ERR: getting manager by chat id: %v\n", err)
 	}
 
+	writingToChatMapMu.RLock()
+	receiverChatId, hasReceiver := writingToChatMap[comms.Sender.ChatId]
+	writingToChatMapMu.RUnlock()
+
+	if hasReceiver {
+		receiver := &db.User{ChatId: receiverChatId}
+		err = receiver.GetUserByChatId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
+		}
+		comms.Receiver = receiver
+
+		res, err := globalStorage.Exec(
+			`INSERT INTO communication_messages
+			(sender_id, reciever_id, message_content) VALUES (?, ?, ?)`,
+			comms.Sender.Id.String(),
+			receiver.Id.String(),
+			text,
+		)
+		if err != nil {
+			return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
+		}
+
+		id, err := res.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("ERR: getting last insert id: %v\n", err)
+		}
+
+		comms.Id = id
+		comms.MessageContent = text
+
+		writingToChatMapMu.Lock()
+		delete(writingToChatMap, comms.Sender.ChatId)
+		writingToChatMapMu.Unlock()
+
+		m.State = db.StateDormantManager
+		err = m.ChangeManagerStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: resetting manager state: %v\n", err)
+		}
+
+		return comms.Send(globalStorage)
+	}
+
 	res, err := globalStorage.Exec(
 		`INSERT INTO communication_messages 
 		(sender_id, message_content) VALUES(?, ?)`,
@@ -200,6 +245,51 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
 	}
 
+	writingToChatMapMu.RLock()
+	receiverChatId, hasReceiver := writingToChatMap[comms.Sender.ChatId]
+	writingToChatMapMu.RUnlock()
+
+	if hasReceiver {
+		receiver := &db.User{ChatId: receiverChatId}
+		err = receiver.GetUserByChatId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
+		}
+		comms.Receiver = receiver
+
+		log.Println(text, receiver)
+		res, err := globalStorage.Exec(
+			`INSERT INTO communication_messages
+			(sender_id, reciever_id, message_content) VALUES (?, ?, ?)`,
+			comms.Sender.Id.String(),
+			receiver.Id.String(),
+			text,
+		)
+		if err != nil {
+			return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
+		}
+
+		id, err := res.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("ERR: getting last insert id: %v\n", err)
+		}
+
+		comms.Id = id
+		comms.MessageContent = text
+
+		writingToChatMapMu.Lock()
+		delete(writingToChatMap, comms.Sender.ChatId)
+		writingToChatMapMu.Unlock()
+
+		d.State = db.StateWorking
+		err = d.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: resetting driver state: %v\n", err)
+		}
+
+		return comms.Send(globalStorage)
+	}
+
 	res, err := globalStorage.Exec(
 		`INSERT INTO communication_messages
 		(sender_id, message_content) VALUES (?, ?)`,
@@ -216,6 +306,41 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 	}
 
 	return d.ShowManagerList(globalStorage, "sendmanagermsg:"+strconv.Itoa(int(id)), "Кому відправити повідомлення?", d.ChatId, Bot)
+}
+
+func getSessionAndSetWritingState(chatId int64, commsId int64, globalStorage *sql.DB) error {
+	user := &db.User{ChatId: chatId}
+	err := user.GetUserByChatId(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting user by chat id: %v\n", err)
+	}
+
+	isM, err := user.IsManager(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: couldn't find if the guy is the manager or the driver: %v\n", err)
+	}
+
+	if isM {
+		managerSessionsMu.Lock()
+		manager, f := managerSessions[chatId]
+		managerSessionsMu.Unlock()
+
+		if f {
+			manager.State = db.StateWritingToDriver
+			return manager.ChangeManagerStatus(globalStorage)
+		}
+		return fmt.Errorf("ERR: couldn't find the manager with this chatid: %v\n", chatId)
+
+	}
+	driverSessionsMu.Lock()
+	driver, f := driverSessions[chatId]
+	driverSessionsMu.Unlock()
+
+	if f {
+		driver.State = db.StateWritingToManager
+		return driver.ChangeDriverStatus(globalStorage)
+	}
+	return fmt.Errorf("Couldn't find the driver with this id: %v\n", chatId)
 }
 
 func CreateVideoToSend(chatId int64, videoName string) *tgbotapi.VideoConfig {

@@ -20,6 +20,9 @@ var (
 	replyingToMessageMap   = make(map[int64]int64) // chatId -> commsId
 	replyingToMessageMapMu sync.RWMutex
 
+	writingToChatMap   = make(map[int64]int64) // senderChatId -> receiverChatId
+	writingToChatMapMu sync.RWMutex
+
 	managerSessions   = make(map[int64]*db.Manager)
 	managerSessionsMu sync.Mutex
 

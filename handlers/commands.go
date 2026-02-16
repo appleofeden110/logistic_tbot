@@ -324,38 +324,60 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 		}
 	case db.StateWritingToDriver:
 		if msg.Text != "" {
-			comms := CommunicationMsg{Sender: manager.User}
+			sender := &db.User{ChatId: manager.ChatId}
+			err = sender.GetUserByChatId(globalStorage)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: getting sender user: %v\n", err)
+			}
+
+			writingToChatMapMu.RLock()
+			receiverChatId, hasReceiver := writingToChatMap[manager.ChatId]
+			writingToChatMapMu.RUnlock()
+
+			var comms CommunicationMsg
+			if hasReceiver {
+				receiver := &db.User{ChatId: receiverChatId}
+				err = receiver.GetUserByChatId(globalStorage)
+				if err != nil {
+					return manager, fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
+				}
+				comms = CommunicationMsg{Sender: sender, Receiver: receiver}
+			} else {
+				comms = CommunicationMsg{Sender: sender}
+			}
 
 			manager.State = db.StateDormantManager
 			err = manager.ChangeManagerStatus(globalStorage)
 			if err != nil {
 				return manager, err
 			}
-
 			return manager, comms.CreateMessage(msg.Text, globalStorage)
 		}
+
 	case db.StateReplyingDriver:
 		if msg.Text != "" {
 			replyingToMessageMapMu.Lock()
 			commsId, found := replyingToMessageMap[manager.ChatId]
 			replyingToMessageMapMu.Unlock()
-
 			if !found {
 				return manager, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
 			}
-
 			manager.State = db.StateDormantManager
 			err = manager.ChangeManagerStatus(globalStorage)
 			if err != nil {
 				return manager, err
 			}
-
 			comms := &CommunicationMsg{Id: commsId}
 			err = comms.GetCommsMessage(globalStorage)
 			if err != nil {
 				return manager, fmt.Errorf("ERR: getting comms message: %v\n", err)
 			}
 			comms.ReplyContent = msg.Text
+
+			replyingToMessageMapMu.Lock()
+			delete(replyingToMessageMap, manager.ChatId)
+			replyingToMessageMapMu.Unlock()
+
 			return manager, comms.Reply(globalStorage)
 		}
 	}
@@ -804,7 +826,27 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	switch driver.State {
 	case db.StateWritingToManager:
 		if msg.Text != "" {
-			comms := CommunicationMsg{Sender: driver.User}
+			sender := &db.User{ChatId: driver.ChatId}
+			err = sender.GetUserByChatId(globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting sender user: %v\n", err)
+			}
+
+			writingToChatMapMu.RLock()
+			receiverChatId, hasReceiver := writingToChatMap[driver.ChatId]
+			writingToChatMapMu.RUnlock()
+
+			var comms CommunicationMsg
+			if hasReceiver {
+				receiver := &db.User{ChatId: receiverChatId}
+				err = receiver.GetUserByChatId(globalStorage)
+				if err != nil {
+					return driver, fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
+				}
+				comms = CommunicationMsg{Sender: sender, Receiver: receiver}
+			} else {
+				comms = CommunicationMsg{Sender: sender}
+			}
 
 			driver.State = db.StateWorking
 			err = driver.ChangeDriverStatus(globalStorage)
@@ -812,6 +854,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 
+			log.Println("R msg: ", msg.Text, hasReceiver)
 			return driver, comms.CreateMessage(msg.Text, globalStorage)
 		}
 	case db.StateReplyingManager:
@@ -819,23 +862,26 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			replyingToMessageMapMu.Lock()
 			commsId, found := replyingToMessageMap[driver.ChatId]
 			replyingToMessageMapMu.Unlock()
-
 			if !found {
 				return driver, fmt.Errorf("ERR: could not find replying message: %v\n", commsId)
 			}
-
 			driver.State = db.StateWorking
 			err = driver.ChangeDriverStatus(globalStorage)
 			if err != nil {
 				return driver, err
 			}
-
 			comms := &CommunicationMsg{Id: commsId}
 			err = comms.GetCommsMessage(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting comms message: %v\n", err)
 			}
 			comms.ReplyContent = msg.Text
+
+			// Clean up the reply map
+			replyingToMessageMapMu.Lock()
+			delete(replyingToMessageMap, driver.ChatId)
+			replyingToMessageMapMu.Unlock()
+
 			return driver, comms.Reply(globalStorage)
 		}
 	case db.StateWaitingAttachment:

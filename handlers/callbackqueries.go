@@ -365,6 +365,27 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
+	case strings.HasPrefix(cbq.Data, "writeback:"):
+		chatIdStr, _ := strings.CutPrefix(cbq.Data, "writeback:")
+		receiverChatId, err := strconv.ParseInt(chatIdStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing int64 for chatid (%s): %v\n", chatIdStr, err)
+		}
+
+		log.Println("R: " + strconv.Itoa(int(receiverChatId)))
+
+		writingToChatMapMu.Lock()
+		writingToChatMap[cbq.Message.Chat.ID] = receiverChatId
+		writingToChatMapMu.Unlock()
+
+		err = getSessionAndSetWritingState(cbq.Message.Chat.ID, 0, globalStorage)
+		if err != nil {
+			return err
+		}
+
+		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg.ParseMode = tgbotapi.ModeHTML
+		Bot.Send(msg)
 
 	case strings.HasPrefix(cbq.Data, "senddrivermsg:"):
 		// after trimming - will contain both comms_msg_id and driver's chat_id
