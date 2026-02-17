@@ -8,3 +8,5 @@ test
 */outpics/
 /examples
 /logs
+storage/
+.DS_STORE
