@@ -63,10 +63,10 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Список водіїв", "manager:viewdrivers"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Створити звіт за місяць", "manager:mstmt"),
+			tgbotapi.NewInlineKeyboardButtonData("Звіт по маршрутам", "manager:mstmt"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Заправки за місяць", "manager:mrefuel"),
+			tgbotapi.NewInlineKeyboardButtonData("Звіт по Заправкам", "manager:mrefuel"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Написати водію", "manager:sendmessage"),
