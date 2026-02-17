@@ -147,6 +147,26 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	return task, nil
 }
 
+func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, error) {
+	query := `
+		SELECT id, document_language, instruction_type, car_id, driver_id, 
+		       container, chassis, tankdetails, generalremark, doc_id, 
+		       created_at, updated_at, started, finished
+		FROM shipments
+		WHERE driver_id = ?
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+	shipments, err := queryShipments(db, query, driverId.String())
+	if err != nil {
+		return nil, fmt.Errorf("ERR: getting latest shipment for driver %s: %w", driverId, err)
+	}
+	if len(shipments) == 0 {
+		return nil, fmt.Errorf("no shipments found for driver %s", driverId)
+	}
+	return shipments[0], nil
+}
+
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
 		SELECT id, type, shipment_id, content, customer_ref, load_ref, 

@@ -213,6 +213,8 @@ func GetSequenceOfTasks(pdfFilePath string) (*Shipment, error) {
 	after, _ = details.IdentifyShipmentIdForDoc(after)
 	after, _ = details.IdentifyDeliveryDetails(docText)
 
+	fmt.Println("AFTER: ", after)
+
 	sections := details.ExtractTaskSections(after)
 	log.Println(sections)
 	for i, section := range sections {
@@ -354,7 +356,23 @@ func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
 		sections = append(sections, currentSection)
 	}
 
-	return sections
+	fmt.Println(sections)
+
+	return findAndDeleteDuplicates(sections)
+}
+
+func findAndDeleteDuplicates(tasks []*TaskSection) []*TaskSection {
+	seen := make(map[string]bool)
+	uniqueTasks := make([]*TaskSection, 0, len(tasks))
+
+	for _, task := range tasks {
+		if !seen[task.Type] {
+			seen[task.Type] = true
+			uniqueTasks = append(uniqueTasks, task)
+		}
+	}
+
+	return uniqueTasks
 }
 
 // ParseTaskDetails extracts structured data from a task section

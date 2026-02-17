@@ -16,7 +16,7 @@ type FuelCard struct {
 
 type TankRefuel struct {
 	Id                 int
-	ShipmentId         *int
+	ShipmentId         *int64
 	FuelCardId         int
 	FuelCard           string
 	CurrentKilometrage int64
@@ -147,13 +147,14 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 
 	for rows.Next() {
 		var (
-			r           TankRefuel
-			d           Driver
-			shipmentId  sql.NullInt64
-			carIdStr    sql.NullString
-			taskId      sql.NullInt64
-			driverIdStr string
-			userIdStr   string
+			r            TankRefuel
+			d            Driver
+			shipmentId   sql.NullInt64
+			carIdStr     sql.NullString
+			taskId       sql.NullInt64
+			driverIdStr  string
+			userIdStr    string
+			updatedAtStr sql.NullString // fix: SQLite returns this as string
 		)
 
 		err := rows.Scan(
@@ -166,7 +167,7 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 			&r.Diesel,
 			&r.AdBlu,
 			&r.CreatedAt,
-			&r.UpdatedAt,
+			&updatedAtStr, // was &r.UpdatedAt
 			&driverIdStr,
 			&userIdStr,
 			&carIdStr,
@@ -183,8 +184,24 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 			return nil, fmt.Errorf("ERR: scanning tank_refuel row: %w", err)
 		}
 
+		// parse updated_at string from SQLite
+		if updatedAtStr.Valid {
+			// SQLite datetime formats
+			formats := []string{
+				"2006-01-02 15:04:05",
+				"2006-01-02T15:04:05Z",
+				"2006-01-02 15:04:05.999999999-07:00",
+			}
+			for _, layout := range formats {
+				if t, err := time.Parse(layout, updatedAtStr.String); err == nil {
+					r.UpdatedAt = t
+					break
+				}
+			}
+		}
+
 		if shipmentId.Valid {
-			v := int(shipmentId.Int64)
+			v := shipmentId.Int64
 			r.ShipmentId = &v
 		}
 

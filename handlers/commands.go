@@ -259,6 +259,44 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
 		Bot.Send(msg)
 
+	case "mrefuel":
+		drivers, err := db.GetAllDrivers(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting drivers for refuel statement: %v\n", err)
+		}
+		if len(drivers) == 0 {
+			Bot.Send(tgbotapi.NewMessage(chatId, "Немає жодного водія."))
+			return nil
+		}
+
+		msg := tgbotapi.NewMessage(chatId, "Виберіть водія:")
+		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
+		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
+
+		for i, driver := range drivers {
+			label := driver.CarId
+			if driver.User != nil && driver.User.Name != "" {
+				label = fmt.Sprintf("%s (%s)", driver.User.Name, driver.CarId)
+			}
+			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(
+				label,
+				fmt.Sprintf("mrefuel:%s", driver.Id.String()),
+			))
+			if (i+1)%2 == 0 {
+				markup = append(markup, buttons)
+				buttons = make([]tgbotapi.InlineKeyboardButton, 0)
+			}
+		}
+		if len(buttons) > 0 {
+			markup = append(markup, buttons)
+		}
+
+		markup = append(markup, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("📋 Всі водії", "mrefuel:all"),
+		))
+
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
+		Bot.Send(msg)
 	}
 	return nil
 }
@@ -382,19 +420,6 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 		}
 	}
 	return manager, err
-}
-
-func buildFuelCardMarkup(cards []db.FuelCard) tgbotapi.InlineKeyboardMarkup {
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, card := range cards {
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(
-				card.Name,
-				fmt.Sprintf("driver:refuel_card:%d", card.Id),
-			),
-		))
-	}
-	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
 func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {

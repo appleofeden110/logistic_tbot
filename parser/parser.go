@@ -308,10 +308,51 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 	found = false
 	kgFound := false
 	generalRemarkStartIdx := -1
+	afterStartIdx := -1
 
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		lineLower := strings.ToLower(line)
+
+		if generalRemarkStartIdx >= 0 {
+			isNewSection := false
+			for _, keywords := range TaskKeywords {
+				for _, keyword := range keywords {
+					if strings.HasPrefix(lineLower, keyword) {
+						log.Println(lineLower, keyword)
+						isNewSection = true
+						break
+					}
+				}
+				if isNewSection {
+					break
+				}
+			}
+			if !isNewSection {
+				s.GeneralRemark += " " + strings.TrimSpace(line)
+				continue
+			} else {
+				generalRemarkStartIdx = -1
+				after = strings.Join(lines[i:], "\n")
+				fmt.Println(after)
+				return after, found // Return here so the caller can process tasks
+			}
+		}
+
+		// Check if we've hit a task keyword (even without general remark)
+		if afterStartIdx == -1 {
+			for _, keywords := range TaskKeywords {
+				for _, keyword := range keywords {
+					if strings.HasPrefix(lineLower, keyword) {
+						afterStartIdx = i
+						break
+					}
+				}
+				if afterStartIdx != -1 {
+					break
+				}
+			}
+		}
 
 		if len(s.CarId) == 0 {
 			for _, truckKeyword := range DetailsKeywords[Truck] {
@@ -322,7 +363,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				}
 			}
 		}
-
 		if len(s.DriverName) == 0 {
 			for _, driverKeyword := range DetailsKeywords[Driver] {
 				if a, f := strings.CutPrefix(lineLower, driverKeyword); f {
@@ -332,7 +372,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				}
 			}
 		}
-
 		if len(s.Chassis) == 0 {
 			for _, chassis := range DetailsKeywords[Chassis] {
 				if a, f := strings.CutPrefix(lineLower, chassis); f {
@@ -342,7 +381,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				}
 			}
 		}
-
 		if len(s.Container) == 0 {
 			for _, containerKeyword := range DetailsKeywords[Container] {
 				if a, f := strings.CutPrefix(lineLower, containerKeyword); f {
@@ -355,7 +393,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				}
 			}
 		}
-
 		if len(s.Tankdetails) == 0 {
 			for _, tankDetailsKeyword := range DetailsKeywords[Tankdetails] {
 				if a, f := strings.CutPrefix(lineLower, tankDetailsKeyword); f {
@@ -365,18 +402,14 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 				}
 			}
 		}
-
 		if !kgFound && len(s.Tankdetails) > 0 && strings.Contains(strings.ToLower(line), "kg") {
 			b, _, f := strings.Cut(strings.ToLower(line), "kg")
-
 			if f {
 				s.Tankdetails += fmt.Sprintf(" - %sKg", b)
 				found = true
 				kgFound = true
 			}
-
 		}
-
 		if len(s.GeneralRemark) == 0 {
 			for _, generalRemark := range DetailsKeywords[GenerellerHinweis] {
 				if a, f := strings.CutPrefix(lineLower, generalRemark); f {
@@ -386,32 +419,12 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 					break
 				}
 			}
-
 		}
+	}
 
-		if generalRemarkStartIdx >= 0 {
-			isNewSection := false
-			for _, keywords := range TaskKeywords {
-				for _, keyword := range keywords {
-					if strings.HasPrefix(lineLower, keyword) {
-						log.Println(lineLower, keyword)
-						isNewSection = true
-						break
-					}
-				}
-			}
-
-			if !isNewSection {
-				s.GeneralRemark += " " + strings.TrimSpace(line)
-				continue
-			} else {
-
-			}
-
-			generalRemarkStartIdx = -1
-			after = strings.Join(lines[i:], "\n")
-			fmt.Println(after)
-		}
+	// If we found where tasks start, return from there
+	if afterStartIdx != -1 {
+		after = strings.Join(lines[afterStartIdx:], "\n")
 	}
 
 	return after, found

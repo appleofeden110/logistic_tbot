@@ -14,6 +14,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/gofrs/uuid"
 )
 
 var TestManagerChatId int64 = 2042374598
@@ -46,6 +47,30 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		filename, err := data_analysis.CreateMonthlyStatement(time.Month(month), year, globalStorage)
 		if err != nil {
 			return fmt.Errorf("ERR: creating statement: %v", err)
+		}
+
+		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
+
+	case strings.HasPrefix(cbq.Data, "mrefuel:"):
+		after, _ := strings.CutPrefix(cbq.Data, "mrefuel:")
+
+		var filename string
+		var err error
+
+		if after == "all" {
+			filename, err = data_analysis.CreateRefuelsStatement(time.Time{}, time.Time{}, globalStorage)
+			if err != nil {
+				return fmt.Errorf("ERR: creating refuel statement for all drivers: %v", err)
+			}
+		} else {
+			driverId, err := uuid.FromString(after)
+			if err != nil {
+				return fmt.Errorf("ERR: parsing driver uuid from callback: %v", err)
+			}
+			filename, err = data_analysis.CreateRefuelsStatementByDriver(driverId, globalStorage)
+			if err != nil {
+				return fmt.Errorf("ERR: creating refuel statement for driver %s: %v", driverId, err)
+			}
 		}
 
 		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))

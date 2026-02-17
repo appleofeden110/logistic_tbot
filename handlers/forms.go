@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/db"
+	"logistictbot/parser"
 	"logistictbot/utils"
 	"reflect"
 	"strconv"
@@ -17,10 +18,10 @@ const SkipKeyword = "Пропустити"
 
 type TankRefuelForm struct {
 	ChosenFuelCardId   int
-	CurrentKilometrage int64  `form:"CurrentKilometrage" form_question:"Введіть поточний кілометраж"`
-	Address            string `form:"Address"            form_question:"Введіть адресу заправки"`
-	Diesel             string `form:"Diesel"             form_question:"Введіть кількість дизелю (літри), або пропустіть"`
-	AdBlu              string `form:"AdBlu"              form_question:"Введіть кількість AdBlue (літри), або пропустіть"`
+	CurrentKilometrage int64  `form:"Введіть поточний кілометраж" form_question:"Введіть поточний кілометраж"`
+	Address            string `form:"Введіть адресу заправки"            form_question:"Введіть адресу заправки"`
+	Diesel             string `form:"Введіть кількість Дізелю ви заправили (введіть тільки числом)"             form_question:"Введіть кількість дизелю (літри), або пропустіть"`
+	AdBlu              string `form:"Введіть кількість AdBlu ви взяли (введіть тільки числом)"              form_question:"Введіть кількість AdBlue (літри), або пропустіть"`
 }
 
 func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *db.Driver, chosenFuelCardId int) error {
@@ -47,8 +48,14 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 		inputMu.Unlock()
 	}
 
+	shipment, err := parser.GetLatestShipmentByDriverId(storage, driverSesh.Id)
+	if err != nil {
+		return fmt.Errorf("ERR: getting the latest shipment by the driver: %v\n", err)
+	}
+
 	refuel := db.TankRefuel{
 		FuelCardId:         chosenFuelCardId,
+		ShipmentId:         &shipment.ShipmentId,
 		CurrentKilometrage: data.CurrentKilometrage,
 		Address:            data.Address,
 		Diesel:             diesel,
@@ -205,7 +212,7 @@ func getData(chatId int64, from *tgbotapi.User, state *db.FormState) (*db.FormSt
 		if err := populateFields(&refuelForm, nil, state.FieldNames, state.Answers); err != nil {
 			return nil, err
 		}
-		
+
 		if existing, ok := state.Form.Data.(TankRefuelForm); ok {
 			refuelForm.ChosenFuelCardId = existing.ChosenFuelCardId
 		}

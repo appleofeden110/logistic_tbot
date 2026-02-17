@@ -66,6 +66,9 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Створити звіт за місяць", "manager:mstmt"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Заправки за місяць", "manager:mrefuel"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Написати водію", "manager:sendmessage"),
 		),
 	)
