@@ -24,6 +24,9 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Повідомити про заправку", "driver:refuel"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Написати менеджеру", "driver:sendmessage"),
 		),
 	)
@@ -37,6 +40,9 @@ var (
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Всі маршрути", "driver:viewall"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Повідомити про заправку", "driver:refuel"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Написати менеджеру", "driver:sendmessage"),
@@ -77,6 +83,22 @@ var (
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Ні, змінити дані", "editform:cars"),
+		),
+	)
+
+	formTextRefuel   = "<b>Форма для вписання Заправки по Паливній Карті</b>"
+	formMarkupRefuel = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Заповнити форму", "startform:tank_refuels"),
+		),
+	)
+	formTextRefuelDone   = "<b>Чи все правильно в відповідях?</b>"
+	formMarkupRefuelDone = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Так, підвердити дані", "acceptform:tank_refuels"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Ні, змінити дані", "editform:tank_refuels"),
 		),
 	)
 

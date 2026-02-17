@@ -35,6 +35,7 @@ const (
 	UsersTable    = TableType("users")
 	DriversTable  = TableType("drivers")
 	ManagersTable = TableType("managers")
+	RefuelsTable  = TableType("tank_refuels")
 	RoutesTable   = TableType("routes")
 	CarsTable     = TableType("cars")
 )

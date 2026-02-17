@@ -17,8 +17,11 @@ var (
 	taskSessions   = make(map[uuid.UUID]*parser.TaskSection)
 	taskSessionsMu sync.Mutex
 
+	pendingRefuelCard = make(map[int64]int)
+	formsMu           sync.Mutex
+
 	replyingToMessage   = make(map[int64]int64) // chatId -> commsId
-	replyingToMessageMu sync.RWMutex
+	replyingToMessageMu sync.Mutex
 
 	nonRepliedMessages   = make(map[uuid.UUID]*CommunicationMsg) // userId -> comms
 	nonRepliedMessagesMu sync.Mutex

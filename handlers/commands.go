@@ -384,6 +384,19 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 	return manager, err
 }
 
+func buildFuelCardMarkup(cards []db.FuelCard) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, card := range cards {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(
+				card.Name,
+				fmt.Sprintf("driver:refuel_card:%d", card.Id),
+			),
+		))
+	}
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
 func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	var cmd string
 	var f bool
@@ -411,6 +424,53 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	}
 
 	switch cmd {
+
+	case "refuel":
+		cards, err := db.GetAllFuelCards(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: fetching fuel cards for refuel: %w", err)
+		}
+		if len(cards) == 0 {
+			_, _ = Bot.Send(tgbotapi.NewMessage(chatId, "Немає доступних паливних карток."))
+			return nil
+		}
+		var rows [][]tgbotapi.InlineKeyboardButton
+		for _, card := range cards {
+			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					card.Name,
+					fmt.Sprintf("driver:refuel_card:%d", card.Id),
+				),
+			))
+		}
+		msg := tgbotapi.NewMessage(chatId, "Оберіть паливну картку:")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+		_, err = Bot.Send(msg)
+		return err
+
+	case "refuel_card":
+		if !idFound {
+			return fmt.Errorf("ERR: refuel_card command missing card id")
+		}
+		cardId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing fuel card id: %w", err)
+		}
+
+		// Stash the chosen card id in the form state so GatherInfo can pick it up.
+		formsMu.Lock()
+		pendingRefuelCard[chatId] = cardId
+		formsMu.Unlock()
+
+		err = createForm[TankRefuelForm](
+			chatId,
+			TankRefuelForm{},
+			formMarkupRefuel,
+			formTextRefuel,
+			fmt.Sprintf("driver refuel, card id: %d", cardId),
+		)
+		return err
+
 	case "begintask":
 		taskId, err := strconv.Atoi(_idString)
 		if err != nil {
@@ -973,9 +1033,17 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
 		task := new(parser.TaskSection)
 
-		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
-		if err != nil {
-			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
+		/*	task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
+			}
+		*/
+		taskSessionsMu.Lock()
+		task, f := taskSessions[driver.Id]
+		taskSessionsMu.Unlock()
+
+		if !f {
+			return driver, fmt.Errorf("ERR: getting task by driver's id: %s\n", driver.Id.String())
 		}
 
 		country, _ := parser.ExtractCountry(task.Address)

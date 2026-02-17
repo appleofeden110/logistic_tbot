@@ -15,6 +15,55 @@ import (
 
 const SkipKeyword = "Пропустити"
 
+type TankRefuelForm struct {
+	ChosenFuelCardId   int
+	CurrentKilometrage int64  `form:"CurrentKilometrage" form_question:"Введіть поточний кілометраж"`
+	Address            string `form:"Address"            form_question:"Введіть адресу заправки"`
+	Diesel             string `form:"Diesel"             form_question:"Введіть кількість дизелю (літри), або пропустіть"`
+	AdBlu              string `form:"AdBlu"              form_question:"Введіть кількість AdBlue (літри), або пропустіть"`
+}
+
+func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *db.Driver, chosenFuelCardId int) error {
+	data, ok := f.Data.(TankRefuelForm)
+	if !ok {
+		return fmt.Errorf("ERR: refuel form data is wrong type: %T", f.Data)
+	}
+
+	diesel, err := strconv.ParseFloat(data.Diesel, 64)
+	if err != nil {
+		diesel = 0
+	}
+	adBlu, err := strconv.ParseFloat(data.AdBlu, 64)
+	if err != nil {
+		adBlu = 0
+	}
+
+	if chosenFuelCardId == 0 {
+		inputMu.Lock()
+		cardId, exists := pendingRefuelCard[driverSesh.ChatId]
+		if exists {
+			chosenFuelCardId = cardId
+		}
+		inputMu.Unlock()
+	}
+
+	refuel := db.TankRefuel{
+		FuelCardId:         chosenFuelCardId,
+		CurrentKilometrage: data.CurrentKilometrage,
+		Address:            data.Address,
+		Diesel:             diesel,
+		AdBlu:              adBlu,
+		Driver:             driverSesh,
+	}
+
+	if err := refuel.StoreTankRefuel(storage); err != nil {
+		return fmt.Errorf("ERR: storing refuel: %w", err)
+	}
+
+	_, err = bot.Send(tgbotapi.NewMessage(f.ChatID, "✅ Заправку збережено!"))
+	return err
+}
+
 func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMarkup, text, logMsg string) error {
 	questionAnswers := make(map[string]string)
 	tags, err := utils.GetAllFormTags[T](entity)
@@ -62,6 +111,10 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 		}
 
 		switch state.Form.WhichTable {
+
+		case db.RefuelsTable:
+			chosenFormText = formTextRefuelDone
+			chosenFormMarkup = formMarkupRefuelDone
 		case db.DriversTable:
 			chosenFormText = formTextDriverDone
 			chosenFormMarkup = formMarkupDriverDone
@@ -104,6 +157,17 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 		return fmt.Errorf("ERR: checking if the form states table exists: %v\n", err)
 	}
 
+	if state.Form.WhichTable == db.RefuelsTable {
+		refuelData, ok := state.Form.Data.(TankRefuelForm)
+		if !ok {
+			return fmt.Errorf("ERR: refuel form data wrong type after finish")
+		}
+		driver, err := db.GetDriverByChatId(globalStorage, chatId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting driver for refuel store: %w", err)
+		}
+		return storeRefuel(state.Form, globalStorage, Bot, driver, refuelData.ChosenFuelCardId)
+	}
 	return state.Form.StoreForm(globalStorage, Bot)
 }
 
@@ -136,6 +200,16 @@ func askNextQuestion(chatId int64, state *db.FormState) error {
 
 func getData(chatId int64, from *tgbotapi.User, state *db.FormState) (*db.FormState, error) {
 	switch state.Form.WhichTable {
+	case db.RefuelsTable:
+		refuelForm := TankRefuelForm{}
+		if err := populateFields(&refuelForm, nil, state.FieldNames, state.Answers); err != nil {
+			return nil, err
+		}
+		
+		if existing, ok := state.Form.Data.(TankRefuelForm); ok {
+			refuelForm.ChosenFuelCardId = existing.ChosenFuelCardId
+		}
+		state.Form.Data = refuelForm
 	case db.DriversTable:
 		driver := db.Driver{User: &db.User{ChatId: chatId, TgTag: from.UserName}, ChatId: chatId}
 		if err := populateFields(&driver, driver.User, state.FieldNames, state.Answers); err != nil {
@@ -223,6 +297,8 @@ func GatherInfo(f db.Form) error {
 		return gatherFormInfo[db.Manager](f, db.Manager{})
 	case db.CarsTable:
 		return gatherFormInfo[db.Car](f, db.Car{})
+	case db.RefuelsTable:
+		return gatherFormInfo[TankRefuelForm](f, TankRefuelForm{})
 	default:
 		return fmt.Errorf("ERR: unsupported table type: %s", f.WhichTable)
 	}
