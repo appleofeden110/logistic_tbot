@@ -14,13 +14,13 @@ import (
 type RefuelStatement struct {
 	Id                 int     `excel:"ID"`
 	ShipmentId         string  `excel:"Nr zlecenia"`
-	FuelCard           string  `excel:"Паливна картка"`
-	Car                string  `excel:"Машина"`
-	CurrentKilometrage int64   `excel:"Кілометраж"`
-	Address            string  `excel:"Адреса"`
-	Diesel             float64 `excel:"Дизель (л)"`
-	AdBlu              float64 `excel:"AdBlue (л)"`
-	CreatedAt          string  `excel:"Дата"`
+	FuelCard           string  `excel:"Karta paliwowa"`
+	Car                string  `excel:"Samochód"`
+	CurrentKilometrage int64   `excel:"Km"`
+	Address            string  `excel:"Adres"`
+	Diesel             float64 `excel:"Diesel (litre)"`
+	AdBlu              float64 `excel:"AdBlue (litre)"`
+	CreatedAt          string  `excel:"Data"`
 }
 
 func convertRefuelToStatement(r db.TankRefuel) RefuelStatement {
