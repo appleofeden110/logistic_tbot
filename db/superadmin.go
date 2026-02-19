@@ -27,6 +27,8 @@ var ErrNotSuperAdmin = errors.New("not a super admin")
 
 // user should not be empty
 func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) error {
+
+	fmt.Println(2)
 	var chatIds []int64
 	rows, err := exec.Query("SELECT chat_id FROM users where is_super_admin=1")
 	if err != nil {

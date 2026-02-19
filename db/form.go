@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -94,6 +95,10 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		err = v.User.StoreUser(tx)
 		if err != nil {
 			tx.Rollback()
+
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				bot.Send(tgbotapi.NewMessage(chatId, "Такий користувача скоріш всього вже існує. Якщо це помилково - напишіть розробнику: @pinkfloydfan або @NazKan_Uk"))
+			}
 			return fmt.Errorf("ERR: storing user: %v\n", err)
 		}
 
@@ -123,12 +128,6 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("ERR: storing manager in the table: %v\n", err)
-		}
-
-		err = v.User.SendRequestToSuperAdmins(tx, bot)
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
 		}
 
 		err = tx.Commit()

@@ -11,6 +11,8 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+var ErrNoShipments = errors.New("no shipments were found ")
+
 type MonthYear struct {
 	Month time.Month
 	Year  int
@@ -162,7 +164,7 @@ func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, err
 		return nil, fmt.Errorf("ERR: getting latest shipment for driver %s: %w", driverId, err)
 	}
 	if len(shipments) == 0 {
-		return nil, fmt.Errorf("no shipments found for driver %s", driverId)
+		return nil, ErrNoShipments
 	}
 	return shipments[0], nil
 }

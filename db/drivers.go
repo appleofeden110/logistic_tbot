@@ -65,6 +65,7 @@ type Driver struct {
 	UpdatedAt       time.Time               `db:"updated_at"`
 	State           DriverConversationState `db:"state"`
 	PerformedTaskId int                     `db:"performing_task_id"`
+	// Accepted bool
 
 	User    *User
 	Tasks   *parser.Shipment // should not be empty if performing a shipment

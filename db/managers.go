@@ -52,6 +52,8 @@ type Manager struct {
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 
+	//Accepted bool
+
 	User *User
 }
 
@@ -92,6 +94,56 @@ func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 	}
 
 	return nil
+}
+
+func GetManagerById(db DBExecutor, id uuid.UUID) (*Manager, error) {
+	query := `
+		SELECT 
+			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+		FROM users u
+		JOIN managers m ON u.manager_id = m.id
+		WHERE m.id = $1
+	`
+	manager := new(Manager)
+	manager.User = new(User)
+	var managerIdStr, userIdStr string
+	var userDriverIdStr, userManagerIdStr sql.NullString
+	err := db.QueryRow(query, id.String()).Scan(
+		&managerIdStr, &userIdStr, &manager.CreatedAt, &manager.UpdatedAt, &manager.ChatId, &manager.State,
+		&manager.User.Id, &manager.User.ChatId, &manager.User.Name,
+		&userDriverIdStr, &userManagerIdStr,
+		&manager.User.CreatedAt, &manager.User.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no manager found for id %s", id.String())
+		}
+		return nil, fmt.Errorf("ERR: querying manager by id: %v", err)
+	}
+	manager.Id, err = uuid.FromString(managerIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: parsing manager id: %v", err)
+	}
+	manager.UserId, err = uuid.FromString(userIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: parsing user id: %v", err)
+	}
+	if userDriverIdStr.Valid {
+		driverId, err := uuid.FromString(userDriverIdStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
+		}
+		manager.User.DriverId = driverId
+	}
+	if userManagerIdStr.Valid {
+		managerId, err := uuid.FromString(userManagerIdStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
+		}
+		manager.User.ManagerId = managerId
+	}
+	return manager, nil
 }
 
 func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
@@ -209,6 +261,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		return fmt.Errorf("ERR: executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
+	fmt.Println(1)
 	err = m.User.SendRequestToSuperAdmins(db, bot)
 	if err != nil {
 		return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)

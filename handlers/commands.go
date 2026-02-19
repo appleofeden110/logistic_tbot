@@ -431,7 +431,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		return fmt.Errorf("command is incorrect: %v\n", command)
 	}
 
-	log.Println("fuownaf")
 	// made to transfer ids of tasks and shipments, handled case by case
 	cmdString, _idString, idFound := strings.Cut(cmd, ":")
 	log.Println(cmd)
@@ -451,6 +450,15 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	switch cmd {
 
 	case "refuel":
+
+		if _, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id); err != nil {
+			Bot.Send(tgbotapi.NewMessage(chatId, "Ви маєте повідомити за заправку тільки при виконанні маршруту. Якщо так і є, але ви отримуєте це повідомлення: напишіть розробнику @pinkfloydfan або @NazKan_Uk"))
+			if !errors.Is(err, parser.ErrNoShipments) {
+				fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+			}
+			return err
+		}
+
 		cards, err := db.GetAllFuelCards(globalStorage)
 		if err != nil {
 			return fmt.Errorf("ERR: fetching fuel cards for refuel: %w", err)
@@ -1436,6 +1444,15 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 			return err
 
 		} else if u.ManagerId != uuid.Nil {
+			manager, err := db.GetManagerById(globalStorage, u.ManagerId)
+			if err != nil {
+				return fmt.Errorf("ERR: getting manager by id after superadmin accepted him")
+			}
+
+			managerSessionsMu.Lock()
+			managerSessions[u.ChatId] = manager
+			managerSessionsMu.Unlock()
+
 			Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+u.Name+" було підтверджено на роль менеджера!"))
 			_, err = Bot.Send(tgbotapi.NewMessage(approvedChatId, "Вашу реєстрацію було прийнято!"))
 			if err != nil {
@@ -1522,6 +1539,10 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		}
 
 		Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+driver.User.Name+" було підтверджено на роль водія!"))
+
+		driverSessionsMu.Lock()
+		driverSessions[driver.ChatId] = driver
+		driverSessionsMu.Unlock()
 
 		_, err = Bot.Send(tgbotapi.NewMessage(driver.User.ChatId, fmt.Sprintf("Вашу реєстрацію було прийнято! Вам було призначено автомобіль %s з кілометражом %d км.", car.Id, car.Kilometrage)))
 		if err != nil {

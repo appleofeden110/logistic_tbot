@@ -24,14 +24,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	var err error
 	id := cbq.Message.MessageID
 
-	user := &db.User{ChatId: cbq.Message.From.ID}
+	user := &db.User{ChatId: cbq.Message.Chat.ID}
 	err = user.GetUserByChatId(globalStorage)
 	if err != nil {
 		user.Name = "NEU"
 		user.TgTag = "@nil"
 	}
 
-	log.Printf("(%d - %s - %s) pressed a button %s. msg id: %d", cbq.Message.From.ID, user.Name, user.TgTag, cbq.Data, id)
+	log.Printf("(%d - %s - %s) pressed a button %s. msg id: %d", cbq.Message.Chat.ID, user.Name, user.TgTag, cbq.Data, id)
 
 	switch {
 	case strings.HasPrefix(cbq.Data, "mstmt:"):
@@ -128,8 +128,8 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if err != nil {
 			return fmt.Errorf("ERR: sending acceptform message to a user: %v\n", err)
 		}
-		return finishForm(cbq.Message.Chat.ID, inputSesh, globalStorage, cbq.Message.From)
-
+		log.Println("cbq from: ", cbq.From)
+		return finishForm(cbq.Message.Chat.ID, inputSesh, globalStorage, cbq.From)
 	case strings.HasPrefix(cbq.Data, "createform:"):
 		err = HandleCommand(cbq.Message.Chat.ID, fmt.Sprintf("/%s", cbq.Data), globalStorage)
 	case strings.HasPrefix(cbq.Data, "shipment:accept:"):

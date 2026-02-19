@@ -50,7 +50,7 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 
 	shipment, err := parser.GetLatestShipmentByDriverId(storage, driverSesh.Id)
 	if err != nil {
-		return fmt.Errorf("ERR: getting the latest shipment by the driver: %v\n", err)
+		shipment = &parser.Shipment{ShipmentId: 0}
 	}
 
 	refuel := db.TankRefuel{
@@ -108,6 +108,8 @@ func HandleFormInput(chatId int64, text string, state *db.FormState, globalStora
 
 func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *tgbotapi.User) error {
 	var err error
+
+	log.Println("chatId: ", chatId)
 
 	if !state.Finished {
 		var chosenFormText string
@@ -218,6 +220,7 @@ func getData(chatId int64, from *tgbotapi.User, state *db.FormState) (*db.FormSt
 		}
 		state.Form.Data = refuelForm
 	case db.DriversTable:
+		log.Println(from)
 		driver := db.Driver{User: &db.User{ChatId: chatId, TgTag: from.UserName}, ChatId: chatId}
 		if err := populateFields(&driver, driver.User, state.FieldNames, state.Answers); err != nil {
 			return nil, err

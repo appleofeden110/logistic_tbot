@@ -89,6 +89,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	id := msg.MessageID
 	user := msg.From
 	text := msg.Text
+	log.Println("message: ", msg.From, msg)
 
 	if user == nil {
 		return fmt.Errorf("How is user not there?: %v\n", user)
