@@ -14,9 +14,9 @@ var (
 	)
 
 	driverStartMarkupPause = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
+		/*	tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Почати зміну", "driver:beginday"),
-		),
+		),*/
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Активні маршрути", "driver:viewactive"),
 		),
