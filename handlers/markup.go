@@ -32,9 +32,9 @@ var (
 	)
 
 	driverStartMarkupWorking = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
+		/*	tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Закінчити зміну", "driver:endDay"),
-		),
+		),*/
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Активні маршрути", "driver:viewactive"),
 		),

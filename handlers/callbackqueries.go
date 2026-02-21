@@ -198,7 +198,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		_, err = Bot.Send(tgbotapi.PinChatMessageConfig{
 			ChatID:              pinMsg.Chat.ID,
 			MessageID:           pinMsg.MessageID,
-			DisableNotification: true,
+			DisableNotification: false,
 		})
 		return err
 	case strings.HasPrefix(cbq.Data, "shipment:end:"):
@@ -229,8 +229,35 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if err != nil {
 			return fmt.Errorf("ERR: starting shipment: %v\n", err)
 		}
+		endMsg := tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Маршрут <b>%d</b> було закінчено!\n\nУ вас є 10 хвилин що б це відмінити натиснувши на кнопку внизу", shipmentId))
+		endMsg.ParseMode = tgbotapi.ModeHTML
+		endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Повернути маршрут", "shipment:unend:"+strconv.Itoa(int(shipment.ShipmentId)))))
+		_, err = Bot.Send(endMsg)
+		return err
 
-		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Маршрут %d було закінчено!", shipmentId)))
+	case strings.HasPrefix(cbq.Data, "shipment:unend:"):
+		shipmentIdString, _ := strings.CutPrefix(cbq.Data, "shipment:unend:")
+		var shipmentId int64
+		if shipmentId, err = strconv.ParseInt(shipmentIdString, 10, 64); err != nil {
+			return fmt.Errorf("ERR: parsing shipment id: %v\n", err)
+		}
+		shipment, err := parser.GetShipment(globalStorage, shipmentId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
+		}
+		if shipment.Finished.IsZero() {
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут ще не був закінчений"))
+			return err
+		}
+		if time.Since(shipment.Finished) > 10*time.Minute {
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Минуло більше 10 хвилин, неможливо скасувати завершення маршруту"))
+			return err
+		}
+		err = shipment.UnfinishShipment(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: unfinishing shipment: %v\n", err)
+		}
+		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Завершення маршруту %d було скасовано!", shipmentId)))
 		return err
 	case strings.HasPrefix(cbq.Data, "task:begin:"):
 

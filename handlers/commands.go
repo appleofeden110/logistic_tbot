@@ -530,6 +530,16 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
+		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting shipment to check if it is done: %v\n", err)
+		}
+
+		if shipment.IsFinished() {
+			_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Ви пробуєте виконату задачу маршруту, який вже був закритим"))
+			return err
+		}
+
 		driverSesh.PerformedTaskId = taskId
 
 		err = driverSesh.SetPerformingTask(globalStorage)
@@ -580,6 +590,8 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			default:
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
+		} else {
+			log.Println("ERR: cannot find the task")
 		}
 
 	case "sendmessage":
@@ -597,6 +609,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "sumtask":
 		taskSessionsMu.Lock()
 		task, f := taskSessions[driverSesh.Id]
+		delete(taskSessions, driverSesh.Id)
 		taskSessionsMu.Unlock()
 
 		if f {
@@ -623,7 +636,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			}
 
 			driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
-			files := make([]*docs.File, 0)
 
 			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
 				task.ShipmentId,
@@ -647,43 +659,18 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 			}
 
-			files, err = docs.GetFilesAttachedToTask(globalStorage, task.Id)
-			if err != nil {
-				return fmt.Errorf("ERR: getting attached to task files: %v\n", err)
-			}
+			endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
 
-			photos, docsFiles := splitFiles(files)
-			managerText := driverInfo + endMsg.Text
-
-			if len(photos) > 0 {
-				err = sendPhotosToManager(TestManagerChatId, photos, managerText)
+			managerSessionsMu.Lock()
+			defer managerSessionsMu.Unlock()
+			for mChatId := range managerSessions {
+				endMsg.ChatID = mChatId
+				_, err = Bot.Send(endMsg)
 				if err != nil {
-					return err
-				}
-			} else {
-				msg := tgbotapi.NewMessage(TestManagerChatId, managerText)
-				msg.ParseMode = tgbotapi.ModeHTML
-				if _, err = Bot.Send(msg); err != nil {
-					return err
-				}
-			}
-
-			if len(docsFiles) > 0 {
-				if err = sendDocumentsToManager(TestManagerChatId, docsFiles); err != nil {
-					return err
+					return fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
 				}
 			}
 		}
-		//_, err = Bot.Send(endMsg)
-		/*managerSessionsMu.Lock()
-		defer managerSessionsMu.Unlock()
-		for mChatId := range managerSessions {
-			endMsg.ChatID = mChatId
-			_, err = Bot.Send(endMsg)
-			if err != nil {
-				return driver, fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
-			}
-		}*/
 
 	case "add_doctotask":
 		driverSesh.State = db.StateWaitingAttachment
@@ -696,11 +683,88 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("Відправити документи", "driver:send_docs"),
+				tgbotapi.NewInlineKeyboardButtonData("↩️ Назад", "driver:back"),
 			),
 		)
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
+
+	case "back":
+		taskSessionsMu.Lock()
+		task, exists := taskSessions[driverSesh.Id]
+		taskSessionsMu.Unlock()
+
+		if !exists {
+			log.Println("ERR: task does not exists when it needs to")
+			Bot.Send(tgbotapi.NewMessage(chatId, "Це завдання або виконане, або його не існує в базі даних. Якщо це не те як має бути, напишіть розробнику на @pinkfloydfan або @NazKan_Uk"))
+			//config.VERY_BAD(chatId, Bot)
+		}
+
+		err := docs.DeleteFilesAttachedToTask(globalStorage, task.Id)
+		if err != nil {
+			return fmt.Errorf("ERR: deleting any attached fils: %v\n", err)
+		}
+
+		switch task.Type {
+		case parser.TaskLoad:
+			driverSesh.State = db.StateLoad
+		case parser.TaskUnload:
+			driverSesh.State = db.StateUnload
+		case parser.TaskCollect:
+			driverSesh.State = db.StateCollect
+		case parser.TaskDropoff:
+			driverSesh.State = db.StateDropoff
+		case parser.TaskCleaning:
+			driverSesh.State = db.StateCleaning
+		default:
+			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
+		}
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return err
+		}
+
+		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting shipment to display task: %v\n", err)
+		}
+
+		country, _ := parser.ExtractCountry(task.Address)
+
+		startTaskMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(TaskSubmissionFormatText,
+			task.ShipmentId,
+			strings.ToUpper(task.Type),
+			shipment.Chassis,
+			shipment.Container,
+			time.Now().Format("02.01.2006"),
+			task.Start.Format("15:04"),
+			"",
+			db.FormatKilometrage(int(task.CurrentKilometrage)),
+			task.Address,
+			country.Name,
+			country.Emoji,
+			0,
+			0.00),
+		)
+		startTaskMsg.ParseMode = tgbotapi.ModeHTML
+
+		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Закінчити виконання", fmt.Sprintf("driver:endtask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Додати документ", fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Додати фотографії", fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
+			),
+		)
+
+		_, err = Bot.Send(startTaskMsg)
+		return err
+
 	case "send_docs":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
@@ -734,16 +798,25 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			task.Id,
 		)
 
-		headerMsg := tgbotapi.NewMessage(TestManagerChatId, managerText)
-		headerMsg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(headerMsg)
+		// gotta be to the one that sent the shipment - gonna be everyone for now
+
+		managers, err := db.GetAllManagers(globalStorage)
 		if err != nil {
-			return err
+			return fmt.Errorf("ERR: getting all the managers: %v\n", err)
 		}
 
-		err = sendDocumentsToManager(TestManagerChatId, docsFiles)
-		if err != nil {
-			return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
+		for _, manager := range managers {
+			headerMsg := tgbotapi.NewMessage(manager.ChatId, managerText)
+			headerMsg.ParseMode = tgbotapi.ModeHTML
+			_, err = Bot.Send(headerMsg)
+			if err != nil {
+				return err
+			}
+
+			err = sendDocumentsToManager(manager.ChatId, docsFiles)
+			if err != nil {
+				return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
+			}
 		}
 
 		switch task.Type {
@@ -794,7 +867,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		// Confirm to driver
 		confirmMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Відправлено %d фотографій менеджеру ✅", len(photos)))
 		_, err = Bot.Send(confirmMsg)
 		if err != nil {
@@ -809,12 +881,16 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			task.Id,
 		)
 
-		err = sendPhotosToManager(TestManagerChatId, photos, managerText)
-		if err != nil {
-			return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
+		managerSessionsMu.Lock()
+		for mChatId := range managerSessions {
+			err = sendPhotosToManager(mChatId, photos, managerText)
+			if err != nil {
+				managerSessionsMu.Unlock()
+				return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
+			}
 		}
+		managerSessionsMu.Unlock()
 
-		// Reset driver state back to task state
 		switch task.Type {
 		case parser.TaskLoad:
 			driverSesh.State = db.StateLoad
@@ -1157,16 +1233,24 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			pin := tgbotapi.PinChatMessageConfig{
 				ChatID:              pinMsg.Chat.ID,
 				MessageID:           pinMsg.MessageID,
-				DisableNotification: true,
+				DisableNotification: false,
 			}
 
 			Bot.Send(pin)
 
 			driverInfo := fmt.Sprintf("Водій %s (%s) почав завдання %s для маршруту %d\nМашина: %s\n\n", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
-			startTaskMsg.ReplyMarkup = nil
-			startTaskMsg.Text = driverInfo + startTaskMsg.Text
-			startTaskMsg.ChatID = TestManagerChatId
-			_, err = Bot.Send(startTaskMsg)
+			startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
+
+			managerSessionsMu.Lock()
+			defer managerSessionsMu.Unlock()
+			for mChatId := range managerSessions {
+				startTaskMsg.ReplyMarkup = nil
+				startTaskMsg.ChatID = mChatId
+				_, err = Bot.Send(startTaskMsg)
+				if err != nil {
+					return driver, fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
+				}
+			}
 			return driver, err
 		}
 	case db.StateWaitingWeight:

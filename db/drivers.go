@@ -78,7 +78,7 @@ func SetAllDriversToDormant(db DBExecutor) error {
 		SET state = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE state != ?
 	`
-	result, err := db.Exec(query, StatePause, StatePause)
+	result, err := db.Exec(query, StateWorking, StateWorking)
 	if err != nil {
 		return fmt.Errorf("ERR: setting all drivers to pause state: %v", err)
 	}

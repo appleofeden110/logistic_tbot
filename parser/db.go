@@ -504,7 +504,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("shipment not found")
+			return nil, sql.ErrNoRows
 		}
 		return nil, fmt.Errorf("scan shipment: %w", err)
 	}
@@ -578,10 +578,23 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
-		return fmt.Errorf("ERR: starting shipment: %v\n", err)
+		return fmt.Errorf("ERR: finishing shipment: %v\n", err)
 	}
 
 	return nil
+}
+
+func (s *Shipment) UnfinishShipment(db *sql.DB) error {
+	query := `UPDATE shipments SET finished = NULL WHERE id = ?`
+	_, err := db.Exec(query, s.ShipmentId)
+	if err != nil {
+		return fmt.Errorf("ERR: unfinish shipment %d: %w", s.ShipmentId, err)
+	}
+	return nil
+}
+
+func (s *Shipment) IsFinished() bool {
+	return !s.Started.IsZero() && !s.Finished.IsZero()
 }
 
 // GetTaskById retrieves a single task by ID

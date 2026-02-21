@@ -52,16 +52,29 @@ func FillSessions(globalStorage *sql.DB) error {
 	}
 
 	driverSessionsMu.Lock()
+	taskSessionsMu.Lock()
 	for _, d := range drivers {
 		d.Session, err = d.GetLastActiveSession(globalStorage)
 		if err != nil {
+			driverSessionsMu.Unlock()
+			taskSessionsMu.Unlock()
 			return fmt.Errorf("ERR: getting a session for driver %s: %v\n", d.User.Name, err)
 		}
 		driverSessions[d.ChatId] = d
+		if d.PerformedTaskId != 0 {
+			task, err := parser.GetTaskById(globalStorage, d.PerformedTaskId)
+			if err != nil {
+				driverSessionsMu.Unlock()
+				taskSessionsMu.Unlock()
+				return fmt.Errorf("ERR: getting task that is being performed: %v\n", err)
+			}
+			taskSessions[d.Id] = task
+		}
 	}
+	taskSessionsMu.Unlock()
 	driverSessionsMu.Unlock()
 
-	log.Printf("Driver sessions are filled (len: %d)\n", len(driverSessions))
+	log.Printf("Driver sessions and their tasks are filled (d-len: %d; t-len: %d)\n", len(driverSessions), len(taskSessions))
 
 	managers, err := db.GetAllManagers(globalStorage)
 	if err != nil {
