@@ -134,7 +134,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	}
 
 	if strings.HasPrefix(msg.Text, "/") {
-		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage)
+		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage, msg.From.LanguageCode)
 	}
 
 	return err

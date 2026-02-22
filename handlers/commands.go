@@ -60,7 +60,7 @@ func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) erro
 	return err
 }
 
-func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
+func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode string) error {
 	cmd, found := strings.CutPrefix(command, "/")
 	if !found {
 		return fmt.Errorf("ERR: it is not a command: %s\n", command)
@@ -102,6 +102,22 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 		}
 		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі водії тепер в дефолтному статусі"))
 		return err
+	case "language":
+		msg := tgbotapi.NewMessage(chatId, config.T(config.LangCode(langCode), "choose_lang"))
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🇬🇧 English", "set_lang:en"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🇺🇦 Українська", "set_lang:ua"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🇵🇱 Polskі", "set_lang:pl"),
+			),
+		)
+
+		_, err := Bot.Send(msg)
+		return err
 	case "test":
 	case "add_car":
 		c := db.Car{}
@@ -122,7 +138,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB) error {
 			return err
 		}
 	case "menu":
-		return HandleCommand(chatId, "/start", globalStorage)
+		return HandleCommand(chatId, "/start", globalStorage, langCode)
 	case "dev:init":
 		devSesh, err := db.GetDev(globalStorage, chatId)
 		if err != nil {
@@ -1751,7 +1767,7 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 }
 
 func HandleStart(chatId int64, globalStorage *sql.DB, user *db.User) error {
-	msg := tgbotapi.NewMessage(chatId, "Ласкаво просимо до допоміжного бота V&R Spedition.")
+	msg := tgbotapi.NewMessage(chatId, config.T(config.GetLang(chatId), "welcome"))
 
 	if user == nil {
 		msg.Text += "\n\nЗареєструйтесь що б відкрити основні функції бота, як Водій або Менеджер."
@@ -1813,7 +1829,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		} else {
 			msg.ReplyMarkup = driverStartMarkupPause
 		}
-		msg.Text = fmt.Sprintf("Ласкаво просимо, водію %s\nЩо ви хочете зробити?", u.Name)
+		msg.Text = config.T(config.GetLang(chatId), "welcome_driver", map[string]string{"name": u.Name})
 	case db.RoleManager:
 		managerSessionsMu.Lock()
 		if manager, exists := managerSessions[chatId]; exists {
@@ -1828,7 +1844,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		}
 		managerSessionsMu.Unlock()
 
-		msg.Text = fmt.Sprintf("Ласкаво просимо, менеджере %s\nЩо ви хочете зробити?", u.Name)
+		msg.Text = config.T(config.GetLang(chatId), "welcome_manager", map[string]string{"name": u.Name})
 		msg.ReplyMarkup = managerStartMarkup
 	}
 

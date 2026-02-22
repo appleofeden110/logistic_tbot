@@ -1,0 +1,7 @@
+{
+ "welcome": "Witamy w bocie pomocniczym V&R Spedition.",
+ "choose_lang": "Wybierz język",
+ "lang_set": "✅ Język został ustawiony!",
+ "welcome_driver": "Witaj, kierowco {{name}}\nCo chcesz zrobić?",
+ "welcome_manager": "Witaj, menedżerze {{name}}\nCo chcesz zrobić?"
+}

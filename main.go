@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/handlers"
 	"net/http"
@@ -19,6 +20,12 @@ import (
 func main() {
 	var err error
 	err = godotenv.Load()
+
+	err = config.LoadLocales()
+	if err != nil {
+		log.Fatalf("ERR: loading the locales: %v\n", err)
+		return
+	}
 
 	globalStorage, err := sql.Open("sqlite3", "./bot.db")
 	if err != nil {

@@ -221,7 +221,7 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 	query := `
 		SELECT 
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag, u.lang
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
 		WHERE d.id = ?
@@ -236,7 +236,7 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 		&driverIdStr, &userIdStr, &carIdStr, &driver.CreatedAt, &driver.UpdatedAt, &driver.ChatId, &driver.State,
 		&driver.User.Id, &driver.User.ChatId, &driver.User.Name,
 		&userDriverIdStr, &userManagerIdStr,
-		&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.IsSuperAdmin, &driver.User.TgTag,
+		&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.IsSuperAdmin, &driver.User.TgTag, &driver.User.Language,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -279,7 +279,7 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 	query := `
 		SELECT 
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag, u.lang
 		FROM drivers d
 		JOIN users u ON d.chat_id = u.chat_id
 		WHERE d.chat_id = ?
@@ -295,7 +295,7 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 		&driverIdStr, &userIdStr, &carIdStr, &driver.CreatedAt, &driver.UpdatedAt, &driver.ChatId, &driver.State, &performedTaskId,
 		&driver.User.Id, &driver.User.ChatId, &driver.User.Name,
 		&userDriverIdStr, &userManagerIdStr,
-		&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.IsSuperAdmin, &driver.User.TgTag,
+		&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.IsSuperAdmin, &driver.User.TgTag, &driver.User.Language,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -342,7 +342,7 @@ func GetAllDrivers(db DBExecutor) ([]*Driver, error) {
 	query := `
 		SELECT 
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
-			u.id, u.chat_id, u.tg_tag, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+		u.id, u.chat_id, u.tg_tag, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.lang
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
 		ORDER BY u.name
@@ -367,7 +367,7 @@ func GetAllDrivers(db DBExecutor) ([]*Driver, error) {
 			&driverIdStr, &userIdStr, &carIdStr, &driver.CreatedAt, &driver.UpdatedAt, &driver.ChatId, &driver.State, &performedTaskId,
 			&driver.User.Id, &driver.User.ChatId, &driver.User.TgTag, &driver.User.Name,
 			&userDriverIdStr, &userManagerIdStr,
-			&driver.User.CreatedAt, &driver.User.UpdatedAt,
+			&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.Language,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ERR: scanning driver row: %v", err)

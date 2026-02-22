@@ -1,0 +1,7 @@
+{
+ "welcome": "Welcome to the V&R Spedition helper bot.",
+ "choose_lang": "Choose the language",
+ "lang_set": "✅ Language has been set!",
+ "welcome_driver": "Welcome, driver {{name}}\nWhat would you like to do?",
+ "welcome_manager": "Welcome, manager {{name}}\nWhat would you like to do?"
+}

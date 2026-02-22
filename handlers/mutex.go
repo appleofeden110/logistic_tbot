@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/parser"
 	"logistictbot/tracking"
@@ -70,6 +71,8 @@ func FillSessions(globalStorage *sql.DB) error {
 			}
 			taskSessions[d.Id] = task
 		}
+
+		config.SetUserLang(d.ChatId, config.LangCode(d.User.Language))
 	}
 	taskSessionsMu.Unlock()
 	driverSessionsMu.Unlock()
@@ -84,6 +87,7 @@ func FillSessions(globalStorage *sql.DB) error {
 	managerSessionsMu.Lock()
 	for _, m := range managers {
 		managerSessions[m.ChatId] = m
+		config.SetUserLang(m.ChatId, config.LangCode(m.User.Language))
 	}
 	managerSessionsMu.Unlock()
 

@@ -100,7 +100,7 @@ func GetManagerById(db DBExecutor, id uuid.UUID) (*Manager, error) {
 	query := `
 		SELECT 
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM users u
 		JOIN managers m ON u.manager_id = m.id
 		WHERE m.id = $1
@@ -114,6 +114,7 @@ func GetManagerById(db DBExecutor, id uuid.UUID) (*Manager, error) {
 		&manager.User.Id, &manager.User.ChatId, &manager.User.Name,
 		&userDriverIdStr, &userManagerIdStr,
 		&manager.User.CreatedAt, &manager.User.UpdatedAt,
+		&manager.User.TgTag, &manager.User.Language,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -150,7 +151,7 @@ func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
 	query := `
 		SELECT 
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM users u
 		JOIN managers m ON u.manager_id = m.id
 		WHERE u.chat_id = $1
@@ -167,6 +168,7 @@ func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
 		&manager.User.Id, &manager.User.ChatId, &manager.User.Name,
 		&userDriverIdStr, &userManagerIdStr,
 		&manager.User.CreatedAt, &manager.User.UpdatedAt,
+		&manager.User.TgTag, &manager.User.Language,
 	)
 
 	if err != nil {
@@ -404,7 +406,7 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 	query := `
 		SELECT 
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
-			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM managers m
 		JOIN users u ON m.user_id = u.id
 		ORDER BY u.name
@@ -428,7 +430,7 @@ func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 
 			&manager.User.Id, &manager.User.ChatId, &manager.User.Name,
 			&userDriverIdStr, &userManagerIdStr,
-			&manager.User.CreatedAt, &manager.User.UpdatedAt,
+			&manager.User.CreatedAt, &manager.User.UpdatedAt, &manager.User.TgTag, &manager.User.Language,
 		)
 
 		if err != nil {

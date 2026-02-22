@@ -50,7 +50,11 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
-
+	case strings.HasPrefix(cbq.Data, "set_lang:"):
+		a, _ := strings.CutPrefix(cbq.Data, "set_lang:")
+		config.SetUserLang(cbq.Message.Chat.ID, config.LangCode(a))
+		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.T(config.LangCode(a), "lang_set")))
+		return HandleCommand(cbq.Message.Chat.ID, "/start", globalStorage, a)
 	case strings.HasPrefix(cbq.Data, "mrefuel:"):
 		after, _ := strings.CutPrefix(cbq.Data, "mrefuel:")
 
@@ -131,7 +135,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		log.Println("cbq from: ", cbq.From)
 		return finishForm(cbq.Message.Chat.ID, inputSesh, globalStorage, cbq.From)
 	case strings.HasPrefix(cbq.Data, "createform:"):
-		err = HandleCommand(cbq.Message.Chat.ID, fmt.Sprintf("/%s", cbq.Data), globalStorage)
+		err = HandleCommand(cbq.Message.Chat.ID, fmt.Sprintf("/%s", cbq.Data), globalStorage, cbq.From.LanguageCode)
 	case strings.HasPrefix(cbq.Data, "shipment:accept:"):
 
 		driverSessionsMu.Lock()

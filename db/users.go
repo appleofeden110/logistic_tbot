@@ -28,6 +28,7 @@ type User struct {
 	IsSuperAdmin bool      `db:"is_super_admin"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
+	Language     string    `db:"language"` // needs to be either ua/pl/en
 }
 
 func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
@@ -41,7 +42,8 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			created_at,
 			updated_at,
 			is_super_admin,
-			tg_tag
+			tg_tag, 
+			lang
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -68,6 +70,7 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			&user.UpdatedAt,
 			&user.IsSuperAdmin,
 			&tgTagNull,
+			&user.Language,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ERR: scanning user row: %v\n", err)
@@ -111,8 +114,14 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 
 	return users, nil
 }
+
+func (u *User) UpdateUserLang(globalStorage *sql.DB) error {
+	_, err := globalStorage.Exec("UPDATE users SET lang = ? WHERE id = ?", u.Language, u.Id)
+	return err
+}
+
 func (u *User) GetUserById(globalStorage *sql.DB) error {
-	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag FROM users WHERE id = ?", u.Id)
+	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang FROM users WHERE id = ?", u.Id)
 	var driverIdNull, managerIdNull, tgTagNull sql.NullString
 	err := row.Scan(
 		&u.Id,
@@ -124,6 +133,7 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 		&u.UpdatedAt,
 		&u.IsSuperAdmin,
 		&tgTagNull,
+		&u.Language,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -158,7 +168,7 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 }
 
 func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
-	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag FROM users WHERE chat_id = ?", u.ChatId)
+	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang FROM users WHERE chat_id = ?", u.ChatId)
 
 	var driverIdNull, managerIdNull, tgTagNull sql.NullString
 
@@ -172,6 +182,7 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 		&u.UpdatedAt,
 		&u.IsSuperAdmin,
 		&tgTagNull,
+		&u.Language,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
