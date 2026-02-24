@@ -53,7 +53,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	case strings.HasPrefix(cbq.Data, "set_lang:"):
 		a, _ := strings.CutPrefix(cbq.Data, "set_lang:")
 		config.SetUserLang(cbq.Message.Chat.ID, config.LangCode(a))
-		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.T(config.LangCode(a), "lang_set")))
+		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.LangCode(a), "lang_set")))
 		return HandleCommand(cbq.Message.Chat.ID, "/start", globalStorage, a)
 	case strings.HasPrefix(cbq.Data, "mrefuel:"):
 		after, _ := strings.CutPrefix(cbq.Data, "mrefuel:")

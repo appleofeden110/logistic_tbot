@@ -85,8 +85,8 @@ func GetCarById(exec DBExecutor, carId string) (*Car, error) {
 
 func (c *Car) UpdateCarKilometrage(exec DBExecutor) error {
 	_, err := exec.Exec(`
-	UPDATE cars 
-	SET current_kilometrage = ? 
+	UPDATE cars
+	SET current_kilometrage = ?
 	WHERE id = ?`,
 		c.Kilometrage, c.Id,
 	)
@@ -226,7 +226,7 @@ func FormatKilometrage(km int) string {
 		break
 	}
 
-	return kmString + " км"
+	return kmString + " km"
 }
 
 func ParseKilometrage(s string) (int64, error) {

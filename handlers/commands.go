@@ -103,13 +103,13 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Всі водії тепер в дефолтному статусі"))
 		return err
 	case "language":
-		msg := tgbotapi.NewMessage(chatId, config.T(config.LangCode(langCode), "choose_lang"))
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "choose_lang"))
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("🇬🇧 English", "set_lang:en"),
 			),
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("🇺🇦 Українська", "set_lang:ua"),
+				tgbotapi.NewInlineKeyboardButtonData("🇺🇦 Українська", "set_lang:uk"),
 			),
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("🇵🇱 Polskі", "set_lang:pl"),
@@ -121,19 +121,19 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 	case "test":
 	case "add_car":
 		c := db.Car{}
-		err := createForm(chatId, c, formMarkupAddCar, formTextAddCar, "adding a car to the db (ONLY SA)")
+		err := createForm(chatId, c, FormAddCar(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:add_car"), "adding a car to the db (ONLY SA)")
 		if err != nil {
 			return err
 		}
 	case "createform:driver_registration":
 		d := db.Driver{User: &db.User{ChatId: chatId}}
-		err := createForm(chatId, d, formMarkupDriver, formTextDriver, "driver's registration")
+		err := createForm(chatId, d, FormDriver(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:driver"), "driver's registration")
 		if err != nil {
 			return err
 		}
 	case "createform:manager_registration":
 		m := db.Manager{User: &db.User{ChatId: chatId}}
-		err := createForm(chatId, m, formMarkupManager, formTextManager, "manager's registration")
+		err := createForm(chatId, m, FormManager(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:manager"), "manager's registration")
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "📄 Надішліть документ, який хочете відправити водію.")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "manager:send_doc"))
 		_, err = Bot.Send(msg)
 		return err
 	case "viewdrivers":
@@ -191,14 +191,14 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 			return fmt.Errorf("ERR: getting all driver by the ask of the manager: %v\n", err)
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Список водіїв:\n\n")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "manager:drivers_list"))
 		msg.ParseMode = tgbotapi.ModeHTML
 		for _, d := range drivers {
 			if d.CarId != "" {
 				msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - %s\n", d.User.Name, d.User.TgTag, d.CarId)
 				continue
 			}
-			msg.Text += fmt.Sprintf("<b>%s</b> (@%s) - Машину водію не призначено\n", d.User.Name, d.User.TgTag)
+			msg.Text += config.Translate(config.GetLang(chatId), "manager:driver_hasnocar", d.User.Name, d.User.TgTag)
 		}
 
 		Bot.Send(msg)
@@ -240,7 +240,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 		if err != nil {
 			return err
 		}
-		msg := tgbotapi.NewMessage(chatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "sendmessage"))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -251,7 +251,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 			return fmt.Errorf("ERR: getting available months for the shipments: %v\n", err)
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "За який місяць?")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "mstmt:month"))
 
 		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
 		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
@@ -281,11 +281,11 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 			return fmt.Errorf("ERR: getting drivers for refuel statement: %v\n", err)
 		}
 		if len(drivers) == 0 {
-			Bot.Send(tgbotapi.NewMessage(chatId, "Немає жодного водія."))
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "mrefuel:nodrivers")))
 			return nil
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "Виберіть водія:")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "mrefuel:choose_driver"))
 		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
 		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
 
@@ -308,7 +308,8 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 		}
 
 		markup = append(markup, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📋 Всі водії", "mrefuel:all"),
+			tgbotapi.NewInlineKeyboardButtonData(
+				config.Translate(config.GetLang(chatId), "mrefuel:all"), "mrefuel:all"),
 		))
 
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
@@ -342,21 +343,24 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 				return manager, err
 			}
 
-			readDocMsg := tgbotapi.NewMessage(msg.Chat.ID, "⬇️ Натисніть тут що б прочитати документ")
+			readDocMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "manager:readdoc"))
 			readDocMsg.ParseMode = tgbotapi.ModeHTML
-			readDocMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Прочитати документ", "readdoc:"+strconv.Itoa(id))))
+			readDocMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:readdoc"), "readdoc:"+strconv.Itoa(id))))
 
 			_, err = Bot.Send(readDocMsg)
 			if err != nil {
 				config.VERY_BAD(msg.Chat.ID, Bot)
 			}
 
-			msg := tgbotapi.NewMessage(msg.Chat.ID, "✏️ Введіть нотатки або опис до документа:")
+			msg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "manager:notes"))
 			_, err = Bot.Send(msg)
 			return manager, err
 		}
 
-		msg := tgbotapi.NewMessage(msg.Chat.ID, "Будь ласка, надішліть саме документ.")
+		msg := tgbotapi.NewMessage(
+			msg.Chat.ID,
+			config.Translate(config.GetLang(msg.Chat.ID), "manager:please_send_doc"),
+		)
 		_, err = Bot.Send(msg)
 		return manager, err
 
@@ -468,9 +472,9 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	case "refuel":
 
 		if _, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id); err != nil {
-			Bot.Send(tgbotapi.NewMessage(chatId, "Ви маєте повідомити за заправку тільки при виконанні маршруту. Якщо так і є, але ви отримуєте це повідомлення: напишіть розробнику @pinkfloydfan або @NazKan_Uk"))
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_refuel")))
 			if !errors.Is(err, parser.ErrNoShipments) {
-				fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
 			}
 			return err
 		}
@@ -480,7 +484,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("ERR: fetching fuel cards for refuel: %w", err)
 		}
 		if len(cards) == 0 {
-			_, _ = Bot.Send(tgbotapi.NewMessage(chatId, "Немає доступних паливних карток."))
+			_, _ = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:no_refuel_cards")))
 			return nil
 		}
 		var rows [][]tgbotapi.InlineKeyboardButton
@@ -492,7 +496,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				),
 			))
 		}
-		msg := tgbotapi.NewMessage(chatId, "Оберіть паливну картку:")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:choose_refuel_card"))
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 		_, err = Bot.Send(msg)
 		return err
@@ -514,8 +518,8 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		err = createForm[TankRefuelForm](
 			chatId,
 			TankRefuelForm{},
-			formMarkupRefuel,
-			formTextRefuel,
+			FormRefuel(config.GetLang(chatId)),
+			config.Translate(config.GetLang(chatId), "form:refuel"),
 			fmt.Sprintf("driver refuel, card id: %d", cardId),
 		)
 		return err
@@ -552,7 +556,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		}
 
 		if shipment.IsFinished() {
-			_, err = Bot.Send(tgbotapi.NewMessage(chatId, "Ви пробуєте виконату задачу маршруту, який вже був закритим"))
+			_, err = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:shipment_already_done")))
 			return err
 		}
 
@@ -577,7 +581,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		taskSessions[driverSesh.Id] = task
 		taskSessionsMu.Unlock()
 
-		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Введіть поточний кілометраж автомобіля. \n<b><i>(попередньо: %d km)</i></b>\n\n(Доступні формати: 12345; 12,345; 12,345 км; 12,345 km)", car.Kilometrage))
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:kilometrage", car.Kilometrage))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -596,7 +600,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 					return err
 				}
 
-				msg := tgbotapi.NewMessage(chatId, "Введіть вагу продукту\n(Доступні формати: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 кг; 1234 kg)")
+				msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:weight"))
 				msg.ParseMode = tgbotapi.ModeHTML
 				_, err = Bot.Send(msg)
 				return err
@@ -617,7 +621,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "sendmessage"))
 		msg.ParseMode = tgbotapi.ModeHTML
 
 		_, err = Bot.Send(msg)
@@ -653,7 +657,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
 
-			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Завдання успішно виконано!\n"+TaskSubmissionFormatText,
+			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
 				task.ShipmentId,
 				strings.ToUpper(task.Type),
 				shipment.Chassis,
@@ -695,11 +699,11 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "📃 Відправте документ який ви хочете прикріпити, та натисніть <b>\"Відправити Документи\"</b> знизу")
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:attach_doc"))
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Відправити документи", "driver:send_docs"),
-				tgbotapi.NewInlineKeyboardButtonData("↩️ Назад", "driver:back"),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:send_docs"), "driver:send_docs"),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:back"), "driver:back"),
 			),
 		)
 		msg.ParseMode = tgbotapi.ModeHTML
@@ -713,7 +717,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		if !exists {
 			log.Println("ERR: task does not exists when it needs to")
-			Bot.Send(tgbotapi.NewMessage(chatId, "Це завдання або виконане, або його не існує в базі даних. Якщо це не те як має бути, напишіть розробнику на @pinkfloydfan або @NazKan_Uk"))
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_taskdone")))
 			//config.VERY_BAD(chatId, Bot)
 		}
 
@@ -768,13 +772,13 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Закінчити виконання", fmt.Sprintf("driver:endtask:%d", task.Id)),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),
 			),
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Додати документ", fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_docstotask"), fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
 			),
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Додати фотографії", fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_picstotask"), fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
 			),
 		)
 
@@ -795,23 +799,23 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		_, docsFiles := splitFiles(files)
 
 		if len(docsFiles) == 0 {
-			msg := tgbotapi.NewMessage(chatId, "Немає документів для відправки")
+			msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_nodocstosend"))
 			_, err = Bot.Send(msg)
 			return err
 		}
 
-		confirmMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Відправлено %d документів менеджеру ✅", len(docsFiles)))
+		confirmMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:docs_sent", len(docsFiles)))
 		_, err = Bot.Send(confirmMsg)
 		if err != nil {
 			return err
 		}
 
-		managerText := fmt.Sprintf("📄 Документи від водія %s (%s)\nМашина: %s\nЗавдання: %s (#%d)",
+		managerText := config.Translate(config.GetLang(chatId), "manager:docs_received",
 			driverSesh.User.Name,
 			driverSesh.User.TgTag,
 			driverSesh.CarId,
 			task.Type,
-			task.Id,
+			task.ShipmentId,
 		)
 
 		// gotta be to the one that sent the shipment - gonna be everyone for now
@@ -859,8 +863,8 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, "📸 Відправте фотографії які ви маєте прикріпити, та натисніть <b>\"Відправити Фотографії\"</b> знизу")
-		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відправити фотографії", "driver:send_pics")))
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:attach_pic"))
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:send_pics"), "driver:send_pics")))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -878,18 +882,18 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		photos, _ := splitFiles(files)
 
 		if len(photos) == 0 {
-			msg := tgbotapi.NewMessage(chatId, "Немає фотографій для відправки")
+			msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_nopicstosend"))
 			_, err = Bot.Send(msg)
 			return err
 		}
 
-		confirmMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Відправлено %d фотографій менеджеру ✅", len(photos)))
+		confirmMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:pics_sent", len(photos)))
 		_, err = Bot.Send(confirmMsg)
 		if err != nil {
 			return err
 		}
 
-		managerText := fmt.Sprintf("📸 Фотографії від водія %s (%s)\nМашина: %s\nЗавдання: %s (Shipment №%d)",
+		managerText := config.Translate(config.GetLang(chatId), "manager:pics_received",
 			driverSesh.User.Name,
 			driverSesh.User.TgTag,
 			driverSesh.CarId,
@@ -944,7 +948,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		}
 
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("%sЛаскаво просимо, водію %s\nЩо ви хочете зробити?", additionalInfo, driverSesh.User.Name))
-		msg.ReplyMarkup = driverStartMarkupWorking
+		msg.ReplyMarkup = DriverStartMarkupWorking(config.GetLang(chatId))
 
 		_, err = Bot.Send(msg)
 		if err != nil {
@@ -1523,7 +1527,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		}
 
 		if u.DriverId != uuid.Nil {
-			carQuestion := tgbotapi.NewMessage(chatId, "Яку машину ви призначаєте цьому водію?")
+			carQuestion := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "car_question"))
 			cars, err := db.GetAllCars(globalStorage)
 			if err != nil {
 				return fmt.Errorf("Fetching cars for question: %v\n", err)
@@ -1553,8 +1557,15 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 			managerSessions[u.ChatId] = manager
 			managerSessionsMu.Unlock()
 
-			Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+u.Name+" було підтверджено на роль менеджера!"))
-			_, err = Bot.Send(tgbotapi.NewMessage(approvedChatId, "Вашу реєстрацію було прийнято!"))
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId),
+				"registration_accepted:managertoSA",
+				map[string]string{"name": u.Name},
+			)))
+			_, err = Bot.Send(tgbotapi.NewMessage(
+				approvedChatId,
+				config.Translate(config.GetLang(approvedChatId),
+					"registration_accepted:manager"),
+			))
 			if err != nil {
 				log.Println("ERR: ", err)
 			}
@@ -1607,9 +1618,16 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 			return fmt.Errorf("ERR: deleting declined user: %v\n", err)
 		}
 
-		Bot.Send(tgbotapi.NewMessage(chatId, "Користувачу "+u.Name+" не було підтвердженно реєстрацію."))
+		Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(
+			config.GetLang(chatId),
+			"registration_declined:SA",
+			u.Name,
+		)))
 
-		Bot.Send(tgbotapi.NewMessage(declinedChatId, "Вашу реєстрацію було не прийнято. Звʼяжіться з одним із менеджерів на пряму, або спробуйте ще раз."))
+		Bot.Send(tgbotapi.NewMessage(declinedChatId, config.Translate(
+			config.GetLang(declinedChatId),
+			"registration_declined:user",
+		)))
 
 		return tx.Commit()
 	case "carfor":
@@ -1638,13 +1656,20 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 			return fmt.Errorf("ERR: getting car by id: %v\n", err)
 		}
 
-		Bot.Send(tgbotapi.NewMessage(chatId, "Користувача "+driver.User.Name+" було підтверджено на роль водія!"))
+		Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId),
+			"registration_accepted:drivertoSA",
+			driver.User.Name,
+		)))
 
 		driverSessionsMu.Lock()
 		driverSessions[driver.ChatId] = driver
 		driverSessionsMu.Unlock()
 
-		_, err = Bot.Send(tgbotapi.NewMessage(driver.User.ChatId, fmt.Sprintf("Вашу реєстрацію було прийнято! Вам було призначено автомобіль %s з кілометражом %d км.", car.Id, car.Kilometrage)))
+		_, err = Bot.Send(tgbotapi.NewMessage(driver.User.ChatId,
+			config.Translate(config.GetLang(driver.User.ChatId),
+				"registration_accepted:driver",
+				car.Id, strconv.Itoa(int(car.Kilometrage))),
+		))
 		if err != nil {
 			return fmt.Errorf("ERR: sending driver a msg: %v\n", err)
 		}
@@ -1767,11 +1792,16 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 }
 
 func HandleStart(chatId int64, globalStorage *sql.DB, user *db.User) error {
-	msg := tgbotapi.NewMessage(chatId, config.T(config.GetLang(chatId), "welcome"))
+	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"))
 
 	if user == nil {
-		msg.Text += "\n\nЗареєструйтесь що б відкрити основні функції бота, як Водій або Менеджер."
-		msg.ReplyMarkup = welcomeMenuMarkup
+		msg.Text += config.Translate(config.GetLang(chatId), "register")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:register_driver"), "createform:driver_registration"),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:register_manager"), "createform:manager_registration"),
+			),
+		)
 	} else {
 		return HandleMenu(chatId, globalStorage, user)
 	}
@@ -1785,7 +1815,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 
 	var err error
 	var role db.Role
-	msg := tgbotapi.NewMessage(chatId, "Ласкаво просимо до допоміжного бота V&R Spedition.")
+	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"))
 	if u == nil {
 		u = new(db.User)
 		u.ChatId = chatId
@@ -1825,11 +1855,11 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		driverSessionsMu.Unlock()
 
 		if driver.State != db.StatePause {
-			msg.ReplyMarkup = driverStartMarkupWorking
+			msg.ReplyMarkup = DriverStartMarkupWorking(config.GetLang(chatId))
 		} else {
-			msg.ReplyMarkup = driverStartMarkupPause
+			msg.ReplyMarkup = DriverStartMarkupPause(config.GetLang(chatId))
 		}
-		msg.Text = config.T(config.GetLang(chatId), "welcome_driver", map[string]string{"name": u.Name})
+		msg.Text = config.Translate(config.GetLang(chatId), "welcome_driver", u.Name)
 	case db.RoleManager:
 		managerSessionsMu.Lock()
 		if manager, exists := managerSessions[chatId]; exists {
@@ -1844,8 +1874,8 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		}
 		managerSessionsMu.Unlock()
 
-		msg.Text = config.T(config.GetLang(chatId), "welcome_manager", map[string]string{"name": u.Name})
-		msg.ReplyMarkup = managerStartMarkup
+		msg.Text = config.Translate(config.GetLang(chatId), "welcome_manager", u.Name)
+		msg.ReplyMarkup = ManagerStartMarkup(config.GetLang(chatId))
 	}
 
 	msg.ParseMode = tgbotapi.ModeHTML

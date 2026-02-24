@@ -2,43 +2,43 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"strings"
 	"sync"
 )
 
 type Lang map[string]string
-type LangCode string // can be en, pl or ua. If you wanna add languages -> use ISO 639 locale codes
+type LangCode string // can be en, pl or ua. If you wanna add languages -> use https://en.wikipedia.org/wiki/IETF_language_tag
 
 const (
 	English   LangCode = "en"
 	Polish    LangCode = "pl"
-	Ukrainian LangCode = "ua"
+	Ukrainian LangCode = "uk"
 )
 
 var (
 	locales          = map[LangCode]Lang{}
-	usersLanguages   = make(map[int64]LangCode) // chat_id -> LangCode
-	usersLanguagesMu sync.RWMutex
+	UsersLanguages   = make(map[int64]LangCode) // chat_id -> LangCode
+	UsersLanguagesMu sync.RWMutex
 )
 
 func GetLang(chatId int64) LangCode {
-	usersLanguagesMu.RLock()
-	defer usersLanguagesMu.RUnlock()
-	if lang, ok := usersLanguages[chatId]; ok {
+	UsersLanguagesMu.RLock()
+	defer UsersLanguagesMu.RUnlock()
+	if lang, ok := UsersLanguages[chatId]; ok {
 		return lang
 	}
-	return "ua"
+	return Ukrainian
 }
 
 func SetUserLang(chatId int64, lang LangCode) {
-	usersLanguagesMu.Lock()
-	defer usersLanguagesMu.Unlock()
-	usersLanguages[chatId] = lang
+	UsersLanguagesMu.Lock()
+	defer UsersLanguagesMu.Unlock()
+	UsersLanguages[chatId] = lang
 }
 
 func LoadLocales() error {
-	for _, lang := range []LangCode{"en", "ua", "pl"} {
+	for _, lang := range []LangCode{Ukrainian, Polish, English} {
 		data, err := os.ReadFile("locales/" + string(lang) + ".json")
 		if err != nil {
 			return err
@@ -52,7 +52,8 @@ func LoadLocales() error {
 	return nil
 }
 
-func T(userLang LangCode, key string, args ...map[string]string) string {
+// Translate literally uses Sprintf for its strings. In locale files just use regular Go formatting, same as with fmt.Printf or fmt.Sprintf
+func Translate(userLang LangCode, key string, args ...any) string {
 	l, ok := locales[userLang]
 
 	if !ok {
@@ -64,10 +65,5 @@ func T(userLang LangCode, key string, args ...map[string]string) string {
 		return key
 	}
 
-	if len(args) > 0 {
-		for k, v := range args[0] {
-			str = strings.ReplaceAll(str, "{{"+k+"}}", v)
-		}
-	}
-	return str
+	return fmt.Sprintf(str, args...)
 }

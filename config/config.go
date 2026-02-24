@@ -136,5 +136,5 @@ func DownloadFile(url, fileName string) (string, error) {
 }
 
 func VERY_BAD(chatId int64, bot *tgbotapi.BotAPI) {
-	bot.Send(tgbotapi.NewMessage(chatId, "Щось пішло сильно не так, якщо подальші дії бот не сприйматиме - пишіть або звоніть розробнику: @pinkfloydfan або +447990932300"))
+	bot.Send(tgbotapi.NewMessage(chatId, Translate(GetLang(chatId), "VERY_BAD")))
 }

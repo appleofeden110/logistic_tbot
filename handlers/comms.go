@@ -63,14 +63,12 @@ func PingNonReplies(globalStorage *sql.DB) {
 			}
 		}
 	}
-
-	return
 }
 
 // GetCommsMessage just needs the id
 func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 	query := `
-		SELECT 
+		SELECT
 			cm.id,
 			cm.reciever_id,
 			cm.sender_id,
@@ -157,7 +155,7 @@ func SendWithCommsAndChat(globalStorage *sql.DB, msgId int64, chatId int64) erro
 
 func GetAllNonRepliedMessages(globalStorage *sql.DB) ([]*CommunicationMsg, error) {
 	query := `
-		SELECT 
+		SELECT
 			cm.id,
 			cm.sender_id,
 			cm.reciever_id,
@@ -239,7 +237,7 @@ func GetAllNonRepliedMessages(globalStorage *sql.DB) ([]*CommunicationMsg, error
 
 func GetNonRepliedMessagesByUserId(globalStorage *sql.DB, userId uuid.UUID) ([]*CommunicationMsg, error) {
 	query := `
-		SELECT 
+		SELECT
 			cm.id,
 			cm.sender_id,
 			cm.reciever_id,
@@ -330,7 +328,7 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відповісти", "reply:"+strconv.Itoa(int(comms.Id)))))
 
 	_, err := globalStorage.Exec(
-		`UPDATE communication_messages 
+		`UPDATE communication_messages
 		SET reciever_id = ? WHERE id = ?`,
 		comms.Receiver.Id.String(),
 		comms.Id,
@@ -358,7 +356,7 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Написати знову", "writeback:"+strconv.Itoa(int(comms.Receiver.ChatId)))))
 
 	_, err := globalStorage.Exec(
-		`UPDATE communication_messages 
+		`UPDATE communication_messages
 		SET replied_at = CURRENT_TIMESTAMP, reply_content = ? WHERE id = ?`,
 		comms.ReplyContent,
 		comms.Id,
@@ -441,7 +439,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 	}
 
 	res, err := globalStorage.Exec(
-		`INSERT INTO communication_messages 
+		`INSERT INTO communication_messages
 		(sender_id, message_content) VALUES(?, ?)`,
 		comms.Sender.Id.String(),
 		text,

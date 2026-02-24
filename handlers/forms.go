@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/parser"
 	"logistictbot/utils"
@@ -122,17 +123,17 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 		switch state.Form.WhichTable {
 
 		case db.RefuelsTable:
-			chosenFormText = formTextRefuelDone
-			chosenFormMarkup = formMarkupRefuelDone
+			chosenFormText = config.Translate(config.GetLang(chatId), "form:done")
+			chosenFormMarkup = FormRefuelDone(config.GetLang(chatId))
 		case db.DriversTable:
-			chosenFormText = formTextDriverDone
-			chosenFormMarkup = formMarkupDriverDone
+			chosenFormText = config.Translate(config.GetLang(chatId), "form:done")
+			chosenFormMarkup = FormDriverDone(config.GetLang(chatId))
 		case db.ManagersTable:
-			chosenFormText = formTextManagerDone
-			chosenFormMarkup = formMarkupManagerDone
+			chosenFormText = config.Translate(config.GetLang(chatId), "form:done")
+			chosenFormMarkup = FormManagerDone(config.GetLang(chatId))
 		case db.CarsTable:
-			chosenFormText = formTextAddCarDone
-			chosenFormMarkup = formMarkupAddCarDone
+			chosenFormText = config.Translate(config.GetLang(chatId), "form:done")
+			chosenFormMarkup = FormAddCarDone(config.GetLang(chatId))
 		default:
 			return fmt.Errorf("ERR: unknown form type: %T", state.Form.Data)
 		}

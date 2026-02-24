@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"logistictbot/docs"
 	"logistictbot/tracking"
 	"strings"
@@ -94,6 +95,12 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	if user == nil {
 		return fmt.Errorf("How is user not there?: %v\n", user)
 	}
+
+	config.UsersLanguagesMu.RLock()
+	if _, ok := config.UsersLanguages[msg.Chat.ID]; !ok {
+		config.SetUserLang(user.ID, config.LangCode(user.LanguageCode))
+	}
+	config.UsersLanguagesMu.RUnlock()
 
 	log.Printf("%s(%d - %s - %d) wrote %s. msg id: %d", user.FirstName, user.ID, user.LanguageCode, msg.Chat.ID, text, id)
 
