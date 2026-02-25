@@ -128,7 +128,8 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		inputSesh.Finished = true
-		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Опрацювання..."))
+		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID,
+			config.Translate(config.GetLang(cbq.Message.Chat.ID), "loading")))
 		if err != nil {
 			return fmt.Errorf("ERR: sending acceptform message to a user: %v\n", err)
 		}
@@ -143,14 +144,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		driverSessionsMu.Unlock()
 
 		if !exists {
-			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "Ви не водій в системі. Cкоріше всього щось не так з ботом. Якщо нічого не працюватиме - напишіть менеджеру або розробнику (@NazKan_Uk | @pinkfloydfan). \n\nЯкщо ви не зареєстровані зробіть це через команду /start, це скоріш всього вирішить проблему")
+			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "gotta_register"))
 			msg.ParseMode = tgbotapi.ModeHTML
 			Bot.Send(msg)
 			panic("Something went very wrong, driver action triggered with button, but no driver present for this chat_id: " + strconv.Itoa(int(cbq.Message.Chat.ID)))
 		}
 
 		if driver.State == db.StatePause {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Ви повинні почати зміну перед будь якими діями. Можете зробити через меню (команди /start або /menu)"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "gotta_startday")))
 			return err
 		}
 
@@ -167,7 +168,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		if !shipment.Started.IsZero() {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут вже почався"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_already_started")))
 			return err
 		}
 
@@ -181,14 +182,17 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting all the tasks for the shipment: %v\n", err)
 		}
 
-		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "Початок маршруту: "+shipment.Started.Format("02/01/2006 15:04"))
+		msg := tgbotapi.NewMessage(
+			cbq.Message.Chat.ID,
+			config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_start")+shipment.Started.Format("02/01/2006 15:04"),
+		)
 		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
-		markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Закінчити маршрут", "shipment:end:"+shipmentIdString)))
+		markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:end_shipment"), "shipment:end:"+shipmentIdString)))
 
 		for _, task := range shipment.Tasks {
-			msg.Text += fmt.Sprintf("\n\n<i><b>- Завдання: %s</b></i>\n", task.Type)
+			msg.Text += fmt.Sprintf(config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header"), task.Type)
 			msg.Text += parser.ReadTaskShort(task)
-			markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Почати "+task.Type, "driver:begintask:"+strconv.Itoa(task.Id))))
+			markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:start_task")+task.Type, "driver:begintask:"+strconv.Itoa(task.Id))))
 		}
 		msg.ParseMode = tgbotapi.ModeHTML
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
@@ -220,12 +224,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		log.Println(shipment.Started)
 
 		if shipment.Started.IsZero() {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут ще геть не почався, неможливо закінчити"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_has_not_started")))
 			return err
 		}
 
 		if !shipment.Finished.IsZero() {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут вже був закінчений"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_already_ended")))
 			return err
 		}
 
@@ -233,9 +237,9 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		if err != nil {
 			return fmt.Errorf("ERR: starting shipment: %v\n", err)
 		}
-		endMsg := tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Маршрут <b>%d</b> було закінчено!\n\nУ вас є 10 хвилин що б це відмінити натиснувши на кнопку внизу", shipmentId))
+		endMsg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_end", shipmentId))
 		endMsg.ParseMode = tgbotapi.ModeHTML
-		endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Повернути маршрут", "shipment:unend:"+strconv.Itoa(int(shipment.ShipmentId)))))
+		endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "get_shipment_back"), "shipment:unend:"+strconv.Itoa(int(shipment.ShipmentId)))))
 		_, err = Bot.Send(endMsg)
 		return err
 
@@ -250,18 +254,18 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
 		}
 		if shipment.Finished.IsZero() {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Цей маршрут ще не був закінчений"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_has_not_ended")))
 			return err
 		}
 		if time.Since(shipment.Finished) > 10*time.Minute {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Минуло більше 10 хвилин, неможливо скасувати завершення маршруту"))
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "cannot_get_shipment_back")))
 			return err
 		}
 		err = shipment.UnfinishShipment(globalStorage)
 		if err != nil {
 			return fmt.Errorf("ERR: unfinishing shipment: %v\n", err)
 		}
-		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprintf("Завершення маршруту %d було скасовано!", shipmentId)))
+		_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "got_shipment_back", shipmentId)))
 		return err
 	case strings.HasPrefix(cbq.Data, "task:begin:"):
 
@@ -281,90 +285,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 			return parser.ReadDocAndSend(f.Path, cbq.Message.Chat.ID, Bot)
 		}
-	case strings.HasPrefix(cbq.Data, "task_data:"):
 
-		suffix, found := strings.CutPrefix(cbq.Data, "task_data:")
-		if !found {
-			return fmt.Errorf("ERR: founding task data: %s\n", suffix)
-		}
-		task, _, found := strings.Cut(suffix, ":")
-		fmt.Println("task found? ", found)
-
-		sections, err := parser.GetSequenceOfTasks("")
-		if err != nil {
-			return fmt.Errorf("ERR: sections: %v\n", err)
-		}
-		_, secRes := parser.ReadDoc(sections)
-
-		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "Чи правильні дані введяні для "+task+"?\n\n")
-		var temp string
-		for k, v := range secRes {
-			if k == task {
-				for _, line := range strings.Split(v, "\n") {
-					temp += fmt.Sprintf("%s\n", line)
-				}
-			}
-		}
-		msg.ParseMode = tgbotapi.ModeHTML
-
-		msg.Text += temp
-
-		/*	trackingSessionsMutex.Lock()
-				sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
-				trackingSessionsMutex.Unlock()
-
-			var totalDistance string
-			if wasTracking {
-				totalDistance = fmt.Sprintf("\n\nПоточний кілометраж по маршруту: %.2f км", sesh.TotalDistance)
-			}
-			msg.Text += totalDistance
-		*/
-		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Так", "yesend:"+task),
-				tgbotapi.NewInlineKeyboardButtonData("Ні, змінити дані", "edit:"+task),
-			),
-		)
-		Bot.Send(msg)
-
-	case strings.HasPrefix(cbq.Data, "yesend:"):
-
-		suffix, found := strings.CutPrefix(cbq.Data, "yesend:")
-		if !found {
-			return fmt.Errorf("ERR: founding task data: %s\n", suffix)
-		}
-		task, _, found := strings.Cut(suffix, ":")
-		fmt.Println("task found? ", found)
-
-		sections, err := parser.GetSequenceOfTasks("")
-		if err != nil {
-			return fmt.Errorf("ERR: sections: %v\n", err)
-		}
-		_, secRes := parser.ReadDoc(sections)
-
-		var temp string
-		for k, v := range secRes {
-			if k == task {
-				for _, line := range strings.Split(v, "\n") {
-					temp += fmt.Sprintf("%s\n", line)
-				}
-			}
-		}
-		//
-		//trackingSessionsMutex.Lock()
-		//sesh, wasTracking := trackingSessions[cbq.Message.Chat.ID]
-		//trackingSessionsMutex.Unlock()
-		//
-		//var totalDistance string
-		//if wasTracking {
-		//	totalDistance = fmt.Sprintf("Поточний кілометраж по маршруту: %.2f км\n", sesh.TotalDistance)
-
-		//}
-
-		// to driver
-		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, "Інфо відправлено Логісту Nazar Kaniuka"))
-		// to manager
-		Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Дані від Назар Канюка (790133 LU454TW) для задачі %s на завданні %d:\n\n%s\n\nЧас закінчення: %s;\nВсього тривалість: %s\n\n", task, sections.ShipmentId, temp, time.Now().Format("2006-01-02 15:04:05"), time.Since(now).String() /*, totalDistance*/)))
 	case strings.HasPrefix(cbq.Data, "reply:"):
 		commsIdStr, _ := strings.CutPrefix(cbq.Data, "reply:")
 		commsId, err := strconv.Atoi(commsIdStr)
@@ -417,7 +338,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			}
 		}
 
-		msg := tgbotapi.NewMessage(comms.Receiver.ChatId, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg := tgbotapi.NewMessage(comms.Receiver.ChatId, config.Translate(config.GetLang(comms.Receiver.ChatId), "sendmessage"))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -439,7 +360,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "✏️ Напишіть <b>одним повідомленням</b> що ви хочете відправити")
+		msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "sendmessage"))
 		msg.ParseMode = tgbotapi.ModeHTML
 		Bot.Send(msg)
 
@@ -503,7 +424,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			if err != nil {
 				return fmt.Errorf("ERR: changing status from waiting driver to dormant_mng: %v\n", err)
 			}
-			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "✅ Завдання відправлено водію!")
+			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "manager:shipment_sent"))
 			_, err = Bot.Send(msg)
 			return err
 		}
@@ -550,37 +471,6 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 		log.Println("ERR: could not find the video to delete: ", cbq.Data)
 		return nil
-	case strings.HasPrefix(cbq.Data, "end_route:"):
-		var shipment int64
-		shipmentId, f := strings.CutPrefix(cbq.Data, "end_route:")
-		if f {
-			shipment, err = strconv.ParseInt(shipmentId, 0, 64)
-			if err != nil {
-				log.Println("ERR: ", err)
-			}
-		}
-
-		trackingSessionsMutex.Lock()
-		sesh, isTracking := trackingSessions[cbq.Message.Chat.ID]
-		trackingSessionsMutex.Unlock()
-
-		if isTracking {
-			//sesh.Stop()
-			log.Printf("Chat id: %d\n", cbq.Message.Chat.ID)
-
-			endMsg := tgbotapi.NewMessage(cbq.Message.Chat.ID, "Маршрут закінченно, будь ласка виключте активний маячок")
-			fmt.Println(cbq.Message.Chat.ID, sesh.LiveLocationMsgID)
-			endMsg.ReplyToMessageID = sesh.LiveLocationMsgID
-			//endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonURL("Маячок?", CreatePrivateMessageLink(cbq.Message.Chat.ID, sesh.LiveLocationMsgID))))
-			// to driver
-			Bot.Send(endMsg)
-			// to manager
-			Bot.Send(tgbotapi.NewMessage(tasks[cbq.Message.Chat.ID], fmt.Sprintf("Закінчувальний кілометраж для водія Назар Канюка по маршруту %d: %.2f км", shipment, sesh.TotalDistance)))
-
-		} else {
-			log.Println("ERR: ЩО ЗАКІНЧУВАТИ ТО?")
-		}
-
 	default:
 		break
 	}

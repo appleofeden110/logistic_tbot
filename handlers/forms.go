@@ -68,7 +68,7 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 		return fmt.Errorf("ERR: storing refuel: %w", err)
 	}
 
-	_, err = bot.Send(tgbotapi.NewMessage(f.ChatID, "✅ Заправку збережено!"))
+	_, err = bot.Send(tgbotapi.NewMessage(f.ChatID, config.Translate(config.GetLang(f.ChatID), "refuel_saved")))
 	return err
 }
 
@@ -187,14 +187,14 @@ func askNextQuestion(chatId int64, state *db.FormState) error {
 	currentIndex := state.Index
 
 	if currentIndex < len(state.Answers) && state.Answers[currentIndex] != "" {
-		questionText := fmt.Sprintf(
-			"%s (Попередня відповідь: %s)\n\nНатисніть пропустити якщо цього не потрібно міняти",
+		questionText := config.Translate(config.GetLang(chatId),
+			"prev_answer",
 			state.Questions[currentIndex],
 			state.Answers[currentIndex],
 		)
 		nextQuestion = tgbotapi.NewMessage(chatId, questionText)
 
-		skipButton := tgbotapi.NewKeyboardButton("Пропустити")
+		skipButton := tgbotapi.NewKeyboardButton(config.Translate(config.GetLang(chatId), "skip"))
 		keyboard := tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(skipButton),
 		)

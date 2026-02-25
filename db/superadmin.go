@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"logistictbot/config"
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -63,18 +64,18 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 		return fmt.Errorf("ERR: User does not have driver or manager id: %v\n", u)
 	}
 
-	bot.Send(tgbotapi.NewMessage(u.ChatId, "Дані відправлені Адміністратору для перевірки..."))
+	bot.Send(tgbotapi.NewMessage(u.ChatId, config.Translate(config.GetLang(u.ChatId), "data_sent")))
 	for _, v := range chatIds {
 
 		request := tgbotapi.NewMessage(v,
 			fmt.Sprintf(
-				"Новий запрос на реєстрацію\n\nКористувач з імʼям <b>%s</b> (@%s)\nРоль: %s",
+				config.Translate(config.GetLang(v), "data_question"),
 				u.Name, u.TgTag, role,
 			),
 		)
 		request.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Підтвердити", fmt.Sprintf("sa:approve:%d", u.ChatId))),
-			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відмовити", fmt.Sprintf("sa:decline:%d", u.ChatId))),
+			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(v), "btn:approve"), fmt.Sprintf("sa:approve:%d", u.ChatId))),
+			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(v), "btn:decline"), fmt.Sprintf("sa:decline:%d", u.ChatId))),
 		)
 		request.ParseMode = tgbotapi.ModeHTML
 

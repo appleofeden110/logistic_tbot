@@ -378,7 +378,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 				return manager, err
 			}
 
-			return manager, manager.ShowDriverList(globalStorage, "selectdriverfortask", "Якому водію ви надсилаєте shipment", msg.Chat.ID, Bot)
+			return manager, manager.ShowDriverList(globalStorage, "selectdriverfortask", config.Translate(config.GetLang(msg.Chat.ID), "which_driver"), msg.Chat.ID, Bot)
 		}
 	case db.StateWritingToDriver:
 		if msg.Text != "" {

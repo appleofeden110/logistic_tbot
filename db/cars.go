@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"logistictbot/config"
 	"net/http"
 	"strconv"
 	"strings"
@@ -109,7 +110,7 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 
 	if err != nil {
 		if errors.Is(err, ErrNotSuperAdmin) {
-			bot.Send(tgbotapi.NewMessage(chatId, "Ви не є адміністратором для виконання цієї дії"))
+			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_not_admin")))
 			return ErrNotSuperAdmin
 		}
 		return fmt.Errorf("ERR: checking if you are SA or not. Probably not actually...: %v\n", err)
@@ -124,12 +125,12 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 	_, err = stmt.Exec(c.Id, c.Kilometrage)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			bot.Send(tgbotapi.NewMessage(chatId, "Такий автомобіль вже є в базі даних"))
+			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_car_exists")))
 		}
 		return fmt.Errorf("ERR: executing stmt to add car to the db: %v\n", err)
 	}
 
-	_, err = bot.Send(tgbotapi.NewMessage(chatId, fmt.Sprintf("Успішно добавили машину %s з кілометражом %d до бази даних", c.Id, c.Kilometrage)))
+	_, err = bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "added_car", c.Id, c.Kilometrage)))
 	return err
 }
 
@@ -139,7 +140,7 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 	err := u.FindSuperAdmin(globalStorage)
 	if err != nil {
 		if errors.Is(err, ErrNotSuperAdmin) {
-			bot.Send(tgbotapi.NewMessage(chatId, "Ви не є адміністратором для виконання цієї дії"))
+			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_not_admin")))
 			return ErrNotSuperAdmin
 		}
 		return fmt.Errorf("ERR: checking if you are SA: %v", err)

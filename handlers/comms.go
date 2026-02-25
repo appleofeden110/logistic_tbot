@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/docs"
 	"strconv"
@@ -41,7 +42,7 @@ func PingNonReplies(globalStorage *sql.DB) {
 			if time.Since(comms.CreatedAt) > tickRate {
 				msg := tgbotapi.NewMessage(
 					comms.Receiver.ChatId,
-					fmt.Sprintf("❗️<b>НАГАДУВАННЯ - ПОВІДОМЛЕННЯ ВІД: %s (@%s)</b>\n\n<i>%s</i>",
+					config.Translate(config.GetLang(comms.Receiver.ChatId), "comms:notification",
 						comms.Sender.Name,
 						comms.Sender.TgTag,
 						comms.MessageContent,
@@ -323,9 +324,9 @@ func GetNonRepliedMessagesByUserId(globalStorage *sql.DB, userId uuid.UUID) ([]*
 
 func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 
-	msg := tgbotapi.NewMessage(comms.Receiver.ChatId, fmt.Sprintf("<b>⚠️❗️ПОВІДОМЛЕННЯ ВІД: %s (@%s)</b>\n\n<i>%s</i>", comms.Sender.Name, comms.Sender.TgTag, comms.MessageContent))
+	msg := tgbotapi.NewMessage(comms.Receiver.ChatId, config.Translate(config.GetLang(comms.Receiver.ChatId), "comms:newmsg", comms.Sender.Name, comms.Sender.TgTag, comms.MessageContent))
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Відповісти", "reply:"+strconv.Itoa(int(comms.Id)))))
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(comms.Receiver.ChatId), "btn:reply"), "reply:"+strconv.Itoa(int(comms.Id)))))
 
 	_, err := globalStorage.Exec(
 		`UPDATE communication_messages
@@ -346,14 +347,14 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 		return err
 	}
 
-	_, err = Bot.Send(tgbotapi.NewMessage(comms.Sender.ChatId, "✅ Успішно було відправлено повідомлення для "+comms.Receiver.Name))
+	_, err = Bot.Send(tgbotapi.NewMessage(comms.Sender.ChatId, config.Translate(config.GetLang(comms.Sender.ChatId), "comms:success_msg")+comms.Receiver.Name))
 	return err
 }
 
 func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
-	msg := tgbotapi.NewMessage(comms.Sender.ChatId, fmt.Sprintf("<b> ⚠️❗️ВІДПОВІДЬ ВІД: %s (@%s)</b>\n\n<i>%s</i>", comms.Receiver.Name, comms.Receiver.TgTag, comms.ReplyContent))
+	msg := tgbotapi.NewMessage(comms.Sender.ChatId, config.Translate(config.GetLang(comms.Receiver.ChatId), "comms:reply", comms.Receiver.Name, comms.Receiver.TgTag, comms.ReplyContent))
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Написати знову", "writeback:"+strconv.Itoa(int(comms.Receiver.ChatId)))))
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(comms.Receiver.ChatId), "btn:writeback"), "writeback:"+strconv.Itoa(int(comms.Receiver.ChatId)))))
 
 	_, err := globalStorage.Exec(
 		`UPDATE communication_messages
@@ -374,7 +375,7 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 		return err
 	}
 
-	_, err = Bot.Send(tgbotapi.NewMessage(comms.Receiver.ChatId, "✅ Успішно було відправлено відповідь для "+comms.Sender.Name))
+	_, err = Bot.Send(tgbotapi.NewMessage(comms.Receiver.ChatId, config.Translate(config.GetLang(comms.Sender.ChatId), "comms:success_reply")+comms.Sender.Name))
 	return err
 }
 
@@ -453,7 +454,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 	}
 
-	return m.ShowDriverList(globalStorage, "senddrivermsg:"+strconv.Itoa(int(id)), "Кому відправити повідомлення?", m.ChatId, Bot)
+	return m.ShowDriverList(globalStorage, "senddrivermsg:"+strconv.Itoa(int(id)), config.Translate(config.GetLang(m.ChatId), "select_receiver"), m.ChatId, Bot)
 }
 
 func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *sql.DB) error {
@@ -522,7 +523,7 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 	}
 
-	return d.ShowManagerList(globalStorage, "sendmanagermsg:"+strconv.Itoa(int(id)), "Кому відправити повідомлення?", d.ChatId, Bot)
+	return d.ShowManagerList(globalStorage, "sendmanagermsg:"+strconv.Itoa(int(id)), config.Translate(config.GetLang(d.ChatId), "select_receiver"), d.ChatId, Bot)
 }
 
 func getSessionAndSetWritingState(chatId int64, commsId int64, globalStorage *sql.DB) error {

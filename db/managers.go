@@ -59,7 +59,7 @@ type Manager struct {
 
 func SetAllManagersToDormant(db DBExecutor) error {
 	query := `
-		UPDATE managers 
+		UPDATE managers
 		SET state = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE state != ?
 	`
@@ -80,7 +80,7 @@ func SetAllManagersToDormant(db DBExecutor) error {
 
 func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 	query := `
-		UPDATE managers 
+		UPDATE managers
 		SET state = ?
 		WHERE id = ?
 	`
@@ -98,7 +98,7 @@ func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 
 func GetManagerById(db DBExecutor, id uuid.UUID) (*Manager, error) {
 	query := `
-		SELECT 
+		SELECT
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
 			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM users u
@@ -149,7 +149,7 @@ func GetManagerById(db DBExecutor, id uuid.UUID) (*Manager, error) {
 
 func GetManagerByChatId(db DBExecutor, chatId int64) (*Manager, error) {
 	query := `
-		SELECT 
+		SELECT
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
 			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM users u
@@ -220,7 +220,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	}
 
 	stmt, err := db.Prepare(`
-		INSERT INTO managers (id, user_id, chat_id) 
+		INSERT INTO managers (id, user_id, chat_id)
 		VALUES (?, ?, ?)
 	`)
 	if err != nil {
@@ -243,8 +243,8 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	m.User.ManagerId = id
 
 	updateStmt, err := db.Prepare(`
-		UPDATE users 
-		SET manager_id = $1, updated_at = CURRENT_TIMESTAMP 
+		UPDATE users
+		SET manager_id = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $2
 	`)
 	if err != nil {
@@ -351,7 +351,7 @@ func (pm *PendingMessage) StoreDocForShipment(exec *sql.DB, bot *tgbotapi.BotAPI
 
 func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) error {
 	if manager, err := GetManagerByChatId(exec, pm.FromChatId); err != nil && manager == nil {
-		bot.Send(tgbotapi.NewMessage(pm.FromChatId, "Користувач повинен бути менеджером для використання цієї команди"))
+		bot.Send(tgbotapi.NewMessage(pm.FromChatId, config.Translate(config.GetLang(pm.FromChatId), "gotta_be_manager")))
 	} else {
 		fmt.Println(manager)
 	}
@@ -380,21 +380,21 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	err = shipment.StoreShipment(exec)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			_, err = bot.Send(tgbotapi.NewMessage(pm.FromChatId, "Такий маршрут та документ вже існують, спробуйте ще раз"))
+			_, err = bot.Send(tgbotapi.NewMessage(pm.FromChatId, config.Translate(config.GetLang(pm.FromChatId), "err_shipment_exists")))
 			return err
 		}
 		return fmt.Errorf("store shipment: %w", err)
 	}
 
 	docMsg := tgbotapi.NewDocument(pm.ToChatId, tgbotapi.FileID(pm.FileId))
-	docMsg.Caption = formTextAcceptTask + "\n\nНотатки від логіста:\n\n" + pm.Caption
+	docMsg.Caption = formTextAcceptTask + config.Translate(config.GetLang(pm.ToChatId), "notes_from_manager") + pm.Caption
 	docMsg.ParseMode = tgbotapi.ModeHTML
 	docMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Прочитати документ", fmt.Sprintf("readdoc:%d", f.Id)),
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(pm.ToChatId), "btn:readdoc"), fmt.Sprintf("readdoc:%d", f.Id)),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Почати маршрут", fmt.Sprintf("shipment:accept:%d", shipment.ShipmentId)),
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(pm.ToChatId), "btn:shipment:start"), fmt.Sprintf("shipment:accept:%d", shipment.ShipmentId)),
 		),
 	)
 
@@ -404,7 +404,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 
 func GetAllManagers(db DBExecutor) ([]*Manager, error) {
 	query := `
-		SELECT 
+		SELECT
 			m.id, m.user_id, m.created_at, m.updated_at, m.chat_id, m.state,
 			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.tg_tag, u.lang
 		FROM managers m

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"strings"
 	"time"
 
@@ -69,7 +70,7 @@ func (f Form) StoreForm(db *sql.DB, bot *tgbotapi.BotAPI) error {
 	}
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO form_states (chat_id, message_text, form_message_id, which_table) VALUES  ($1, $2, $3, $4) 
+		INSERT INTO form_states (chat_id, message_text, form_message_id, which_table) VALUES  ($1, $2, $3, $4)
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -97,7 +98,7 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 			tx.Rollback()
 
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				bot.Send(tgbotapi.NewMessage(chatId, "Такий користувача скоріш всього вже існує. Якщо це помилково - напишіть розробнику: @pinkfloydfan або @NazKan_Uk"))
+				bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "user_exists")))
 			}
 			return fmt.Errorf("ERR: storing user: %v\n", err)
 		}
