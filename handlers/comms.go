@@ -51,7 +51,7 @@ func PingNonReplies(globalStorage *sql.DB) {
 				msg.ParseMode = tgbotapi.ModeHTML
 				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
-						tgbotapi.NewInlineKeyboardButtonData("Відповісти", "reply:"+strconv.Itoa(int(comms.Id))),
+						tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(comms.Receiver.ChatId), "btn:reply"), "reply:"+strconv.Itoa(int(comms.Id))),
 					),
 				)
 

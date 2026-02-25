@@ -16,9 +16,9 @@ import (
 )
 
 type Car struct {
-	Id              string    `db:"id" form:"Введіть повний номер машини (Приклад: AB123CD 456789)"`
+	Id              string    `db:"id" form:"form:q:car_id"`
 	CurrentDriverId uuid.UUID `db:"current_driver"`
-	Kilometrage     int64     `db:"current_kilometrage" form:"Введіть поточний кілометраж однією цифрою"`
+	Kilometrage     int64     `db:"current_kilometrage" form:"form:q:current_km"`
 }
 
 func GetAllCars(exec DBExecutor) ([]*Car, error) {

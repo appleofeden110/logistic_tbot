@@ -21,7 +21,7 @@ const (
 type User struct {
 	Id           uuid.UUID `db:"id"`
 	ChatId       int64     `db:"chat_id"`
-	Name         string    `db:"name" form:"Введіть ваше імʼя"`
+	Name         string    `db:"name" form:"form:q:name"`
 	TgTag        string    `db:"tg_tag"`
 	DriverId     uuid.UUID `db:"driver_id"`
 	ManagerId    uuid.UUID `db:"manager_id"`
@@ -42,7 +42,7 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			created_at,
 			updated_at,
 			is_super_admin,
-			tg_tag, 
+			tg_tag,
 			lang
 		FROM users
 		ORDER BY created_at DESC
@@ -236,7 +236,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 	fmt.Println(u.ChatId)
 
 	stmt, err := db.Prepare(`
-		INSERT INTO users (id, chat_id, name, tg_tag) 
+		INSERT INTO users (id, chat_id, name, tg_tag)
 		VALUES (?, ?, ?, ?)
 	`)
 	if err != nil {

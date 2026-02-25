@@ -19,10 +19,10 @@ const SkipKeyword = "Пропустити"
 
 type TankRefuelForm struct {
 	ChosenFuelCardId   int
-	CurrentKilometrage int64  `form:"Введіть поточний кілометраж" form_question:"Введіть поточний кілометраж"`
-	Address            string `form:"Введіть адресу заправки"            form_question:"Введіть адресу заправки"`
-	Diesel             string `form:"Введіть кількість Дізелю ви заправили (введіть тільки числом)"             form_question:"Введіть кількість дизелю (літри), або пропустіть"`
-	AdBlu              string `form:"Введіть кількість AdBlu ви взяли (введіть тільки числом)"              form_question:"Введіть кількість AdBlue (літри), або пропустіть"`
+	CurrentKilometrage int64  `form:"form:q:current_km"`
+	Address            string `form:"form:q:refuel_address"`
+	Diesel             string `form:"form:q:diesel_amount"`
+	AdBlu              string `form:"form:q:adblu_amount"`
 }
 
 func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *db.Driver, chosenFuelCardId int) error {
@@ -79,8 +79,8 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 		return fmt.Errorf("ERR: getting tags: %v", err)
 	}
 
-	for _, question := range tags {
-		questionAnswers[question] = ""
+	for _, questionKey := range tags {
+		questionAnswers[config.Translate(config.GetLang(chatId), questionKey)] = ""
 	}
 
 	_, err = RegisterFormMessage(chatId, questionAnswers, markup, text)
@@ -93,7 +93,7 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 }
 
 func HandleFormInput(chatId int64, text string, state *db.FormState, globalStorage *sql.DB, from *tgbotapi.User) error {
-	if text != SkipKeyword {
+	if text != config.Translate(config.GetLang(chatId), "skip") {
 		state.Answers[state.Index] = text
 		state.CurrentField = text
 	}
@@ -321,7 +321,7 @@ func gatherFormInfo[T any](f db.Form, entity T) error {
 		return fmt.Errorf("ERR: getting form tags from the struct: %w", err)
 	}
 
-	fieldNames, questions := getAllFieldsAndQuestions(tags)
+	fieldNames, questions := getAllFieldsAndQuestions(tags, f.ChatID)
 
 	inputMu.Lock()
 	state, exists := waitingForInput[f.ChatID]
@@ -351,7 +351,7 @@ func gatherFormInfo[T any](f db.Form, entity T) error {
 		)
 		firstQuestion = tgbotapi.NewMessage(f.ChatID, questionText)
 
-		skipButton := tgbotapi.NewKeyboardButton(SkipKeyword)
+		skipButton := tgbotapi.NewKeyboardButton(config.Translate(config.GetLang(f.ChatID), "skip"))
 		keyboard := tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(skipButton),
 		)
@@ -365,9 +365,9 @@ func gatherFormInfo[T any](f db.Form, entity T) error {
 	return err
 }
 
-func getAllFieldsAndQuestions(tags map[string]string) (fieldNames, questions []string) {
-	for fieldName, question := range tags {
-		questions = append(questions, question)
+func getAllFieldsAndQuestions(tags map[string]string, chatId int64) (fieldNames, questions []string) {
+	for fieldName, questionKey := range tags {
+		questions = append(questions, config.Translate(config.GetLang(chatId), questionKey))
 		fieldNames = append(fieldNames, fieldName)
 	}
 	return fieldNames, questions

@@ -257,8 +257,18 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
 
 		for i := 0; i < len(availableMonths); i++ {
+			var month string
+			switch config.GetLang(chatId) {
+			case config.Ukrainian:
+				month = duration.MonthToUkrainian(availableMonths[i].Month)
+			case config.Polish:
+				month = duration.MonthToPolish(availableMonths[i].Month)
+			case config.English:
+				month = availableMonths[i].Month.String()
+			}
+
 			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(
-				fmt.Sprintf("%s %d", duration.MonthToUkrainian(availableMonths[i].Month), availableMonths[i].Year),
+				fmt.Sprintf("%s %d", month, availableMonths[i].Year),
 				fmt.Sprintf("mstmt:%d.%d", availableMonths[i].Month, availableMonths[i].Year),
 			))
 

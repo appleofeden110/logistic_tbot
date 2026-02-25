@@ -446,7 +446,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 				tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(
-							"Видалити відео",
+							config.Translate(config.GetLang(sentMsg.Chat.ID), "delete_video"),
 							fmt.Sprintf("deletevid:%d", sentMsg.MessageID),
 						),
 					),
