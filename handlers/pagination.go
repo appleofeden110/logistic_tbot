@@ -34,20 +34,16 @@ const (
 //
 //}
 
-func FormatShipmentForList(s *parser.Shipment, index int) string {
-	status := "🔴 Не почато"
+func FormatShipmentForList(s *parser.Shipment, index int, lang config.LangCode) string {
+	status := config.Translate(lang, "shipment_notstarted")
 	if !s.Started.IsZero() && s.Finished.IsZero() {
-		status = "🟡 В процесі"
+		status = config.Translate(lang, "shipment_active")
 	} else if !s.Finished.IsZero() {
-		status = "🟢 Завершено"
+		status = config.Translate(lang, "shipment_done")
 	}
 
-	return fmt.Sprintf(
-		"%d. Shipment №%d\n"+
-			"	 Статус: %s\n"+
-			"    Авто: %s\n"+
-			"    Контейнер: %s\n"+
-			"    Завдань: %d\n",
+	return config.Translate(lang,
+		"shipment_format",
 		index+1, s.ShipmentId,
 		status,
 		s.CarId,
@@ -73,14 +69,14 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 	}
 
 	var messageText strings.Builder
-	messageText.WriteString(fmt.Sprintf("📋 Маршрути (сторінка %d/%d)\n", page+1, totalPages))
-	messageText.WriteString(fmt.Sprintf("Всього маршрутів: %d\n\n", len(shipments)))
+	messageText.WriteString(config.Translate(config.GetLang(chatId), "shipment_view_header", page+1, totalPages))
+	messageText.WriteString(config.Translate(config.GetLang(chatId), "shipment_view_total", len(shipments)))
 
 	if len(shipments) == 0 {
-		messageText.WriteString("Немає маршрутів для відображення.")
+		messageText.WriteString(config.Translate(config.GetLang(chatId), "shipment_view_noshipments"))
 	} else {
 		for i := start; i < end; i++ {
-			messageText.WriteString(FormatShipmentForList(shipments[i], i))
+			messageText.WriteString(FormatShipmentForList(shipments[i], i, config.GetLang(chatId)))
 			messageText.WriteString("\n")
 		}
 	}
@@ -93,7 +89,7 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 		for i := start; i < end; i++ {
 			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
-					fmt.Sprintf("Деталі маршруту #%d", i+1),
+					config.Translate(config.GetLang(chatId), "shipment_details", i+1),
 					fmt.Sprintf("shipment:details:%d", shipments[i].ShipmentId),
 				),
 			))
@@ -103,14 +99,14 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 
 		if page > 0 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
-				"⬅️ Назад",
+				config.Translate(config.GetLang(chatId), "page:prev"),
 				fmt.Sprintf("%s:%d", callbackPrefix, page-1),
 			))
 		}
 
 		if page < totalPages-1 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
-				"Вперед ➡️",
+				config.Translate(config.GetLang(chatId), "page:next"),
 				fmt.Sprintf("%s:%d", callbackPrefix, page+1),
 			))
 		}

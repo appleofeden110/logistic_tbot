@@ -1088,7 +1088,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			fileURL := file.Link(Bot.Token)
 			log.Printf("File download URL: %s", fileURL)
 
-			fullPath := "./handlers/outdocs/" + strings.Split(fileURL, "/")[6]
+			fullPath := config.GetOutDocsPath() + strings.Split(fileURL, "/")[6]
 
 			sentDoc := docs.File{
 				TgFileId:     msg.Document.FileID,
@@ -1110,7 +1110,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: attaching file to task %d: %v\n", task.Id, err)
 			}
 
-			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Документ додано до завдання! 📄"))
+			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:docs_attached")))
 			return driver, err
 		}
 
@@ -1144,7 +1144,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					if len(msgs) > 0 {
 						Bot.Send(tgbotapi.NewMessage(
 							msg.Chat.ID,
-							fmt.Sprintf("Додано %d фотографій 📸", len(msgs)),
+							fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached"), len(msgs)),
 						))
 					}
 				}(msg.MediaGroupID, task.Id)
@@ -1156,17 +1156,12 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: saving single photo: %v", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Додано 1 фотографію 📸"))
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic")))
 			return driver, nil
 		}
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
 		task := new(parser.TaskSection)
 
-		/*	task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
-			}
-		*/
 		taskSessionsMu.Lock()
 		task, f := taskSessions[driver.Id]
 		taskSessionsMu.Unlock()
@@ -1188,7 +1183,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		if task.CurrentKilometrage == 0 && task.Start.IsZero() {
 			km, err := db.ParseKilometrage(msg.Text)
 			if err != nil {
-				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неправильний формат кілометражу, спробуйте ще раз"))
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.From.ID), "wrong_km_format")))
 				return driver, err
 			}
 			task.CurrentKilometrage = km
@@ -1219,16 +1214,21 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				0.00),
 			)
 			startTaskMsg.ParseMode = tgbotapi.ModeHTML
-
 			startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData("Закінчити виконання", fmt.Sprintf("driver:endtask:%d", task.Id)),
+					tgbotapi.NewInlineKeyboardButtonData(
+						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:endtask"),
+						fmt.Sprintf("driver:endtask:%d", task.Id)),
 				),
 				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData("Додати документ", fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
+					tgbotapi.NewInlineKeyboardButtonData(
+						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:add_docstotask"),
+						fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
 				),
 				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData("Додати фотографії", fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
+					tgbotapi.NewInlineKeyboardButtonData(
+						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:add_picstotask"),
+						fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
 				),
 			)
 
@@ -1258,7 +1258,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			Bot.Send(pin)
 
-			driverInfo := fmt.Sprintf("Водій %s (%s) почав завдання %s для маршруту %d\nМашина: %s\n\n", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
+			driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
 			startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
 
 			managerSessionsMu.Lock()
@@ -1282,7 +1282,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			kg, err := db.ParseWeight(msg.Text)
 			if err != nil {
-				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неправильний формат ваги, спробуйте ще раз"))
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:err_wrongweightformat")))
 				return driver, err
 			}
 			task.CurrentWeight = kg
@@ -1298,7 +1298,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: changing status for waiting temp: %v\n", err)
 			}
 
-			tempMsg := tgbotapi.NewMessage(msg.Chat.ID, "Введіть температуру.\n(Доступні формати: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)")
+			tempMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:enter_temp"))
 			tempMsg.ParseMode = tgbotapi.ModeHTML
 			_, err = Bot.Send(tempMsg)
 			return driver, err
@@ -1312,7 +1312,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			celcius, err := db.ParseTemperature(msg.Text)
 			if err != nil {
-				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неправильний формат температури, спробуйте ще раз"))
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:err_wrongtempformat")))
 				return driver, err
 			}
 			task.CurrentTemperature = celcius
