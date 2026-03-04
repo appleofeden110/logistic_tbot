@@ -60,14 +60,16 @@ func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) erro
 	return err
 }
 
-func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode string) error {
+func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode string, topicId int) error {
+	var isGroupCmd bool
+
 	cmd, found := strings.CutPrefix(command, "/")
 	if !found {
 		return fmt.Errorf("ERR: it is not a command: %s\n", command)
 	}
 
-	cmd, found = strings.CutSuffix(cmd, "@logistictbot")
-	if found {
+	cmd, isGroupCmd = strings.CutSuffix(cmd, "@logistictbot")
+	if isGroupCmd {
 		log.Printf("GROUP cmd: %s", cmd)
 	}
 
@@ -86,6 +88,75 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		if err != nil {
 			panic(err)
 		}
+	case "ginit":
+		if isGroupCmd {
+			var carQuestion tgbotapi.MessageConfig
+			if topicId > 0 {
+				carQuestion = tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "car_question_g"), topicId)
+			} else {
+				carQuestion = tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "car_question_g"))
+			}
+			cars, err := db.GetAllCars(globalStorage)
+			if err != nil {
+				return fmt.Errorf("Fetching cars for question: %v\n", err)
+			}
+
+			rows := make([][]tgbotapi.InlineKeyboardButton, 0)
+			for _, v := range cars {
+				car := fmt.Sprintf("%s (%d km)", v.Id, v.Kilometrage)
+				rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(car, fmt.Sprintf("g:car:%d:%s", chatId, v.Id)),
+				))
+			}
+
+			carQuestion.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+			carQuestion.ParseMode = tgbotapi.ModeHTML
+
+			_, err = Bot.Send(carQuestion)
+			return err
+		}
+		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "for_groups_only")))
+		return err
+	case "document":
+		if isGroupCmd {
+			g := db.DriverGroup{GroupChatId: chatId}
+			g.FillDocumentTopicId(globalStorage, topicId)
+
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "doc_assigned"), topicId))
+			return err
+		}
+		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
+		return err
+
+	case "photo":
+		if isGroupCmd {
+			g := db.DriverGroup{GroupChatId: chatId}
+			g.FillPhotoTopicId(globalStorage, topicId)
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "photo_assigned"), topicId))
+			return err
+		}
+		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
+		return err
+
+	case "loading":
+		if isGroupCmd {
+			g := db.DriverGroup{GroupChatId: chatId}
+			g.FillLoadingTopicId(globalStorage, topicId)
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "loading_assigned"), topicId))
+			return err
+		}
+		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
+		return err
+
+	case "tank":
+		if isGroupCmd {
+			g := db.DriverGroup{GroupChatId: chatId}
+			g.FillTankTopicId(globalStorage, topicId)
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_assigned"), topicId))
+			return err
+		}
+		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
+		return err
 	case "mngrreset":
 		err := db.SetAllManagersToDormant(globalStorage)
 		if err != nil {
@@ -138,7 +209,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 			return err
 		}
 	case "menu":
-		return HandleCommand(chatId, "/start", globalStorage, langCode)
+		return HandleCommand(chatId, "/start", globalStorage, langCode, topicId)
 	case "dev:init":
 		devSesh, err := db.GetDev(globalStorage, chatId)
 		if err != nil {
@@ -159,7 +230,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 	}
 	return nil
 }
-func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
+func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB, topicId int) error {
 	cmd, f := strings.CutPrefix(command, "manager:")
 	if !f {
 		return fmt.Errorf("ERR: not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
@@ -328,7 +399,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	return nil
 }
 
-func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
+func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB, topicId int) (updatedSession *db.Manager, err error) {
 	fmt.Printf("Manager manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
 	switch manager.State {
 	case db.StateWaitingDoc:
@@ -452,7 +523,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 	return manager, err
 }
 
-func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
+func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB, topicId int) error {
 	var cmd string
 	var f bool
 
@@ -478,7 +549,26 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	}
 
 	switch cmd {
+	case "washing":
+		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
+		if err != nil {
+			if !errors.Is(err, parser.ErrNoShipments) {
+				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+			}
+			return err
+		}
 
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "only_for_latest"))
+		msg.ParseMode = tgbotapi.ModeHTML
+		managerSessionsMu.Lock()
+		for _, m := range managerSessions {
+			washingQuestion := tgbotapi.NewMessage(m.ChatId, config.Translate(config.GetLang(m.ChatId), "washing_question", driverSesh.User.Name, driverSesh.CarId, shipment.ShipmentId))
+			washingQuestion.ParseMode = tgbotapi.ModeHTML
+			Bot.Send(washingQuestion)
+		}
+		managerSessionsMu.Unlock()
+		_, err = Bot.Send(msg)
+		return err
 	case "refuel":
 
 		if _, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id); err != nil {
@@ -520,7 +610,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return fmt.Errorf("ERR: parsing fuel card id: %w", err)
 		}
 
-		// Stash the chosen card id in the form state so GatherInfo can pick it up.
 		formsMu.Lock()
 		pendingRefuelCard[chatId] = cardId
 		formsMu.Unlock()
@@ -616,7 +705,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 
 			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
-				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
+				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage, topicId)
 			default:
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
@@ -665,7 +754,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 			}
 
-			driverInfo := fmt.Sprintf("Від водія %s (%s)\nМашина: %s\n", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
+			driverInfo := config.Translate(config.GetLang(chatId), "manager:driver_finished", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
 
 			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
 				task.ShipmentId,
@@ -691,15 +780,25 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
 
-			managerSessionsMu.Lock()
-			defer managerSessionsMu.Unlock()
-			for mChatId := range managerSessions {
-				endMsg.ChatID = mChatId
-				_, err = Bot.Send(endMsg)
-				if err != nil {
-					return fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
-				}
+			/*			managerSessionsMu.Lock()
+						defer managerSessionsMu.Unlock()
+						for mChatId := range managerSessions { */
+
+			//}
+			g := db.DriverGroup{CurrentCar: &db.Car{Id: driverSesh.CarId}}
+
+			err = g.GetDriverGroupByCar(globalStorage)
+			if err != nil {
+				return fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
 			}
+
+			endMsg.ChatID = g.GroupChatId
+			endMsg.MessageThreadID = g.LoadingTopicId
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				return fmt.Errorf("%d (g: %s) could not receive message: %v\n", g.GroupChatId, g.CurrentCar.Id, err)
+			}
+
 		}
 
 	case "add_doctotask":
@@ -843,7 +942,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 			}
 
-			err = sendDocumentsToManager(manager.ChatId, docsFiles)
+			err = sendDocumentsToManager(manager.ChatId, topicId, docsFiles)
 			if err != nil {
 				return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
 			}
@@ -908,19 +1007,31 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			driverSesh.User.TgTag,
 			driverSesh.CarId,
 			task.Type,
-			task.Id,
+			task.ShipmentId,
 		)
 
-		managerSessionsMu.Lock()
-		for mChatId := range managerSessions {
-			err = sendPhotosToManager(mChatId, photos, managerText)
-			if err != nil {
-				managerSessionsMu.Unlock()
-				return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
+		/*	managerSessionsMu.Lock()
+			for mChatId := range managerSessions {
+				err = sendPhotosToManager(mChatId, photos, managerText, globalStorage)
+				if err != nil {
+					managerSessionsMu.Unlock()
+					return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
+				}
 			}
-		}
-		managerSessionsMu.Unlock()
+			managerSessionsMu.Unlock()
+		*/
 
+		g := db.DriverGroup{CurrentCar: &db.Car{Id: driverSesh.CarId}}
+
+		err = g.GetDriverGroupByCar(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
+		}
+
+		err = sendPhotosToManager(g.GroupChatId, photos, managerText, globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: sending photos to the group: %v\n", err)
+		}
 		switch task.Type {
 		case parser.TaskLoad:
 			driverSesh.State = db.StateLoad
@@ -1018,7 +1129,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	return nil
 }
 
-func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB) (*db.Driver, error) {
+func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB, topicId int) (*db.Driver, error) {
 	var err error
 	log.Printf("Driver driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 
@@ -1271,15 +1382,25 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
 			startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
 
-			managerSessionsMu.Lock()
+			/*managerSessionsMu.Lock()
 			defer managerSessionsMu.Unlock()
 			for mChatId := range managerSessions {
-				startTaskMsg.ReplyMarkup = nil
-				startTaskMsg.ChatID = mChatId
-				_, err = Bot.Send(startTaskMsg)
-				if err != nil {
-					return driver, fmt.Errorf("%d could not receive message: %v\n", mChatId, err)
-				}
+
+			}*/
+
+			g := db.DriverGroup{CurrentCar: &db.Car{Id: driver.CarId}}
+
+			err = g.GetDriverGroupByCar(globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
+			}
+
+			startTaskMsg.ReplyMarkup = nil
+			startTaskMsg.ChatID = g.GroupChatId
+			startTaskMsg.MessageThreadID = g.LoadingTopicId
+			_, err = Bot.Send(startTaskMsg)
+			if err != nil {
+				return driver, fmt.Errorf("%d (g: %s) could not receive message: %v\n", g.GroupChatId, g.CurrentCar.Id, err)
 			}
 			return driver, err
 		}
@@ -1333,7 +1454,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		}
 
-		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage)
+		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage, topicId)
 
 		return driver, err
 
@@ -1370,7 +1491,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if kmAccum < 0 {
 				message, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Новий кілометраж менше за ваш старий, спробуйте ще раз"))
 				log.Printf("Trying to end the day again\n\tendDayerr: %v\n\tbotSendErr: %v\n\n",
-					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage),
+					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage, topicId),
 					err,
 				)
 				return driver, nil

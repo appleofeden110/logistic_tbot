@@ -51,7 +51,7 @@ func main() {
 	handlers.Bot, err = tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_API"))
 	handlers.Check(err, true)
 
-	handlers.Bot.Debug = false
+	handlers.Bot.Debug = true
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 

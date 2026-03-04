@@ -32,15 +32,6 @@ type ShipmentStatement struct {
 }
 
 // for now it won't be used
-type CleaningStation struct {
-	Id           int     `db:"id"`
-	Name         string  `db:"name"`
-	Address      string  `db:"address"`
-	Country      string  `db:"country"`
-	Lat          float64 `db:"lat"`
-	Lon          float64 `db:"lon"`
-	OpeningHours string  `db:"opening_hours"`
-}
 
 func GetHeaders(s interface{}) []string {
 	t := reflect.TypeOf(s)

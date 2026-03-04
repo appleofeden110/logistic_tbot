@@ -31,6 +31,9 @@ func DriverStartMarkupPause(lang config.LangCode) tgbotapi.InlineKeyboardMarkup 
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_manager"), "driver:sendmessage"),
 		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_manager"), "driver:washing"),
+		),
 	)
 }
 
@@ -47,6 +50,9 @@ func DriverStartMarkupWorking(lang config.LangCode) tgbotapi.InlineKeyboardMarku
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_manager"), "driver:sendmessage"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_manager"), "driver:washing"),
 		),
 	)
 }

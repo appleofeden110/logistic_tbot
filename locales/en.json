@@ -116,6 +116,7 @@
   "refuel_saved": "✅ Refueling saved!",
 
   "btn:reply": "Reply",
+  "btn:request_cleaning": "Request cleaning station address",
   "btn:writeback": "Write again",
   "btn:approve": "Approve",
   "btn:decline": "Decline",
@@ -144,6 +145,23 @@
   "form:refuel": "<b>Form for entering refueling by Fuel Card</b>",
   "form:driver": "<b>Driver registration form.</b>",
   "form:manager": "<b>Manager registration form.</b>",
+
+  "gotta_be_group": "Must be in a group, and inside the subgroup where you want to assign the corresponding topic (subgroups: Tank, Document, Loading or Photo)",
+"car_question_g": "Assign which car belongs to this group",
+"for_groups_only": "This command is only for groups, it will not work in individual chats",
+"manager:driver_finished": "From driver %s (%s)\nVehicle: %s\n",
+"cleaning_stations_format": "%d. %s\n\tAddress: %s\n\tCountry: %s\n\tCoordinates: %d, %d\n\tOpening hours: %s\n",
+"cleaning_stations_view_header": "📋 Cleaning stations (page %d/%d)\n",
+"cleaning_stations_view_total": "Total cleaning stations: %d\n\n",
+"cleaning_stations_view_noshipments": "No cleaning stations to display.",
+"docs_assigned": "✅ The subgroup for documents (Document) has been assigned!",
+"photo_assigned": "✅ The subgroup for photos (Photo) has been assigned!",
+"loading_assigned": "✅ The subgroup for messages (Loading) has been assigned!",
+"tank_assigned": "✅ The subgroup for refueling (Tank) has been assigned!",
+"group_inited": "✅ The group has been assigned to work with vehicle: %s",
+"only_for_latest": "INFO: this function takes your latest active route and requests a cleaning station for it.\n\n✅ Request for the nearest cleaning station has been sent. Please wait for a response.",
+"washing_question": "❗ Driver <b>%s (%s)</b> is requesting the address of the nearest cleaning station (Shipment №: %d).\n\nChoose from the buttons the cleaning station number shown:",
+"cleaning_station:todriver": "❗ The manager has sent you a cleaning station in response to your request!\n\n%s\n\tAddress: %s\n\tCountry: %s\n\tCoordinates: %d, %d\n\tOpening hours: %s\n",
 
   "VERY_BAD": "Something went seriously wrong. If the bot does not respond to further actions – write or call the developer: @pinkfloydfan or +447990932300"
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"logistictbot/config"
+	data_analysis "logistictbot/data-analysis"
 	"logistictbot/parser"
 	"strconv"
 	"strings"
@@ -12,8 +13,9 @@ import (
 )
 
 const (
-	ShipmentsPerPage = 5
-	DriversPerPage   = 5
+	ShipmentsPerPage        = 5
+	CleaningStationsPerPage = 5
+	DriversPerPage          = 5
 )
 
 //func CreateDriversListMessage(drivers []*db.Driver, page int, chatId int64) (tgbotapi.MessageConfig, error) {
@@ -50,6 +52,87 @@ func FormatShipmentForList(s *parser.Shipment, index int, lang config.LangCode) 
 		s.Container,
 		len(s.Tasks),
 	)
+}
+
+func FormatCleaningStationsForList(c *data_analysis.CleaningStation, index int, lang config.LangCode) string {
+	return config.Translate(
+		lang,
+		"cleaning_stations_format",
+		index+1,
+		c.Name,
+		c.Address,
+		c.Country,
+		c.Lat, c.Lon,
+		c.OpeningHours)
+}
+
+func CreateWashingPlacesList(cleaningStations []*data_analysis.CleaningStation, page int, chatId int64, callbackPrefix string, sendToChatId int64) (tgbotapi.MessageConfig, error) {
+	totalPages := (len(cleaningStations) + CleaningStationsPerPage - 1) / CleaningStationsPerPage
+
+	if page < 0 {
+		page = 0
+	}
+	if page >= totalPages && totalPages > 0 {
+		page = totalPages - 1
+	}
+
+	start := page * CleaningStationsPerPage
+	end := start + CleaningStationsPerPage
+	if end > len(cleaningStations) {
+		end = len(cleaningStations)
+	}
+
+	var messageText strings.Builder
+	messageText.WriteString(config.Translate(config.GetLang(chatId), "cleaning_stations_view_header", page+1, totalPages))
+	messageText.WriteString(config.Translate(config.GetLang(chatId), "cleaning_stations_view_total", len(cleaningStations)))
+
+	if len(cleaningStations) == 0 {
+		messageText.WriteString(config.Translate(config.GetLang(chatId), "shipment_view_noshipments"))
+	} else {
+		for i := start; i < end; i++ {
+			messageText.WriteString(FormatCleaningStationsForList(cleaningStations[i], i, config.GetLang(chatId)))
+			messageText.WriteString("\n")
+		}
+	}
+
+	msg := tgbotapi.NewMessage(chatId, messageText.String())
+
+	if len(cleaningStations) > 0 {
+		var rows [][]tgbotapi.InlineKeyboardButton
+
+		for i := start; i < end; i++ {
+			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "", i+1),
+					fmt.Sprintf("cleaning:%d:%d", cleaningStations[i].Id, sendToChatId),
+				),
+			))
+		}
+
+		var navButtons []tgbotapi.InlineKeyboardButton
+
+		if page > 0 {
+			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
+				config.Translate(config.GetLang(chatId), "page:prev"),
+				fmt.Sprintf("%s:%d", callbackPrefix, page-1),
+			))
+		}
+
+		if page < totalPages-1 {
+			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
+				config.Translate(config.GetLang(chatId), "page:next"),
+				fmt.Sprintf("%s:%d", callbackPrefix, page+1),
+			))
+		}
+
+		if len(navButtons) > 0 {
+			rows = append(rows, navButtons)
+		}
+
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	}
+
+	return msg, nil
 }
 
 func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId int64, callbackPrefix string) (tgbotapi.MessageConfig, error) {

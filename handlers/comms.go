@@ -9,6 +9,7 @@ import (
 	"logistictbot/db"
 	"logistictbot/docs"
 	"strconv"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -570,11 +571,12 @@ func CreateVideoToSend(chatId int64, videoName string) *tgbotapi.VideoConfig {
 
 func sendDocumentsToManager(
 	chatID int64,
+	topicId int,
 	docsFiles []*docs.File,
 ) error {
 
 	for _, f := range docsFiles {
-		doc := tgbotapi.NewDocument(chatID, tgbotapi.FileID(f.TgFileId))
+		doc := tgbotapi.NewDocument(chatID, tgbotapi.FileID(f.TgFileId), topicId)
 		doc.Caption = f.OriginalName
 
 		if _, err := Bot.Send(doc); err != nil {
@@ -589,7 +591,18 @@ func sendPhotosToManager(
 	chatID int64,
 	photos []*docs.File,
 	caption string,
+	globalStorage *sql.DB,
 ) error {
+
+	topicId := 0
+	if strings.Contains(strconv.Itoa(int(chatID)), "-100") {
+		g := db.DriverGroup{GroupChatId: chatID}
+		err := g.GetDriverGroup(globalStorage)
+		if err != nil {
+			return err
+		}
+		topicId = g.PhotoTopicId
+	}
 
 	const maxGroupSize = 10
 
@@ -600,7 +613,8 @@ func sendPhotosToManager(
 		}
 
 		group := tgbotapi.MediaGroupConfig{
-			ChatID: chatID,
+			ChatID:          chatID,
+			MessageThreadID: topicId,
 		}
 
 		for j, f := range photos[i:end] {

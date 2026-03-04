@@ -10,15 +10,8 @@ import (
 	"logistictbot/docs"
 	"logistictbot/tracking"
 	"strings"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-)
-
-var (
-	tasks = make(map[int64]int64)
-
-	now time.Time
 )
 
 func Check(err error, print bool, message ...string) bool {
@@ -47,6 +40,7 @@ func ReceiveUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel, global
 
 func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 	var err error
+	//NewChatAction()
 
 	switch {
 	case update.Message != nil:
@@ -90,18 +84,19 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	id := msg.MessageID
 	user := msg.From
 	text := msg.Text
-	log.Println("message: ", msg.From, msg)
+	log.Println("message: ", msg.From.ID, msg.MessageThreadID)
 
 	if user == nil {
 		return fmt.Errorf("How is user not there?: %v\n", user)
 	}
 
 	config.UsersLanguagesMu.RLock()
-	if _, ok := config.UsersLanguages[msg.Chat.ID]; !ok {
-		config.SetUserLang(user.ID, config.LangCode(user.LanguageCode))
-	}
+	_, ok := config.UsersLanguages[msg.Chat.ID]
 	config.UsersLanguagesMu.RUnlock()
 
+	if !ok {
+		config.SetUserLang(user.ID, config.LangCode(user.LanguageCode))
+	}
 	log.Printf("%s(%d - %s - %d) wrote %s. msg id: %d", user.FirstName, user.ID, user.LanguageCode, msg.Chat.ID, text, id)
 
 	inputMu.Lock()
@@ -121,11 +116,11 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	devSessionMu.Unlock()
 
 	if isDriverSesh {
-		driverSesh, err = HandleDriverInputState(driverSesh, msg, globalStorage)
+		driverSesh, err = HandleDriverInputState(driverSesh, msg, globalStorage, msg.MessageThreadID)
 	}
 
 	if isManagerSesh {
-		managerSesh, err = HandleManagerInputState(managerSesh, msg, globalStorage)
+		managerSesh, err = HandleManagerInputState(managerSesh, msg, globalStorage, msg.MessageThreadID)
 	}
 
 	if isWaitingForInput {
@@ -141,7 +136,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	}
 
 	if strings.HasPrefix(msg.Text, "/") {
-		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage, msg.From.LanguageCode)
+		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage, msg.From.LanguageCode, msg.MessageThreadID)
 	}
 
 	return err

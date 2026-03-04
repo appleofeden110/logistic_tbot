@@ -23,8 +23,9 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 
 	var err error
 	id := cbq.Message.MessageID
+	topicId := cbq.Message.MessageThreadID
 
-	user := &db.User{ChatId: cbq.Message.Chat.ID}
+	user := &db.User{ChatId: cbq.From.ID}
 	err = user.GetUserByChatId(globalStorage)
 	if err != nil {
 		user.Name = "NEU"
@@ -54,7 +55,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		a, _ := strings.CutPrefix(cbq.Data, "set_lang:")
 		config.SetUserLang(cbq.Message.Chat.ID, config.LangCode(a))
 		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.LangCode(a), "lang_set")))
-		return HandleCommand(cbq.Message.Chat.ID, "/start", globalStorage, a)
+		return HandleCommand(cbq.Message.Chat.ID, "/start", globalStorage, a, topicId)
 	case strings.HasPrefix(cbq.Data, "mrefuel:"):
 		after, _ := strings.CutPrefix(cbq.Data, "mrefuel:")
 
@@ -78,17 +79,40 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		Bot.Send(tgbotapi.NewDocument(cbq.Message.Chat.ID, tgbotapi.FilePath(filename)))
+	case strings.HasPrefix(cbq.Data, "g:"):
+		return HandleGroupCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, cbq.From.ID, globalStorage, topicId)
 
 	case strings.HasPrefix(cbq.Data, "driver:"):
-		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
+		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage, topicId)
 	case strings.HasPrefix(cbq.Data, "manager:"):
-		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
+		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage, topicId)
 	case strings.HasPrefix(cbq.Data, "sa:"):
 		return HandleSACommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "dev:"):
 		return HandleDevCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "page:"):
 		return HandlePaginationCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
+	case strings.HasPrefix(cbq.Data, "cleaning:"):
+		after, _ := strings.CutPrefix(cbq.Data, "cleaning:")
+		cleaningStationId, driverChatId, _ := strings.Cut(after, ":")
+		sendTo, err := strconv.ParseInt(driverChatId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing driver's chat id (%s) to send to: %v\n", driverChatId, err)
+		}
+
+		cleaningId, err := strconv.Atoi(cleaningStationId)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing cleaning station's id (%s) to send to: %v\n", cleaningStationId, err)
+		}
+
+		c := data_analysis.CleaningStation{Id: cleaningId}
+		err = c.GetById(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting cleaning station by the id: %v\n", err)
+		}
+
+		Bot.Send(tgbotapi.NewMessage(sendTo, config.Translate(config.GetLang(sendTo), "")))
+
 	case strings.HasPrefix(cbq.Data, "shipment:details:"):
 		shipmentIdString, f := strings.CutPrefix(cbq.Data, "shipment:details:")
 		if !f {
@@ -136,7 +160,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		log.Println("cbq from: ", cbq.From)
 		return finishForm(cbq.Message.Chat.ID, inputSesh, globalStorage, cbq.From)
 	case strings.HasPrefix(cbq.Data, "createform:"):
-		err = HandleCommand(cbq.Message.Chat.ID, fmt.Sprintf("/%s", cbq.Data), globalStorage, cbq.From.LanguageCode)
+		err = HandleCommand(cbq.Message.Chat.ID, fmt.Sprintf("/%s", cbq.Data), globalStorage, cbq.From.LanguageCode, topicId)
 	case strings.HasPrefix(cbq.Data, "shipment:accept:"):
 
 		driverSessionsMu.Lock()
@@ -190,7 +214,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:end_shipment"), "shipment:end:"+shipmentIdString)))
 
 		for _, task := range shipment.Tasks {
-			msg.Text += fmt.Sprintf(config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header"), task.Type)
+			msg.Text += fmt.Sprintf(config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header", task.Type))
 			msg.Text += parser.ReadTaskShort(task)
 			markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:start_task")+task.Type, "driver:begintask:"+strconv.Itoa(task.Id))))
 		}
