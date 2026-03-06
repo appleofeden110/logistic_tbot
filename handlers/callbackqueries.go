@@ -111,7 +111,8 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting cleaning station by the id: %v\n", err)
 		}
 
-		Bot.Send(tgbotapi.NewMessage(sendTo, config.Translate(config.GetLang(sendTo), "")))
+		Bot.Send(tgbotapi.NewMessage(sendTo, config.Translate(config.GetLang(sendTo), "cleaning_station:todriver", c.Name, c.Address, c.Country, c.Lat, c.Lon, c.OpeningHours)))
+		Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "manager:cleaning_sent")))
 
 	case strings.HasPrefix(cbq.Data, "shipment:details:"):
 		shipmentIdString, f := strings.CutPrefix(cbq.Data, "shipment:details:")

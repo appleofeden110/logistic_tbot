@@ -96,6 +96,7 @@ func CreateWashingPlacesList(cleaningStations []*data_analysis.CleaningStation, 
 	}
 
 	msg := tgbotapi.NewMessage(chatId, messageText.String())
+	msg.ParseMode = tgbotapi.ModeHTML
 
 	if len(cleaningStations) > 0 {
 		var rows [][]tgbotapi.InlineKeyboardButton
@@ -103,7 +104,7 @@ func CreateWashingPlacesList(cleaningStations []*data_analysis.CleaningStation, 
 		for i := start; i < end; i++ {
 			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
-					config.Translate(config.GetLang(chatId), "", i+1),
+					fmt.Sprintf("#%d", i+1),
 					fmt.Sprintf("cleaning:%d:%d", cleaningStations[i].Id, sendToChatId),
 				),
 			))
@@ -114,14 +115,14 @@ func CreateWashingPlacesList(cleaningStations []*data_analysis.CleaningStation, 
 		if page > 0 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
 				config.Translate(config.GetLang(chatId), "page:prev"),
-				fmt.Sprintf("%s:%d", callbackPrefix, page-1),
+				fmt.Sprintf("%s:%d-%d", callbackPrefix, page-1, sendToChatId),
 			))
 		}
 
 		if page < totalPages-1 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
 				config.Translate(config.GetLang(chatId), "page:next"),
-				fmt.Sprintf("%s:%d", callbackPrefix, page+1),
+				fmt.Sprintf("%s:%d-%d", callbackPrefix, page+1, sendToChatId),
 			))
 		}
 
@@ -165,6 +166,7 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 	}
 
 	msg := tgbotapi.NewMessage(chatId, messageText.String())
+	msg.ParseMode = tgbotapi.ModeHTML
 
 	if len(shipments) > 0 {
 		var rows [][]tgbotapi.InlineKeyboardButton
@@ -210,7 +212,48 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		config.VERY_BAD(chatId, Bot)
 	}
 	switch {
-	case strings.Contains(cmd, "managers:"):
+	case strings.Contains(cmd, "cleaning_stations:"):
+		parts := strings.Split(cmd, ":")
+		if len(parts) < 2 {
+			return fmt.Errorf("invalid pagination callback data")
+		}
+
+		ids := strings.Split(parts[1], "-")
+		if len(parts) < 2 {
+			return fmt.Errorf("ERR: invalid pagination callback data")
+		}
+
+		sendToChatId, err := strconv.ParseInt(ids[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("ERR: invalid send to chat id number: %v", err)
+		}
+		page, err := strconv.Atoi(ids[0])
+		if err != nil {
+			return fmt.Errorf("ERR: invalid page number: %v", err)
+		}
+
+		var cleaningStations []*data_analysis.CleaningStation
+		var callbackPrefix string
+
+		cleaningStations, err = data_analysis.GetAllCleaningStations(globalStorage)
+		callbackPrefix = "page:cleaning_stations"
+		if err != nil {
+			return fmt.Errorf("ERR: getting shipments: %v", err)
+		}
+
+		msg, err := CreateWashingPlacesList(cleaningStations, page, chatId, callbackPrefix, sendToChatId)
+		if err != nil {
+			return fmt.Errorf("ERR: creating message: %v", err)
+		}
+
+		edit := tgbotapi.NewEditMessageText(chatId, msgId, msg.Text)
+		keyboard := msg.ReplyMarkup.(tgbotapi.InlineKeyboardMarkup)
+		edit.ReplyMarkup = &keyboard
+
+		_, err = Bot.Send(edit)
+		if err != nil {
+			return fmt.Errorf("ERR: editing message: %v", err)
+		}
 	case strings.Contains(cmd, "viewall:"):
 		parts := strings.Split(cmd, ":")
 		if len(parts) < 2 {

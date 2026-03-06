@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/config"
+	data_analysis "logistictbot/data-analysis"
 	"logistictbot/db"
 	"logistictbot/docs"
 	"logistictbot/duration"
@@ -117,12 +118,12 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		}
 		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "for_groups_only")))
 		return err
-	case "document":
+	case "docs":
 		if isGroupCmd {
 			g := db.DriverGroup{GroupChatId: chatId}
 			g.FillDocumentTopicId(globalStorage, topicId)
 
-			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "doc_assigned"), topicId))
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "docs_assigned"), topicId))
 			return err
 		}
 		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
@@ -152,7 +153,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		if isGroupCmd {
 			g := db.DriverGroup{GroupChatId: chatId}
 			g.FillTankTopicId(globalStorage, topicId)
-			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_assigned"), topicId))
+			_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "tank_assigned"), topicId))
 			return err
 		}
 		_, err := Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "gotta_be_group")))
@@ -558,13 +559,23 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			return err
 		}
 
+		cleaningStations, err := data_analysis.GetAllCleaningStations(globalStorage)
+		if err != nil {
+			return err
+		}
+
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "only_for_latest"))
 		msg.ParseMode = tgbotapi.ModeHTML
 		managerSessionsMu.Lock()
 		for _, m := range managerSessions {
+			paginationMessage, err := CreateWashingPlacesList(cleaningStations, 0, m.ChatId, "page:cleaning_stations", chatId)
+			if err != nil {
+				return err
+			}
 			washingQuestion := tgbotapi.NewMessage(m.ChatId, config.Translate(config.GetLang(m.ChatId), "washing_question", driverSesh.User.Name, driverSesh.CarId, shipment.ShipmentId))
 			washingQuestion.ParseMode = tgbotapi.ModeHTML
 			Bot.Send(washingQuestion)
+			Bot.Send(paginationMessage)
 		}
 		managerSessionsMu.Unlock()
 		_, err = Bot.Send(msg)
@@ -929,23 +940,28 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 		// gotta be to the one that sent the shipment - gonna be everyone for now
 
-		managers, err := db.GetAllManagers(globalStorage)
+		/*managers, err := db.GetAllManagers(globalStorage)
 		if err != nil {
 			return fmt.Errorf("ERR: getting all the managers: %v\n", err)
+		}*/
+		/*
+			for _, manager := range managers {
+				headerMsg := tgbotapi.NewMessage(manager.ChatId, managerText)
+				headerMsg.ParseMode = tgbotapi.ModeHTML
+				_, err = Bot.Send(headerMsg)
+				if err != nil {
+					return err
+				}*/
+		g := db.DriverGroup{CurrentCar: &db.Car{Id: driverSesh.CarId}}
+
+		err = g.GetDriverGroupByCar(globalStorage)
+		if err != nil {
+			return fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
 		}
 
-		for _, manager := range managers {
-			headerMsg := tgbotapi.NewMessage(manager.ChatId, managerText)
-			headerMsg.ParseMode = tgbotapi.ModeHTML
-			_, err = Bot.Send(headerMsg)
-			if err != nil {
-				return err
-			}
-
-			err = sendDocumentsToManager(manager.ChatId, topicId, docsFiles)
-			if err != nil {
-				return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
-			}
+		err = sendDocumentsToManager(g.GroupChatId, docsFiles, managerText, globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
 		}
 
 		switch task.Type {
