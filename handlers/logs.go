@@ -9,6 +9,30 @@ import (
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
 
+func LogCallBackQuery(cbq *tgbotapi.CallbackQuery) {
+	if cbq == nil {
+		log.Println("Received nil callback query")
+		return
+	}
+	var logLines []string
+	logLines = append(logLines, fmt.Sprintf("CBQ::ID:%s", cbq.ID))
+	if cbq.From != nil {
+		logLines = append(logLines, fmt.Sprintf("From:%s %s(@%s, ID: %d)",
+			cbq.From.FirstName, cbq.From.LastName, cbq.From.UserName, cbq.From.ID))
+	}
+	if cbq.Message != nil {
+		logLines = append(logLines, fmt.Sprintf("ChatID:%d (%s)", cbq.Message.Chat.ID, cbq.Message.Chat.Type))
+		logLines = append(logLines, fmt.Sprintf("MsgID:%d", cbq.Message.MessageID))
+	}
+	if cbq.Data != "" {
+		logLines = append(logLines, fmt.Sprintf("Data:%s", cbq.Data))
+	}
+	if cbq.InlineMessageID != "" {
+		logLines = append(logLines, fmt.Sprintf("InlineMsgID:%s", cbq.InlineMessageID))
+	}
+	config.WriteLogs(strings.Join(logLines, " | "))
+}
+
 func LogTelegramMessage(msg *tgbotapi.Message) {
 	if msg == nil {
 		log.Println("Received nil message")

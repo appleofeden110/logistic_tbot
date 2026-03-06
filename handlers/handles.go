@@ -75,6 +75,8 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 		}
 
 	case update.CallbackQuery != nil:
+
+		LogCallBackQuery(update.CallbackQuery)
 		return HandleCallbackQuery(update.CallbackQuery, globalStorage)
 	default:
 		err = fmt.Errorf("wrong type of update")
