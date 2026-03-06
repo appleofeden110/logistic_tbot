@@ -6,7 +6,7 @@ import (
 	"logistictbot/config"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
 
 func LogTelegramMessage(msg *tgbotapi.Message) {

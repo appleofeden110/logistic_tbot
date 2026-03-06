@@ -10,8 +10,15 @@ import (
 	"logistictbot/docs"
 	"logistictbot/tracking"
 	"strings"
+	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
+)
+
+var (
+	tasks = make(map[int64]int64)
+
+	now time.Time
 )
 
 func Check(err error, print bool, message ...string) bool {
@@ -40,7 +47,6 @@ func ReceiveUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel, global
 
 func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 	var err error
-	//NewChatAction()
 
 	switch {
 	case update.Message != nil:
@@ -50,8 +56,6 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 	case update.EditedMessage != nil:
 		if update.EditedMessage.Location != nil {
 			loc := update.EditedMessage.Location
-
-			log.Println("2:", loc.LivePeriod)
 
 			trackingSessionsMutex.Lock()
 			if session, exists := trackingSessions[update.EditedMessage.Chat.ID]; exists {
@@ -86,10 +90,12 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	text := msg.Text
 	log.Println("message: ", msg.From.ID, msg.MessageThreadID)
 
+	log.Println("message: 1")
 	if user == nil {
 		return fmt.Errorf("How is user not there?: %v\n", user)
 	}
 
+	log.Println("message: 2")
 	config.UsersLanguagesMu.RLock()
 	_, ok := config.UsersLanguages[msg.Chat.ID]
 	config.UsersLanguagesMu.RUnlock()
@@ -97,36 +103,44 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	if !ok {
 		config.SetUserLang(user.ID, config.LangCode(user.LanguageCode))
 	}
+	log.Println("message: 3")
 	log.Printf("%s(%d - %s - %d) wrote %s. msg id: %d", user.FirstName, user.ID, user.LanguageCode, msg.Chat.ID, text, id)
 
 	inputMu.Lock()
 	state, isWaitingForInput := waitingForInput[msg.From.ID]
 	inputMu.Unlock()
 
+	log.Println("message: 3")
 	managerSessionsMu.Lock()
 	managerSesh, isManagerSesh := managerSessions[msg.From.ID]
 	managerSessionsMu.Unlock()
 
+	log.Println("message: 3")
 	driverSessionsMu.Lock()
 	driverSesh, isDriverSesh := driverSessions[msg.From.ID]
 	driverSessionsMu.Unlock()
 
+	log.Println("message: 3")
 	devSessionMu.Lock()
 	devSesh, isDev := devSession[msg.From.ID]
 	devSessionMu.Unlock()
 
+	log.Println("message: 3")
 	if isDriverSesh {
-		driverSesh, err = HandleDriverInputState(driverSesh, msg, globalStorage, msg.MessageThreadID)
+		driverSesh, err = HandleDriverInputState(driverSesh, msg, globalStorage)
 	}
 
+	log.Println("message: 3")
 	if isManagerSesh {
-		managerSesh, err = HandleManagerInputState(managerSesh, msg, globalStorage, msg.MessageThreadID)
+		managerSesh, err = HandleManagerInputState(managerSesh, msg, globalStorage)
 	}
 
+	log.Println("message: 3")
 	if isWaitingForInput {
 		return HandleFormInput(msg.From.ID, msg.Text, state, globalStorage, user)
 	}
 
+	log.Println("message: 3")
 	if isDev {
 		switch {
 		case msg.Document != nil && msg.Document.MimeType == string(docs.MimeTextCSV):
@@ -135,10 +149,12 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 		}
 	}
 
+	log.Println("message: 3")
 	if strings.HasPrefix(msg.Text, "/") {
 		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage, msg.From.LanguageCode, msg.MessageThreadID)
 	}
 
+	log.Println("message: 3")
 	return err
 }
 

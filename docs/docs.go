@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
 
 var (
@@ -30,17 +30,17 @@ type File struct {
 
 func (f *File) StoreFile(globalStorage *sql.DB) error {
 	query := `
-	INSERT INTO files 
+	INSERT INTO files
 		(
 		telegram_file_id,
-		from_chat_id, 
-		name, 
-		original_name, 	
-		path, 
-		filetype, 
-		mimetype, 
+		from_chat_id,
+		name,
+		original_name,
+		path,
+		filetype,
+		mimetype,
 		created_at
-	) 
+	)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	result, err := globalStorage.Exec(
@@ -171,7 +171,7 @@ func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) 
 
 func (f *File) AttachFileToTask(globalStorage *sql.DB, taskId int) error {
 	query := `INSERT INTO task_docs
-	(file_id, task_id) 
+	(file_id, task_id)
 	VALUES (?, ?)`
 
 	result, err := globalStorage.Exec(

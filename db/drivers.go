@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 	"github.com/gofrs/uuid"
 	"github.com/tiendc/go-deepcopy"
 )
@@ -74,7 +74,7 @@ type Driver struct {
 
 func SetAllDriversToDormant(db DBExecutor) error {
 	query := `
-		UPDATE drivers 
+		UPDATE drivers
 		SET state = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE state != ?
 	`
@@ -120,7 +120,7 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	d.Id = id
 
 	stmt, err := db.Prepare(`
-		INSERT INTO drivers (id, user_id, chat_id) 
+		INSERT INTO drivers (id, user_id, chat_id)
 		VALUES (?, ?, ?)
 	`)
 	if err != nil {
@@ -134,8 +134,8 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	}
 
 	updateStmt, err := db.Prepare(`
-		UPDATE users 
-		SET driver_id = ?, updated_at = CURRENT_TIMESTAMP 
+		UPDATE users
+		SET driver_id = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`)
 	if err != nil {
@@ -181,8 +181,8 @@ func (d *Driver) SetPerformingTask(globalStorage *sql.DB) error {
 
 func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
 	query := `
-		UPDATE drivers 
-		SET performing_task_id = NULL 
+		UPDATE drivers
+		SET performing_task_id = NULL
 		WHERE id = ?
 	`
 
@@ -219,7 +219,7 @@ func (d *Driver) ChangeDriverStatus(globalStorage *sql.DB) error {
 
 func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 	query := `
-		SELECT 
+		SELECT
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state,
 			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag, u.lang
 		FROM drivers d
@@ -277,7 +277,7 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 
 func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 	query := `
-		SELECT 
+		SELECT
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
 			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag, u.lang
 		FROM drivers d
@@ -340,7 +340,7 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 
 func GetAllDrivers(db DBExecutor) ([]*Driver, error) {
 	query := `
-		SELECT 
+		SELECT
 			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
 		u.id, u.chat_id, u.tg_tag, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.lang
 		FROM drivers d
@@ -418,8 +418,8 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 	var txErr error
 
 	stmtDriver, err := db.Prepare(`
-		UPDATE drivers 
-		SET car_id = ?, updated_at = CURRENT_TIMESTAMP 
+		UPDATE drivers
+		SET car_id = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`)
 	if err != nil {
@@ -499,7 +499,7 @@ func (d *Driver) UnpauseSession(db DBExecutor) (*DriverSession, error) {
 
 	query := `
 		INSERT INTO drivers_sessions
-		(driver_id, starting_kilometrage)  
+		(driver_id, starting_kilometrage)
 		VALUES (?, ?)
 	`
 
@@ -565,8 +565,8 @@ func (d *Driver) GetLastActiveSession(db DBExecutor) (*DriverSession, error) {
 		       kilometrage_accumulated, starting_kilometrage, end_kilometrage
 		FROM drivers_sessions
 		WHERE id = (
-			SELECT MAX(id) 
-			FROM drivers_sessions 
+			SELECT MAX(id)
+			FROM drivers_sessions
 			WHERE driver_id = ? AND paused IS NULL
 		)
 	`
@@ -648,8 +648,8 @@ func (d *Driver) PauseSession(db DBExecutor) (*DriverSession, error) {
 	}
 
 	sessionToPauseQuery := `
-		SELECT MAX(id) 
-		FROM drivers_sessions 
+		SELECT MAX(id)
+		FROM drivers_sessions
 		WHERE driver_id = ? AND paused IS NULL
 	`
 
@@ -672,13 +672,13 @@ func (d *Driver) PauseSession(db DBExecutor) (*DriverSession, error) {
 
 	query := `
 		UPDATE drivers_sessions
-		SET paused = CURRENT_TIMESTAMP, 
-			worktime = ?, 
-			drivetime = ?, 
+		SET paused = CURRENT_TIMESTAMP,
+			worktime = ?,
+			drivetime = ?,
 			pausetime = ?,
 			kilometrage_accumulated = ?,
 			end_kilometrage = ?
-		WHERE id = ? 
+		WHERE id = ?
 	`
 
 	// before that, km should be updated on the cars table

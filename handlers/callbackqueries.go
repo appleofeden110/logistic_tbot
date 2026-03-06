@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 	"github.com/gofrs/uuid"
 )
 
@@ -83,9 +83,9 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		return HandleGroupCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, cbq.From.ID, globalStorage, topicId)
 
 	case strings.HasPrefix(cbq.Data, "driver:"):
-		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage, topicId)
+		return HandleDriverCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "manager:"):
-		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage, topicId)
+		return HandleManagerCommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "sa:"):
 		return HandleSACommands(cbq.Message.Chat.ID, cbq.Data, cbq.Message.MessageID, globalStorage)
 	case strings.HasPrefix(cbq.Data, "dev:"):

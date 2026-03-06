@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
 
 func HandleGroupCommands(chatId int64, command string, messageId int, fromId int64, globalStorage *sql.DB, topicId int) error {

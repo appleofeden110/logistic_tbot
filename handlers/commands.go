@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 	"github.com/gofrs/uuid"
 )
 
@@ -231,7 +231,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 	}
 	return nil
 }
-func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB, topicId int) error {
+func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	cmd, f := strings.CutPrefix(command, "manager:")
 	if !f {
 		return fmt.Errorf("ERR: not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
@@ -400,7 +400,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 	return nil
 }
 
-func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB, topicId int) (updatedSession *db.Manager, err error) {
+func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
 	fmt.Printf("Manager manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
 	switch manager.State {
 	case db.StateWaitingDoc:
@@ -524,7 +524,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 	return manager, err
 }
 
-func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB, topicId int) error {
+func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
 	var cmd string
 	var f bool
 
@@ -716,7 +716,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 
 			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
-				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage, topicId)
+				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
 			default:
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
@@ -1145,7 +1145,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	return nil
 }
 
-func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB, topicId int) (*db.Driver, error) {
+func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB) (*db.Driver, error) {
 	var err error
 	log.Printf("Driver driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 
@@ -1281,7 +1281,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					if len(msgs) > 0 {
 						Bot.Send(tgbotapi.NewMessage(
 							msg.Chat.ID,
-							fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached"), len(msgs)),
+							fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs))),
 						))
 					}
 				}(msg.MediaGroupID, task.Id)
@@ -1470,7 +1470,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		}
 
-		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage, topicId)
+		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage)
 
 		return driver, err
 
@@ -1507,7 +1507,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if kmAccum < 0 {
 				message, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Новий кілометраж менше за ваш старий, спробуйте ще раз"))
 				log.Printf("Trying to end the day again\n\tendDayerr: %v\n\tbotSendErr: %v\n\n",
-					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage, topicId),
+					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage),
 					err,
 				)
 				return driver, nil
