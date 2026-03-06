@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
@@ -62,11 +63,47 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 		Diesel:             diesel,
 		AdBlu:              adBlu,
 		Driver:             driverSesh,
+		CarId:              driverSesh.CarId,
 	}
 
 	if err := refuel.StoreTankRefuel(storage); err != nil {
 		return fmt.Errorf("ERR: storing refuel: %w", err)
 	}
+
+	fc, err := db.GetFuelCardById(storage, chosenFuelCardId)
+	if err != nil {
+		return fmt.Errorf("ERR: getting fuel card by id: %v\n", err)
+	}
+
+	var countryName string
+	country, found := parser.ExtractCountry(refuel.Address)
+	if !found {
+		countryName = country.Name + country.Emoji
+	}
+
+	g := db.DriverGroup{
+		CurrentCar: &db.Car{Id: driverSesh.CarId},
+	}
+	err = g.GetDriverGroupByCar(storage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting driver's group by car for tank refuels: %v\n", err)
+	}
+
+	_, err = bot.Send(tgbotapi.NewMessage(g.GroupChatId,
+		config.Translate(
+			config.GetLang(f.ChatID),
+			"tank_format",
+			time.Now().Format("02.01.2006"),
+			shipment.ShipmentId,
+			fc.Name,
+			refuel.CurrentKilometrage,
+			refuel.Diesel,
+			refuel.AdBlu,
+			refuel.Address,
+			countryName,
+		), g.TankTopicId))
+
+	log.Println("Trying to send tank refuel message to "+strconv.Itoa(g.TankTopicId)+strconv.Itoa(int(g.GroupChatId))+", err: ", err)
 
 	_, err = bot.Send(tgbotapi.NewMessage(f.ChatID, config.Translate(config.GetLang(f.ChatID), "refuel_saved")))
 	return err

@@ -146,6 +146,7 @@
   "form:driver": "<b>Driver registration form.</b>",
   "form:manager": "<b>Manager registration form.</b>",
 
+  "tank_format": "Tank %s\nShipment  %d\n%s\n\n%dkm\n\nDiesel\n%.2fL\nAdblu\n%.2fL\n\n\n%s,\n%s",
   "gotta_be_group": "Must be in a group, and inside the subgroup where you want to assign the corresponding topic (subgroups: Tank, Document, Loading or Photo)",
   "car_question_g": "Assign which car belongs to this group",
   "for_groups_only": "This command is only for groups, it will not work in individual chats",

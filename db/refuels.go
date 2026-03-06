@@ -26,12 +26,13 @@ type TankRefuel struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Driver             *Driver
+	CarId              string
 }
 
 func (t *TankRefuel) StoreTankRefuel(db DBExecutor) error {
 	stmt, err := db.Prepare(`
-		INSERT INTO tank_refuels (shipment_id, fuel_card_id, driver_id, current_kilometrage, address, diesel, adblu, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO tank_refuels (shipment_id, fuel_card_id, driver_id, current_kilometrage, address, diesel, adblu, created_at, car_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
 	`)
 	if err != nil {
 		return fmt.Errorf("ERR: preparing statement for insert tank_refuel: %w", err)
@@ -51,6 +52,7 @@ func (t *TankRefuel) StoreTankRefuel(db DBExecutor) error {
 		t.Address,
 		t.Diesel,
 		t.AdBlu,
+		t.CarId,
 	)
 	if err != nil {
 		return fmt.Errorf("ERR: executing insert tank_refuel stmt: %w", err)
@@ -77,8 +79,9 @@ func GetAllTankRefuels(db DBExecutor) ([]TankRefuel, error) {
 			tr.diesel,
 			tr.adblu,
 			tr.created_at,
+			tr.car_id,
 			COALESCE(tr.updated_at, tr.created_at),
-			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id
+			d.id, d.user_id,  d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id
 		FROM tank_refuels tr
 		JOIN fuel_cards fc ON fc.id = tr.fuel_card_id
 		JOIN drivers    d  ON d.id  = tr.driver_id
@@ -104,8 +107,9 @@ func GetTankRefuelsByDriver(db DBExecutor, driverID uuid.UUID) ([]TankRefuel, er
 			tr.diesel,
 			tr.adblu,
 			tr.created_at,
+			tr.car_id,
 			COALESCE(tr.updated_at, tr.created_at),
-			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id
+			d.id, d.user_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id
 		FROM tank_refuels tr
 		JOIN fuel_cards fc ON fc.id = tr.fuel_card_id
 		JOIN drivers    d  ON d.id  = tr.driver_id
@@ -142,6 +146,15 @@ func GetAllFuelCards(db DBExecutor) ([]FuelCard, error) {
 	return cards, nil
 }
 
+func GetFuelCardById(db DBExecutor, id int) (*FuelCard, error) {
+	fc := new(FuelCard)
+	row := db.QueryRow(`SELECT id, name FROM fuel_cards WHERE id = ?`, id)
+	if err := row.Scan(&fc.Id, &fc.Name); err != nil {
+		return nil, fmt.Errorf("ERR: scanning fuel_card row: %w", err)
+	}
+	return fc, nil
+}
+
 func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 	var refuels []TankRefuel
 
@@ -167,10 +180,10 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 			&r.Diesel,
 			&r.AdBlu,
 			&r.CreatedAt,
+			&carIdStr,
 			&updatedAtStr, // was &r.UpdatedAt
 			&driverIdStr,
 			&userIdStr,
-			&carIdStr,
 			&d.CreatedAt,
 			&d.UpdatedAt,
 			&d.ChatId,
@@ -214,7 +227,7 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 			return nil, fmt.Errorf("ERR: parsing user id in tank_refuel scan: %w", err)
 		}
 		if carIdStr.Valid {
-			d.CarId = carIdStr.String
+			r.CarId = carIdStr.String
 		}
 		if taskId.Valid {
 			d.PerformedTaskId = int(taskId.Int64)

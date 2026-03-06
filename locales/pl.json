@@ -11,6 +11,7 @@
 
   "notes_from_manager": "\n\nNotatki od logistyka:\n\n",
 
+  "tank_format": "Tank %s\nShipment  %d\n%s\n\n%dkm\n\nDiesel\n%.2fL\nAdblu\n%.2fL\n\n\n%s,\n%s",
   "shipment_already_started": "Ta trasa już została rozpoczęta",
   "shipment_has_not_started": "Ta trasa jeszcze się nie rozpoczęła, nie można jej zakończyć",
   "shipment_already_ended": "Ta trasa została już zakończona",
