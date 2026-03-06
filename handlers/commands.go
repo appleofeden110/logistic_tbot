@@ -401,7 +401,7 @@ func HandleManagerCommands(chatId int64, command string, messageId int, globalSt
 }
 
 func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
-	fmt.Printf("Manager manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
+	log.Printf("Manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
 	switch manager.State {
 	case db.StateWaitingDoc:
 		if msg.Document != nil {
@@ -1147,7 +1147,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB) (*db.Driver, error) {
 	var err error
-	log.Printf("Driver driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
+	log.Printf("Driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 
 	switch driver.State {
 	case db.StateWritingToManager:

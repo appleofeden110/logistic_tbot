@@ -40,7 +40,7 @@ func LogTelegramMessage(msg *tgbotapi.Message) {
 			msg.Document.FileName, msg.Document.MimeType, msg.Document.FileSize))
 	}
 
-	if msg.Photo != nil && len(msg.Photo) > 0 {
+	if len(msg.Photo) > 0 {
 		p := msg.Photo[len(msg.Photo)-1]
 		logLines = append(logLines, fmt.Sprintf("Photo:%dx%d (%d bytes)", p.Width, p.Height, p.FileSize))
 	}
@@ -65,7 +65,7 @@ func determineMessageType(msg *tgbotapi.Message) string {
 	if msg.Document != nil {
 		return "DOC"
 	}
-	if msg.Photo != nil && len(msg.Photo) > 0 {
+	if len(msg.Photo) > 0 {
 		if msg.MediaGroupID != "" {
 			return "PHOTO(Group)"
 		}
