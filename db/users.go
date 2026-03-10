@@ -10,25 +10,30 @@ import (
 )
 
 type Role string
+type SARole rune
 
 const (
 	RoleSuperAdmin Role = "СуперАдмін"
 	RoleManager    Role = "Менеджер"
 	RoleDriver     Role = "Водій"
 	NoRole         Role = "no_role"
+
+	SARoleManager SARole = 'm'
+	SARoleDriver  SARole = 'd'
 )
 
 type User struct {
-	Id           uuid.UUID `db:"id"`
-	ChatId       int64     `db:"chat_id"`
-	Name         string    `db:"name" form:"form:q:name"`
-	TgTag        string    `db:"tg_tag"`
-	DriverId     uuid.UUID `db:"driver_id"`
-	ManagerId    uuid.UUID `db:"manager_id"`
-	IsSuperAdmin bool      `db:"is_super_admin"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
-	Language     string    `db:"language"` // needs to be either ua/pl/en
+	Id             uuid.UUID `db:"id"`
+	ChatId         int64     `db:"chat_id"`
+	Name           string    `db:"name" form:"form:q:name"`
+	TgTag          string    `db:"tg_tag"`
+	DriverId       uuid.UUID `db:"driver_id"`
+	ManagerId      uuid.UUID `db:"manager_id"`
+	IsSuperAdmin   bool      `db:"is_super_admin"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
+	Language       string    `db:"language"` // needs to be either uk/pl/en
+	SuperAdminRole SARole    `db:"super_admin_role"`
 }
 
 func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
@@ -43,7 +48,8 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			updated_at,
 			is_super_admin,
 			tg_tag,
-			lang
+			lang,
+			super_admin_role
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -58,7 +64,7 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 
 	for rows.Next() {
 		var user User
-		var driverIdNull, managerIdNull, tgTagNull sql.NullString
+		var driverIdNull, managerIdNull, tgTagNull, superAdminRoleNull sql.NullString
 
 		err := rows.Scan(
 			&user.Id,
@@ -71,12 +77,12 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			&user.IsSuperAdmin,
 			&tgTagNull,
 			&user.Language,
+			&superAdminRoleNull,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ERR: scanning user row: %v\n", err)
 		}
 
-		// Handle driver_id
 		if driverIdNull.Valid {
 			driverId, err := uuid.FromString(driverIdNull.String)
 			if err != nil {
@@ -87,7 +93,6 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			user.DriverId = uuid.Nil
 		}
 
-		// Handle manager_id
 		if managerIdNull.Valid {
 			managerId, err := uuid.FromString(managerIdNull.String)
 			if err != nil {
@@ -98,11 +103,16 @@ func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 			user.ManagerId = uuid.Nil
 		}
 
-		// Handle tg_tag
 		if tgTagNull.Valid {
 			user.TgTag = tgTagNull.String
 		} else {
 			user.TgTag = ""
+		}
+
+		if superAdminRoleNull.Valid && len(superAdminRoleNull.String) > 0 {
+			user.SuperAdminRole = SARole(rune(superAdminRoleNull.String[0]))
+		} else {
+			user.SuperAdminRole = 0
 		}
 
 		users = append(users, &user)
@@ -121,8 +131,74 @@ func (u *User) UpdateUserLang(globalStorage *sql.DB) error {
 }
 
 func (u *User) GetUserById(globalStorage *sql.DB) error {
-	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang FROM users WHERE id = ?", u.Id)
-	var driverIdNull, managerIdNull, tgTagNull sql.NullString
+	row := globalStorage.QueryRow(`
+		SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang, super_admin_role
+		FROM users WHERE id = ?`, u.Id)
+
+	var driverIdNull, managerIdNull, tgTagNull, superAdminRoleNull sql.NullString
+
+	err := row.Scan(
+		&u.Id,
+		&u.ChatId,
+		&u.Name,
+		&driverIdNull,
+		&managerIdNull,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&u.IsSuperAdmin,
+		&tgTagNull,
+		&u.Language,
+		&superAdminRoleNull,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return sql.ErrNoRows
+		}
+		return fmt.Errorf("ERR: scanning user: %w", err)
+	}
+
+	if driverIdNull.Valid {
+		driverId, err := uuid.FromString(driverIdNull.String)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing driver_id: %w", err)
+		}
+		u.DriverId = driverId
+	} else {
+		u.DriverId = uuid.Nil
+	}
+
+	if managerIdNull.Valid {
+		managerId, err := uuid.FromString(managerIdNull.String)
+		if err != nil {
+			return fmt.Errorf("ERR: parsing manager_id: %w", err)
+		}
+		u.ManagerId = managerId
+	} else {
+		u.ManagerId = uuid.Nil
+	}
+
+	if tgTagNull.Valid {
+		u.TgTag = tgTagNull.String
+	} else {
+		u.TgTag = ""
+	}
+
+	if superAdminRoleNull.Valid && len(superAdminRoleNull.String) > 0 {
+		u.SuperAdminRole = SARole(rune(superAdminRoleNull.String[0]))
+	} else {
+		u.SuperAdminRole = 0
+	}
+
+	return nil
+}
+
+func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
+	row := globalStorage.QueryRow(`
+		SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang, super_admin_role
+		FROM users WHERE chat_id = ?`, u.ChatId)
+
+	var driverIdNull, managerIdNull, tgTagNull, superAdminRoleNull sql.NullString
+
 	err := row.Scan(
 		&u.Id,
 		&u.ChatId,
@@ -134,55 +210,7 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 		&u.IsSuperAdmin,
 		&tgTagNull,
 		&u.Language,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return sql.ErrNoRows
-		}
-		return fmt.Errorf("ERR: scanning user: %w", err)
-	}
-	if driverIdNull.Valid {
-		driverId, err := uuid.FromString(driverIdNull.String)
-		if err != nil {
-			return fmt.Errorf("ERR: parsing driver_id: %w", err)
-		}
-		u.DriverId = driverId
-	} else {
-		u.DriverId = uuid.Nil
-	}
-	if managerIdNull.Valid {
-		managerId, err := uuid.FromString(managerIdNull.String)
-		if err != nil {
-			return fmt.Errorf("ERR: parsing manager_id: %w", err)
-		}
-		u.ManagerId = managerId
-	} else {
-		u.ManagerId = uuid.Nil
-	}
-	if tgTagNull.Valid {
-		u.TgTag = tgTagNull.String
-	} else {
-		u.TgTag = ""
-	}
-	return nil
-}
-
-func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
-	row := globalStorage.QueryRow("SELECT id, chat_id, name, driver_id, manager_id, created_at, updated_at, is_super_admin, tg_tag, lang FROM users WHERE chat_id = ?", u.ChatId)
-
-	var driverIdNull, managerIdNull, tgTagNull sql.NullString
-
-	err := row.Scan(
-		&u.Id,
-		&u.ChatId,
-		&u.Name,
-		&driverIdNull,
-		&managerIdNull,
-		&u.CreatedAt,
-		&u.UpdatedAt,
-		&u.IsSuperAdmin,
-		&tgTagNull,
-		&u.Language,
+		&superAdminRoleNull,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -217,10 +245,16 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 		u.TgTag = ""
 	}
 
+	if superAdminRoleNull.Valid && len(superAdminRoleNull.String) > 0 {
+		u.SuperAdminRole = SARole(rune(superAdminRoleNull.String[0]))
+	} else {
+		u.SuperAdminRole = 0
+	}
+
 	return nil
 }
 
-// User storage
+// StoreUser stores a new user in the database.
 func (u *User) StoreUser(db DBExecutor) error {
 	tx, ok := db.(*sql.Tx)
 	var txErr error
@@ -257,4 +291,52 @@ func (u *User) StoreUser(db DBExecutor) error {
 
 	u.Id = id
 	return nil
+}
+
+// SetSuperAdminRole sets the super_admin_role for a user.
+// Pass role=0 to set it to NULL.
+// Only works if the user is a super admin.
+func (u *User) SetSuperAdminRole(globalStorage *sql.DB, role SARole) error {
+	if !u.IsSuperAdmin {
+		return fmt.Errorf("ERR: user %v is not a super admin", u.Id)
+	}
+
+	var err error
+	if role == 0 {
+		_, err = globalStorage.Exec(
+			"UPDATE users SET super_admin_role = NULL WHERE id = ?",
+			u.Id,
+		)
+	} else {
+		_, err = globalStorage.Exec(
+			"UPDATE users SET super_admin_role = ? WHERE id = ?",
+			string(rune(role)), u.Id,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("ERR: updating super_admin_role: %w", err)
+	}
+
+	u.SuperAdminRole = role
+	return nil
+}
+
+// ToggleSuperAdminRole switches between SARoleManager ('m') and SARoleDriver ('d').
+// Only works if the user is a super admin and already has a role set.
+func (u *User) ToggleSuperAdminRole(globalStorage *sql.DB) error {
+	if !u.IsSuperAdmin {
+		return fmt.Errorf("ERR: user %v is not a super admin", u.Id)
+	}
+
+	var newRole SARole
+	switch u.SuperAdminRole {
+	case SARoleManager:
+		newRole = SARoleDriver
+	case SARoleDriver:
+		newRole = SARoleManager
+	default:
+		return fmt.Errorf("ERR: user has no super_admin_role set, use SetSuperAdminRole first")
+	}
+
+	return u.SetSuperAdminRole(globalStorage, newRole)
 }

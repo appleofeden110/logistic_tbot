@@ -125,6 +125,9 @@
 
   "refuel_saved": "✅ Заправку збережено!",
 
+  "btn:switch_to_driver": "Переключитись на водія",
+  "btn:switch_to_manager": "Переключитись на менеджера",
+  "btn:add_car": "Додати автомобіль",
   "btn:reply": "Відповісти",
   "btn:request_cleaning": "Попросити адресу мийні",
   "btn:writeback": "Написати знову",

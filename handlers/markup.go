@@ -57,6 +57,60 @@ func DriverStartMarkupWorking(lang config.LangCode) tgbotapi.InlineKeyboardMarku
 	)
 }
 
+func SuperAdminMarkupManager(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:active_routes"), "manager:viewactive"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:all_routes"), "manager:viewall"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:create_route"), "manager:create"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:driver_list"), "manager:viewdrivers"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:route_report"), "manager:mstmt"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:refuel_report"), "manager:mrefuel"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_driver"), "manager:sendmessage"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(lang, "btn:switch_to_driver"), "sa:switch_to_driver"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(lang, "btn:add_car"), "sa:add_car"),
+		),
+	)
+}
+func SuperAdminMarkupDriver(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:active_routes"), "driver:viewactive"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:all_routes"), "driver:viewall"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:report_refuel"), "driver:refuel"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:write_manager"), "driver:sendmessage"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.LangCode(lang), "btn:request_cleaning"), "driver:washing"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(lang, "btn:switch_to_manager"), "sa:switch_to_manager"),
+		),
+	)
+}
+
 func ManagerStartMarkup(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(

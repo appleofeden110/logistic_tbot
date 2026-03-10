@@ -116,6 +116,9 @@
   "refuel_saved": "✅ Refueling saved!",
 
   "btn:reply": "Reply",
+  "btn:switch_to_driver": "Switch to driver",
+  "btn:switch_to_manager": "Switch to manager",
+  "btn:add_car": "Add a car",
   "btn:request_cleaning": "Request cleaning station address",
   "btn:writeback": "Write again",
   "btn:approve": "Approve",

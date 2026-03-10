@@ -117,6 +117,9 @@
   "refuel_saved": "✅ Tankowanie zapisane!",
 
   "btn:reply": "Odpowiedz",
+  "btn:switch_to_driver": "Przełącz na kierowcę",
+  "btn:add_car": "Dodaj samochód",
+  "btn:switch_to_manager": "Przełącz na menedżera",
   "btn:request_cleaning": "Poproś o adres myjni",
   "btn:writeback": "Napisz ponownie",
   "btn:approve": "Zatwierdź",

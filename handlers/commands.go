@@ -191,12 +191,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
-	case "add_car":
-		c := db.Car{}
-		err := createForm(chatId, c, FormAddCar(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:add_car"), "adding a car to the db (ONLY SA)")
-		if err != nil {
-			return err
-		}
+
 	case "createform:driver_registration":
 		d := db.Driver{User: &db.User{ChatId: chatId}}
 		err := createForm(chatId, d, FormDriver(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:driver"), "driver's registration")
@@ -540,7 +535,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		cmd = cmdString
 	}
 
-	log.Println(cmd)
 	driverSessionsMu.Lock()
 	driverSesh, exists := driverSessions[chatId]
 	driverSessionsMu.Unlock()
@@ -823,14 +817,14 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:send_docs"), "driver:send_docs"),
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:back"), "driver:back"),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:back"), "driver:back:docs"),
 			),
 		)
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
 
-	case "back":
+	case "back:pics":
 		taskSessionsMu.Lock()
 		task, exists := taskSessions[driverSesh.Id]
 		taskSessionsMu.Unlock()
@@ -841,7 +835,82 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 			//config.VERY_BAD(chatId, Bot)
 		}
 
-		err := docs.DeleteFilesAttachedToTask(globalStorage, task.Id)
+		err := docs.DeletePicturesAttachedToTask(globalStorage, task.Id)
+		if err != nil {
+			return fmt.Errorf("ERR: deleting any attached fils: %v\n", err)
+		}
+
+		switch task.Type {
+		case parser.TaskLoad:
+			driverSesh.State = db.StateLoad
+		case parser.TaskUnload:
+			driverSesh.State = db.StateUnload
+		case parser.TaskCollect:
+			driverSesh.State = db.StateCollect
+		case parser.TaskDropoff:
+			driverSesh.State = db.StateDropoff
+		case parser.TaskCleaning:
+			driverSesh.State = db.StateCleaning
+		default:
+			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
+		}
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return err
+		}
+
+		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting shipment to display task: %v\n", err)
+		}
+
+		country, _ := parser.ExtractCountry(task.Address)
+
+		startTaskMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(TaskSubmissionFormatText,
+			task.ShipmentId,
+			strings.ToUpper(task.Type),
+			shipment.Chassis,
+			shipment.Container,
+			time.Now().Format("02.01.2006"),
+			task.Start.Format("15:04"),
+			"",
+			db.FormatKilometrage(int(task.CurrentKilometrage)),
+			task.Address,
+			country.Name,
+			country.Emoji,
+			0,
+			0.00),
+		)
+		startTaskMsg.ParseMode = tgbotapi.ModeHTML
+
+		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_docstotask"), fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_picstotask"), fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
+			),
+		)
+
+		_, err = Bot.Send(startTaskMsg)
+		return err
+
+	case "back:docs":
+		taskSessionsMu.Lock()
+		task, exists := taskSessions[driverSesh.Id]
+		taskSessionsMu.Unlock()
+
+		if !exists {
+			log.Println("ERR: task does not exists when it needs to")
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_taskdone")))
+			//config.VERY_BAD(chatId, Bot)
+		}
+
+		err := docs.DeleteDocumentsAttachedToTask(globalStorage, task.Id)
 		if err != nil {
 			return fmt.Errorf("ERR: deleting any attached fils: %v\n", err)
 		}
@@ -989,7 +1058,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		}
 
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:attach_pic"))
-		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:send_pics"), "driver:send_pics")))
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:send_pics"), "driver:send_pics"),
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:back"), "driver:back:pics"),
+			),
+		)
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
 		return err
@@ -1647,16 +1721,48 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 		return fmt.Errorf("command is incorrect: %v\n", command)
 	}
 
-	managerSessionsMu.Lock()
-	_, exists := managerSessions[chatId]
-	managerSessionsMu.Unlock()
+	/*	managerSessionsMu.Lock()
+		saManager, exists := managerSessions[chatId]
+		managerSessionsMu.Unlock()
 
-	if !exists {
-		return fmt.Errorf("not a manager session, register")
+		if !exists {
+			return fmt.Errorf("not a manager session, register")
+		}
+	*/
+
+	u := new(db.User)
+	u.ChatId = chatId
+
+	err := u.GetUserByChatId(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting the user: %v\n", err)
 	}
 
+	if !u.IsSuperAdmin {
+		return fmt.Errorf("ERR: user (chat_id: %d) is not a superadmin\n", u.ChatId)
+	}
 	cmd, _idString, _ := strings.Cut(a, ":")
 	switch cmd {
+	case "switch_to_manager":
+		err = u.ToggleSuperAdminRole(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: toggling switch for sa: %v\n", err)
+		}
+
+		return HandleMenu(chatId, globalStorage, u)
+	case "switch_to_driver":
+		err = u.ToggleSuperAdminRole(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: toggling switch for sa: %v\n", err)
+		}
+
+		return HandleMenu(chatId, globalStorage, u)
+	case "add_car":
+		c := db.Car{}
+		err := createForm(chatId, c, FormAddCar(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:add_car"), "adding a car to the db (ONLY SA)")
+		if err != nil {
+			return err
+		}
 	case "approve":
 		approvedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {
@@ -1941,6 +2047,24 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 func HandleStart(chatId int64, globalStorage *sql.DB, user *db.User) error {
 	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"))
 
+	isGroup := false
+	if strings.Contains(strconv.Itoa(int(chatId)), "-100") {
+		isGroup = true
+	}
+
+	if isGroup {
+		groupMsg := tgbotapi.NewMessage(chatId, "⚠️ Цей бот націлений на роботу в індивідуальному чаті тільки, натисніть кнопку нижче що б перейти до основної робочої зони\n\n⚠️ This bot is designed to work in individual chat only, click the button below to go to the main workspace\n\n⚠️ Ten bot jest przeznaczony wyłącznie do pracy w czacie indywidualnym, kliknij przycisk poniżej, aby przejść do głównego obszaru roboczego")
+		groupMsg.ParseMode = tgbotapi.ModeHTML
+		groupMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonURL("Bot Chat", "t.me/logistictbot"),
+			),
+		)
+
+		_, err := Bot.Send(groupMsg)
+		return err
+	}
+
 	if user == nil {
 		msg.Text += config.Translate(config.GetLang(chatId), "register")
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -1984,6 +2108,10 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		role = db.RoleDriver
 	}
 
+	if u.IsSuperAdmin {
+		role = db.RoleSuperAdmin
+	}
+
 	switch role {
 	case db.NoRole:
 		return HandleStart(chatId, globalStorage, nil)
@@ -2023,6 +2151,42 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 
 		msg.Text = config.Translate(config.GetLang(chatId), "welcome_manager", u.Name)
 		msg.ReplyMarkup = ManagerStartMarkup(config.GetLang(chatId))
+	case db.RoleSuperAdmin:
+		if u.SuperAdminRole == db.SARoleDriver {
+			driverSessionsMu.Lock()
+			driver, exists := driverSessions[chatId]
+			if !exists {
+				driver, err = db.GetDriverByChatId(globalStorage, chatId)
+				if err != nil {
+					driverSessionsMu.Unlock()
+					return fmt.Errorf("ERR: loading driver: %v\n", err)
+				}
+				driver.User = u
+			}
+
+			driverSessionsMu.Unlock()
+
+			msg.ReplyMarkup = SuperAdminMarkupDriver(config.GetLang(chatId))
+			msg.Text = config.Translate(config.GetLang(chatId), "welcome_driver", u.Name)
+
+		} else if u.SuperAdminRole == db.SARoleManager {
+
+			managerSessionsMu.Lock()
+			if manager, exists := managerSessions[chatId]; exists {
+				manager.State = db.StateDormantManager
+			} else {
+				manager, err = db.GetManagerByChatId(globalStorage, chatId)
+				if err != nil {
+					managerSessionsMu.Unlock()
+					return fmt.Errorf("ERR: loading manager: %v\n", err)
+				}
+				manager.User = u
+			}
+			managerSessionsMu.Unlock()
+
+			msg.Text = config.Translate(config.GetLang(chatId), "welcome_manager", u.Name)
+			msg.ReplyMarkup = SuperAdminMarkupManager(config.GetLang(chatId))
+		}
 	}
 
 	msg.ParseMode = tgbotapi.ModeHTML

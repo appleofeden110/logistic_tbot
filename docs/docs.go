@@ -85,6 +85,40 @@ func DeleteFilesAttachedToTask(globalStorage *sql.DB, taskId int) error {
 	return nil
 }
 
+func DeleteDocumentsAttachedToTask(globalStorage *sql.DB, taskId int) error {
+	query := `
+		UPDATE files 
+		SET deleted_at = CURRENT_TIMESTAMP
+		WHERE id IN (
+		    SELECT file_id from task_docs WHERE task_id = ?
+		)
+		AND deleted_at IS NULL 
+		AND filetype != 'image'
+	`
+	_, err := globalStorage.Exec(query, taskId)
+	if err != nil {
+		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %w\n", taskId, err)
+	}
+	return nil
+}
+
+func DeletePicturesAttachedToTask(globalStorage *sql.DB, taskId int) error {
+	query := `
+		UPDATE files 
+		SET deleted_at = CURRENT_TIMESTAMP
+		WHERE id IN (
+		    SELECT file_id from task_docs WHERE task_id = ?
+		)
+		AND deleted_at IS NULL 
+		AND filetype = 'image'
+	`
+	_, err := globalStorage.Exec(query, taskId)
+	if err != nil {
+		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %w\n", taskId, err)
+	}
+	return nil
+}
+
 func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) {
 	query := `
 		SELECT
