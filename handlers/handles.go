@@ -101,7 +101,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	config.UsersLanguagesMu.RUnlock()
 
 	if !ok {
-		config.SetUserLang(user.ID, config.LangCode(user.LanguageCode))
+		config.SetChatLang(user.ID, config.LangCode(user.LanguageCode))
 	}
 	log.Printf("%s(%d - %s - %d) wrote %s. msg id: %d", user.FirstName, user.ID, user.LanguageCode, msg.Chat.ID, text, id)
 
@@ -142,7 +142,7 @@ func HandleMessage(msg *tgbotapi.Message, globalStorage *sql.DB) (err error) {
 	}
 
 	if strings.HasPrefix(msg.Text, "/") {
-		err = HandleCommand(msg.Chat.ID, msg.Text, globalStorage, msg.From.LanguageCode, msg.MessageThreadID)
+		err = HandleCommand(msg.Chat.ID, msg.From, msg.Text, globalStorage, msg.From.LanguageCode, msg.MessageThreadID)
 	}
 
 	return err

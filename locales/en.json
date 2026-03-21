@@ -115,6 +115,29 @@
 
   "refuel_saved": "✅ Refueling saved!",
 
+  "group_registration": "You are not yet registered in this group. Click the button below to register yourself.",
+  "group_registration_callback": "Register",
+  "g:sa:assign_role": "%s assign a role for %s",
+  "g:sa:assign_role:driver": "Driver",
+  "g:sa:assign_role:manager": "Manager",
+
+  "g:not_sa": "This button can only be used by the assigned manager.",
+
+  "successful_edit": "✅ Data has been successfully updated!",
+  "endmsg:edit": "Edit task data",
+  "task_edit_choice": "Select what to change for the task",
+  "task_edit_choice_km": "Mileage",
+  "task_edit_choice_starttime": "Start time",
+  "task_edit_choice_endtime": "End time",
+  "task_edit_choice_temperature": "Temperature",
+  "task_edit_choice_weight": "Weight",
+
+  "task_edit_km": "Enter mileage\n\n<b>Examples:\n12345 | 12,345 | 12,345 km</b>",
+  "task_edit_starttime": "Enter start time\n\n<b>Examples:\n09:00 | 9:00 | 0900</b>",
+  "task_edit_endtime": "Enter end time\n\n<b>Examples:\n17:30 | 5:30 | 1730</b>",
+  "task_edit_temperature": "Enter temperature\n\n<b>Examples:\n20 | 20°C | -5 | -5°C</b>",
+  "task_edit_weight": "Enter weight\n\n<b>Examples:\n1500 | 1,500 | 1,500 kg</b>",
+
   "btn:reply": "Reply",
   "btn:switch_to_driver": "Switch to driver",
   "btn:switch_to_manager": "Switch to manager",

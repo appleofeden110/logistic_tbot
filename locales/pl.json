@@ -116,6 +116,29 @@
 
   "refuel_saved": "✅ Tankowanie zapisane!",
 
+  "group_registration": "Nie jesteś jeszcze zarejestrowany w tej grupie. Kliknij przycisk poniżej, aby się zarejestrować.",
+  "group_registration_callback": "Zarejestruj się",
+  "g:sa:assign_role": "%s przypisz rolę dla %s",
+  "g:sa:assign_role:driver": "Kierowca",
+  "g:sa:assign_role:manager": "Logistyk",
+
+  "g:not_sa": "Funkcję tego przycisku może wykonać tylko wyznaczony menedżer.",
+
+  "successful_edit": "✅ Dane zostały pomyślnie zaktualizowane!",
+  "endmsg:edit": "Zmień dane zadania",
+  "task_edit_choice": "Wybierz co zmienić w zadaniu",
+  "task_edit_choice_km": "Przebieg",
+  "task_edit_choice_starttime": "Godzina rozpoczęcia",
+  "task_edit_choice_endtime": "Godzina zakończenia",
+  "task_edit_choice_temperature": "Temperatura",
+  "task_edit_choice_weight": "Waga",
+
+  "task_edit_km": "Wprowadź przebieg\n\n<b>Przykłady:\n12345 | 12,345 | 12,345 km</b>",
+  "task_edit_starttime": "Wprowadź godzinę rozpoczęcia\n\n<b>Przykłady:\n09:00 | 9:00 | 0900</b>",
+  "task_edit_endtime": "Wprowadź godzinę zakończenia\n\n<b>Przykłady:\n17:30 | 5:30 | 1730</b>",
+  "task_edit_temperature": "Wprowadź temperaturę\n\n<b>Przykłady:\n20 | 20°C | -5 | -5°C</b>",
+  "task_edit_weight": "Wprowadź wagę\n\n<b>Przykłady:\n1500 | 1,500 | 1,500 kg</b>",
+
   "btn:reply": "Odpowiedz",
   "btn:switch_to_driver": "Przełącz na kierowcę",
   "btn:add_car": "Dodaj samochód",

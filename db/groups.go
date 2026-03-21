@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"logistictbot/config"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ type DriverGroup struct {
 	CurrentCar      *Car
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	GroupLang       config.LangCode
 }
 
 var (
@@ -27,10 +29,103 @@ var (
 	ErrIdFilled    = errors.New("this topic already set in this group. gotta do it manually man")
 )
 
+func GetAllDriverGroups(globalStorage *sql.DB) ([]*DriverGroup, error) {
+	var (
+		groups = make([]*DriverGroup, 0)
+
+		tankTopicId     sql.NullInt64
+		loadingTopicId  sql.NullInt64
+		documentTopicId sql.NullInt64
+		photoTopicId    sql.NullInt64
+
+		carId          sql.NullString
+		carDriverId    sql.NullString
+		carKilometrage sql.NullInt64
+		groupLang      sql.NullString
+	)
+
+	rows, err := globalStorage.Query(`SELECT 
+			dg.id, 
+				dg.group_chat_id, 
+				dg.tank_topic_id,
+				dg.loading_topic_id,
+				dg.document_topic_id, 
+				dg.photo_topic_id,
+				dg.created_at,
+				dg.updated_at,
+				dg.lang,
+				c.id,
+				c.current_driver,
+				c.current_kilometrage
+			FROM driver_groups dg
+			LEFT JOIN cars c on c.id = dg.current_car_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: err getting all of the driver groups from the db: %v\n", err)
+	}
+
+	for rows.Next() {
+		g := new(DriverGroup)
+		err = rows.Scan(
+			&g.Id,
+			&g.GroupChatId,
+			&tankTopicId,
+			&loadingTopicId,
+			&documentTopicId,
+			&photoTopicId,
+			&g.CreatedAt,
+			&g.UpdatedAt,
+			&groupLang,
+			&carId,
+			&carDriverId,
+			&carKilometrage,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: GetAllDriverGroups: %w", err)
+		}
+
+		if tankTopicId.Valid {
+			g.TankTopicId = int(tankTopicId.Int64)
+		}
+		if loadingTopicId.Valid {
+			g.LoadingTopicId = int(loadingTopicId.Int64)
+		}
+		if documentTopicId.Valid {
+			g.DocumentTopicId = int(documentTopicId.Int64)
+		}
+		if photoTopicId.Valid {
+			g.PhotoTopicId = int(photoTopicId.Int64)
+		}
+		if groupLang.Valid {
+			g.GroupLang = config.LangCode(groupLang.String)
+		} else {
+			g.GroupLang = config.English
+		}
+
+		if carId.Valid {
+			if g.CurrentCar == nil {
+				g.CurrentCar = &Car{}
+			}
+			g.CurrentCar.Id = carId.String
+			if carDriverId.Valid {
+				g.CurrentCar.CurrentDriverId, err = uuid.FromString(carDriverId.String)
+				if err != nil {
+					return nil, fmt.Errorf("ERR: GetAllDriverGroups parsing car driver id: %w", err)
+				}
+			}
+			if carKilometrage.Valid {
+				g.CurrentCar.Kilometrage = carKilometrage.Int64
+			}
+		}
+		groups = append(groups, g)
+	}
+	return groups, nil
+}
+
 func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow(`
 		SELECT 
-			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at,
+			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at, dg.lang,
 			c.id, c.current_driver, c.current_kilometrage
 		FROM driver_groups dg
 		LEFT JOIN cars c ON c.id = dg.current_car_id
@@ -45,6 +140,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 		carId          sql.NullString
 		carDriverId    sql.NullString
 		carKilometrage sql.NullInt64
+		groupLang      sql.NullString
 	)
 
 	err := row.Scan(
@@ -56,6 +152,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 		&photoTopicId,
 		&g.CreatedAt,
 		&g.UpdatedAt,
+		&groupLang,
 		&carId,
 		&carDriverId,
 		&carKilometrage,
@@ -75,6 +172,11 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 	}
 	if photoTopicId.Valid {
 		g.PhotoTopicId = int(photoTopicId.Int64)
+	}
+	if groupLang.Valid {
+		g.GroupLang = config.LangCode(groupLang.String)
+	} else {
+		g.GroupLang = config.English
 	}
 
 	if carId.Valid {
@@ -99,7 +201,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow(`
 		SELECT 
-			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at,
+			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at, dg.lang,
 			c.id, c.current_driver, c.current_kilometrage
 		FROM driver_groups dg
 		LEFT JOIN cars c ON c.id = dg.current_car_id
@@ -113,6 +215,7 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 		carId           sql.NullString
 		carDriverId     sql.NullString
 		carKilometrage  sql.NullInt64
+		groupLang       sql.NullString
 	)
 
 	err := row.Scan(
@@ -124,6 +227,7 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 		&photoTopicId,
 		&g.CreatedAt,
 		&g.UpdatedAt,
+		&groupLang,
 		&carId,
 		&carDriverId,
 		&carKilometrage,
@@ -143,6 +247,11 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 	}
 	if photoTopicId.Valid {
 		g.PhotoTopicId = int(photoTopicId.Int64)
+	}
+	if groupLang.Valid {
+		g.GroupLang = config.LangCode(groupLang.String)
+	} else {
+		g.GroupLang = config.English
 	}
 
 	if carId.Valid {
@@ -164,15 +273,6 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 }
 
 func (g *DriverGroup) CreateDriverGroup(globalStorage *sql.DB) error {
-	//u := &User{Id: superAdminId}
-	/*err := u.FindSuperAdmin(globalStorage)
-	if err != nil {
-		if errors.Is(err, ErrNotSuperAdmin) {
-			return ErrNotSuperAdmin
-		}
-		return fmt.Errorf("ERR: checking if you are SA or not. Probably not actually...: %v\n", err)
-	}*/
-
 	stmt, err := globalStorage.Prepare("INSERT INTO driver_groups(group_chat_id, current_car_id) VALUES (?, ?)")
 	if err != nil {
 		return fmt.Errorf("ERR: prepping stmt for adding a group to the db: %v\n", err)

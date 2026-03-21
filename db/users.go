@@ -266,8 +266,6 @@ func (u *User) StoreUser(db DBExecutor) error {
 		}
 		return fmt.Errorf("ERR: creating a new uuid for a user: %v (txErr: %v)\n", err, txErr)
 	}
-	fmt.Println(u.Name)
-	fmt.Println(u.ChatId)
 
 	stmt, err := db.Prepare(`
 		INSERT INTO users (id, chat_id, name, tg_tag)

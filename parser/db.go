@@ -169,6 +169,36 @@ func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, err
 	return shipments[0], nil
 }
 
+func (t *TaskSection) UpdateStart(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET start = ?, updated_at = datetime('now') WHERE id = ?`,
+		t.Start.Format(time.RFC3339), t.Id)
+	return err
+}
+
+func (t *TaskSection) UpdateEnd(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET end = ?, updated_at = datetime('now') WHERE id = ?`,
+		t.End.Format(time.RFC3339), t.Id)
+	return err
+}
+
+func (t *TaskSection) UpdateCurrentKilometrage(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET current_kilometrage = ?, updated_at = datetime('now') WHERE id = ?`,
+		t.CurrentKilometrage, t.Id)
+	return err
+}
+
+func (t *TaskSection) UpdateCurrentWeight(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET current_weight = ?, updated_at = datetime('now') WHERE id = ?`,
+		t.CurrentWeight, t.Id)
+	return err
+}
+
+func (t *TaskSection) UpdateCurrentTemperature(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET current_temperature = ?, updated_at = datetime('now') WHERE id = ?`,
+		t.CurrentTemperature, t.Id)
+	return err
+}
+
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
 		SELECT id, type, shipment_id, content, customer_ref, load_ref, 

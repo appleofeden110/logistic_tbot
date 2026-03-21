@@ -239,6 +239,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		return fmt.Errorf("ERR: executing prep insert manager stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
+	m.User = new(User)
 	m.Id = id
 	m.User.ManagerId = id
 
@@ -263,12 +264,11 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		return fmt.Errorf("ERR: executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
-	fmt.Println(1)
-	err = m.User.SendRequestToSuperAdmins(db, bot)
+	/*err = m.User.SendRequestToSuperAdmins(db, bot)
 	if err != nil {
 		return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
 	}
-
+	*/
 	return nil
 }
 

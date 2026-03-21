@@ -18,8 +18,6 @@ import (
 type DriverConversationState string
 
 const (
-	StateWaitingLoc        DriverConversationState = "waiting_loc"
-	StateCompletingForm    DriverConversationState = "waiting_form_end"
 	StatePause             DriverConversationState = "on_rest"
 	StateWorking           DriverConversationState = "working"
 	StateLoad              DriverConversationState = "performing_load"
@@ -27,15 +25,18 @@ const (
 	StateCollect           DriverConversationState = "performing_collect"
 	StateDropoff           DriverConversationState = "performing_dropoff"
 	StateCleaning          DriverConversationState = "performing_cleaning"
-	StateOnTheRoad         DriverConversationState = "on_the_road"
 	StateWaitingPhoto      DriverConversationState = "waiting_photo"
 	StateWaitingWeight     DriverConversationState = "waiting_weight"
 	StateWaitingTemp       DriverConversationState = "waiting_temp"
 	StateWaitingAttachment DriverConversationState = "waiting_attach"
 	StateEndingDay         DriverConversationState = "waiting_km"
-	StateTracking          DriverConversationState = "tracking"
 	StateWritingToManager  DriverConversationState = "sending_manager_message"
 	StateReplyingManager   DriverConversationState = "replying_manager"
+	StateEditingKm         DriverConversationState = "editing_km"
+	StateEditingStartTime  DriverConversationState = "editing_starttime"
+	StateEditingEndTime    DriverConversationState = "editing_endtime"
+	StateEditingTemp       DriverConversationState = "editing_temp"
+	StateEditingWeight     DriverConversationState = "editing_weight"
 )
 
 var (
@@ -128,7 +129,7 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(id.String(), d.UserId.String(), d.User.ChatId)
+	_, err = stmt.Exec(id.String(), d.UserId.String(), d.ChatId)
 	if err != nil {
 		return fmt.Errorf("ERR: executing prep insert driver stmt: %w", err)
 	}
@@ -148,13 +149,15 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		return fmt.Errorf("ERR: executing update user driver_id stmt: %w", err)
 	}
 
+	d.User = new(User)
+
 	d.Id = id
 	d.User.DriverId = id
 
-	err = d.User.SendRequestToSuperAdmins(db, bot)
-	if err != nil {
-		return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
-	}
+	//err = d.User.SendRequestToSuperAdmins(db, bot)
+	//if err != nil {
+	//	return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
+	//}
 
 	return nil
 }
@@ -197,6 +200,24 @@ func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
 
 	return nil
 
+}
+
+func (d *Driver) SetEditTaskId(globalStorage *sql.DB) error {
+	query := `
+		UPDATE drivers 
+		SET performing_task_id = ?
+		WHERE id = ?
+	`
+	if d.Id == uuid.Nil {
+		return fmt.Errorf("ERR: getting id for changing driver's edit_id: %v\n", d.Id)
+	}
+
+	_, err := globalStorage.Exec(query, d.PerformedTaskId, d.Id)
+	if err != nil {
+		return fmt.Errorf("ERR: changing drivers edit task id: %v\n", err)
+	}
+
+	return nil
 }
 
 func (d *Driver) ChangeDriverStatus(globalStorage *sql.DB) error {

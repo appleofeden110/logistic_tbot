@@ -31,7 +31,7 @@ func GetLang(chatId int64) LangCode {
 	return Ukrainian
 }
 
-func SetUserLang(chatId int64, lang LangCode) {
+func SetChatLang(chatId int64, lang LangCode) {
 	UsersLanguagesMu.Lock()
 	defer UsersLanguagesMu.Unlock()
 	UsersLanguages[chatId] = lang

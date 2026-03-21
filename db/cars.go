@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
@@ -229,6 +230,32 @@ func FormatKilometrage(km int) string {
 
 	return kmString + " km"
 }
+func ParseTime(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	s = strings.ToUpper(s)
+
+	formats := []string{
+		"15:04",
+		"1504",
+		"3:04",
+	}
+
+	for _, f := range formats {
+		t, err := time.Parse(f, s)
+		if err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid time format: %q, expected e.g. 09:00 or 0900", s)
+}
+
+func CombineDateTime(base time.Time, parsed time.Time) time.Time {
+	if base.IsZero() {
+		base = time.Now()
+	}
+	return time.Date(base.Year(), base.Month(), base.Day(),
+		parsed.Hour(), parsed.Minute(), 0, 0, base.Location())
+}
 
 func ParseKilometrage(s string) (int64, error) {
 	s = strings.TrimSpace(s)
@@ -316,40 +343,27 @@ func ParseWeight(s string) (int, error) {
 	s = strings.TrimSpace(s)
 	s = strings.TrimSuffix(s, " kg")
 	s = strings.TrimSuffix(s, " кг")
-	s = strings.TrimSuffix(s, " KG")
-	s = strings.TrimSuffix(s, " КГ")
 	s = strings.TrimSuffix(s, "kg")
 	s = strings.TrimSuffix(s, "кг")
+	s = strings.TrimSuffix(s, " KG")
+	s = strings.TrimSuffix(s, " КГ")
 	s = strings.TrimSuffix(s, "KG")
 	s = strings.TrimSuffix(s, "КГ")
-	s = strings.TrimSuffix(s, " kilograms")
-	s = strings.TrimSuffix(s, " кілограм")
-	s = strings.TrimSuffix(s, " килограммов")
 	s = strings.TrimSpace(s)
 
 	var digits strings.Builder
-	hasDecimal := false
-
 	for _, ch := range s {
 		if unicode.IsDigit(ch) {
 			digits.WriteRune(ch)
-		} else if ch == '.' || ch == ',' {
-			if !hasDecimal {
-				digits.WriteRune('.')
-				hasDecimal = true
-			}
 		}
 	}
-
 	result := digits.String()
 	if result == "" {
 		return 0, fmt.Errorf("no digits found in input")
 	}
-
-	weight, err := strconv.Atoi(result)
+	w, err := strconv.Atoi(result)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse weight: %v", err)
 	}
-
-	return weight, nil
+	return w, nil
 }

@@ -61,7 +61,7 @@ func HandleShipmentDetails(chatId, shipmentId int64, globalStorage *sql.DB) erro
 	return err
 }
 
-func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode string, topicId int) error {
+func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStorage *sql.DB, langCode string, topicId int) error {
 	var isGroupCmd bool
 
 	cmd, found := strings.CutPrefix(command, "/")
@@ -77,7 +77,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 	switch cmd {
 	case "start":
 		u := new(db.User)
-		u.ChatId = chatId
+		u.ChatId = user.ID // tgbotapi.User.ID is equal to his individual chat_id, no time to refactor to have it perfect
 		err := u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
@@ -87,7 +87,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 		}
 		err = HandleStart(chatId, globalStorage, u)
 		if err != nil {
-			panic(err)
+			log.Println(u, err)
 		}
 	case "ginit":
 		if isGroupCmd {
@@ -205,7 +205,7 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 			return err
 		}
 	case "menu":
-		return HandleCommand(chatId, "/start", globalStorage, langCode, topicId)
+		return HandleCommand(chatId, user, "/start", globalStorage, langCode, topicId)
 	case "dev:init":
 		devSesh, err := db.GetDev(globalStorage, chatId)
 		if err != nil {
@@ -226,14 +226,14 @@ func HandleCommand(chatId int64, command string, globalStorage *sql.DB, langCode
 	}
 	return nil
 }
-func HandleManagerCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
+func HandleManagerCommands(chatId int64, fromId int64, command string, messageId int, globalStorage *sql.DB) error {
 	cmd, f := strings.CutPrefix(command, "manager:")
 	if !f {
 		return fmt.Errorf("ERR: not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
 	}
 
 	managerSessionsMu.Lock()
-	managerSesh, exists := managerSessions[chatId]
+	managerSesh, exists := managerSessions[fromId]
 	managerSessionsMu.Unlock()
 
 	if !exists {
@@ -519,7 +519,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 	return manager, err
 }
 
-func HandleDriverCommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
+func HandleDriverCommands(chatId int64, fromId int64, command string, messageId int, globalStorage *sql.DB) error {
 	var cmd string
 	var f bool
 
@@ -536,14 +536,160 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 	}
 
 	driverSessionsMu.Lock()
-	driverSesh, exists := driverSessions[chatId]
+	driverSesh, exists := driverSessions[fromId]
 	driverSessionsMu.Unlock()
 
 	if !exists {
-		return fmt.Errorf("not a driver session, register")
+		return fmt.Errorf("not a driver session, bozo")
 	}
 
 	switch cmd {
+	case "task_edit":
+		fmt.Println("Chat id for task ")
+		editMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_choice"))
+		editMsg.ParseMode = tgbotapi.ModeHTML
+		editMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_km"), "driver:task_edit_choice_km:"+_idString,
+				),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_starttime"), "driver:task_edit_choice_starttime:"+_idString,
+				),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_endtime"), "driver:task_edit_choice_endtime:"+_idString,
+				),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_temp"), "driver:task_edit_choice_temp:"+_idString,
+				),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_weight"), "driver:task_edit_choice_weight:"+_idString,
+				),
+			),
+		)
+		Bot.Send(editMsg)
+	case "task_edit_choice_km":
+		driverSesh.State = db.StateEditingKm
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (km): %v\n", err)
+		}
+		loadingTopicId := FindLoadingTopic(chatId, globalStorage)
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_km"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
+	case "task_edit_choice_starttime":
+		driverSesh.State = db.StateEditingStartTime
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (st): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (st): %v\n", err)
+		}
+
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (starttime): %v\n", err)
+		}
+		loadingTopicId := FindLoadingTopic(chatId, globalStorage)
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_starttime"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
+	case "task_edit_choice_endtime":
+		driverSesh.State = db.StateEditingEndTime
+		err := driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (endtime): %v\n", err)
+		}
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (et): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (et): %v\n", err)
+		}
+		loadingTopicId := FindLoadingTopic(chatId, globalStorage)
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_endtime"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
+	case "task_edit_choice_temp":
+		driverSesh.State = db.StateEditingTemp
+		err := driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (temp): %v\n", err)
+		}
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (temp): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (temp): %v\n", err)
+		}
+		loadingTopicId := FindLoadingTopic(chatId, globalStorage)
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_temp"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
+	case "task_edit_choice_weight":
+		driverSesh.State = db.StateEditingWeight
+		err := driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (weight): %v\n", err)
+		}
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (wg): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (wg): %v\n", err)
+		}
+		loadingTopicId := FindLoadingTopic(chatId, globalStorage)
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_weight"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
 	case "washing":
 		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
 		if err != nil {
@@ -710,7 +856,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 				return err
 
 			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
-				return HandleDriverCommands(chatId, "driver:sumtask", messageId, globalStorage)
+				return HandleDriverCommands(chatId, fromId, "driver:sumtask", messageId, globalStorage)
 			default:
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
@@ -737,18 +883,12 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 		taskSessionsMu.Unlock()
 
 		if f {
-			country, _ := parser.ExtractCountry(task.Address)
 
 			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 			if err != nil {
 				return fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
 			}
 			err = task.FinishTaskById(globalStorage)
-			if err != nil {
-				return err
-			}
-
-			err = driverSesh.DeletePerformingTask(globalStorage)
 			if err != nil {
 				return err
 			}
@@ -761,22 +901,7 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			driverInfo := config.Translate(config.GetLang(chatId), "manager:driver_finished", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
 
-			endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
-				task.ShipmentId,
-				strings.ToUpper(task.Type),
-				shipment.Chassis,
-				shipment.Container,
-				time.Now().Format("02.01.2006"),
-				task.Start.Format("15:04"),
-				task.End.Format("15:04"),
-				db.FormatKilometrage(int(task.CurrentKilometrage)),
-				task.Address,
-				country.Name,
-				country.Emoji,
-				task.CurrentWeight,
-				task.CurrentTemperature),
-			)
-			endMsg.ParseMode = tgbotapi.ModeHTML
+			endMsg := CreateTaskMessage(chatId, task, shipment)
 
 			_, err = Bot.Send(endMsg)
 			if err != nil {
@@ -785,11 +910,6 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 
 			endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
 
-			/*			managerSessionsMu.Lock()
-						defer managerSessionsMu.Unlock()
-						for mChatId := range managerSessions { */
-
-			//}
 			g := db.DriverGroup{CurrentCar: &db.Car{Id: driverSesh.CarId}}
 
 			err = g.GetDriverGroupByCar(globalStorage)
@@ -1222,8 +1342,202 @@ func HandleDriverCommands(chatId int64, command string, messageId int, globalSto
 func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStorage *sql.DB) (*db.Driver, error) {
 	var err error
 	log.Printf("Driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
-
 	switch driver.State {
+	case db.StateEditingKm:
+		if msg.Text != "" {
+			loadingTopicId := FindLoadingTopic(msg.Chat.ID, globalStorage)
+			if msg.MessageThreadID != loadingTopicId {
+				log.Println("WARN: State correct, wrong topic, ignoring")
+				return driver, nil
+			}
+
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
+			}
+
+			km, err := db.ParseKilometrage(msg.Text)
+			if err != nil {
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "task_edit_km"), loadingTopicId))
+				return driver, nil
+			}
+
+			task.CurrentKilometrage = km
+			if err = task.UpdateCurrentKilometrage(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating kilometrage: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+
+	case db.StateEditingStartTime:
+		if msg.Text != "" {
+			loadingTopicId := FindLoadingTopic(msg.Chat.ID, globalStorage)
+			if msg.MessageThreadID != loadingTopicId {
+				log.Println("WARN: State correct, wrong topic, ignoring")
+				return driver, nil
+			}
+
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
+			}
+
+			parsed, err := db.ParseTime(msg.Text)
+			if err != nil {
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "task_edit_starttime"), loadingTopicId))
+				return driver, nil
+			}
+
+			task.Start = db.CombineDateTime(task.Start, parsed)
+			if err = task.UpdateStart(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating start time: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+
+	case db.StateEditingEndTime:
+		if msg.Text != "" {
+			loadingTopicId := FindLoadingTopic(msg.Chat.ID, globalStorage)
+			if msg.MessageThreadID != loadingTopicId {
+				log.Println("WARN: State correct, wrong topic, ignoring")
+				return driver, nil
+			}
+
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
+			}
+
+			parsed, err := db.ParseTime(msg.Text)
+			if err != nil {
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "task_edit_endtime"), loadingTopicId))
+				return driver, nil
+			}
+
+			task.End = db.CombineDateTime(task.End, parsed)
+			if err = task.UpdateEnd(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating end time: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+
+	case db.StateEditingTemp:
+		if msg.Text != "" {
+			loadingTopicId := FindLoadingTopic(msg.Chat.ID, globalStorage)
+			if msg.MessageThreadID != loadingTopicId {
+				log.Println("WARN: State correct, wrong topic, ignoring")
+				return driver, nil
+			}
+
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
+			}
+
+			temp, err := db.ParseTemperature(msg.Text)
+			if err != nil {
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "task_edit_temperature"), loadingTopicId))
+				return driver, nil
+			}
+
+			task.CurrentTemperature = temp
+			if err = task.UpdateCurrentTemperature(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating temperature: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+
+	case db.StateEditingWeight:
+		if msg.Text != "" {
+			loadingTopicId := FindLoadingTopic(msg.Chat.ID, globalStorage)
+			if msg.MessageThreadID != loadingTopicId {
+				log.Println("WARN: State correct, wrong topic, ignoring")
+				return driver, nil
+			}
+
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
+			}
+
+			weight, err := db.ParseWeight(msg.Text)
+			if err != nil {
+				Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "task_edit_weight"), loadingTopicId))
+				return driver, nil
+			}
+
+			task.CurrentWeight = weight
+			if err = task.UpdateCurrentWeight(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating weight: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+
 	case db.StateWritingToManager:
 		if msg.Text != "" {
 			sender := &db.User{ChatId: driver.ChatId}
@@ -1544,7 +1858,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 		}
 
-		err = HandleDriverCommands(msg.Chat.ID, "driver:sumtask", msg.MessageID, globalStorage)
+		err = HandleDriverCommands(msg.Chat.ID, driver.ChatId, "driver:sumtask", msg.MessageID, globalStorage)
 
 		return driver, err
 
@@ -1581,7 +1895,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if kmAccum < 0 {
 				message, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Новий кілометраж менше за ваш старий, спробуйте ще раз"))
 				log.Printf("Trying to end the day again\n\tendDayerr: %v\n\tbotSendErr: %v\n\n",
-					HandleDriverCommands(msg.Chat.ID, "driver:endDay", message.MessageID, globalStorage),
+					HandleDriverCommands(msg.Chat.ID, driver.ChatId, "driver:endDay", message.MessageID, globalStorage),
 					err,
 				)
 				return driver, nil
@@ -1715,7 +2029,7 @@ func savePhotoToTask(
 	return sentPic.AttachFileToTask(globalStorage, taskId)
 }
 
-func HandleSACommands(chatId int64, command string, messageId int, globalStorage *sql.DB) error {
+func HandleSACommands(chatId int64, fromId int64, command string, messageId int, globalStorage *sql.DB) error {
 	a, f := strings.CutPrefix(command, "sa:")
 	if !f {
 		return fmt.Errorf("command is incorrect: %v\n", command)
@@ -1731,7 +2045,7 @@ func HandleSACommands(chatId int64, command string, messageId int, globalStorage
 	*/
 
 	u := new(db.User)
-	u.ChatId = chatId
+	u.ChatId = fromId
 
 	err := u.GetUserByChatId(globalStorage)
 	if err != nil {
@@ -2053,16 +2367,28 @@ func HandleStart(chatId int64, globalStorage *sql.DB, user *db.User) error {
 	}
 
 	if isGroup {
-		groupMsg := tgbotapi.NewMessage(chatId, "⚠️ Цей бот націлений на роботу в індивідуальному чаті тільки, натисніть кнопку нижче що б перейти до основної робочої зони\n\n⚠️ This bot is designed to work in individual chat only, click the button below to go to the main workspace\n\n⚠️ Ten bot jest przeznaczony wyłącznie do pracy w czacie indywidualnym, kliknij przycisk poniżej, aby przejść do głównego obszaru roboczego")
+		/*groupMsg := tgbotapi.NewMessage(chatId, "⚠️ Цей бот націлений на роботу в індивідуальному чаті тільки, натисніть кнопку нижче що б перейти до основної робочої зони\n\n⚠️ This bot is designed to work in individual chat only, click the button below to go to the main workspace\n\n⚠️ Ten bot jest przeznaczony wyłącznie do pracy w czacie indywidualnym, kliknij przycisk poniżej, aby przejść do głównego obszaru roboczego")
 		groupMsg.ParseMode = tgbotapi.ModeHTML
 		groupMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonURL("Bot Chat", "t.me/logistictbot"),
 			),
-		)
+		)*/
+		loadingTopicID := FindLoadingTopic(chatId, globalStorage)
+		if user == nil {
+			groupMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "group_registration"), loadingTopicID)
+			groupMsg.ParseMode = tgbotapi.ModeHTML
+			groupMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "group_registration_callback"), "g:register"),
+				),
+			)
+			_, err := Bot.Send(groupMsg)
+			return err
+		}
 
-		_, err := Bot.Send(groupMsg)
-		return err
+		return HandleMenu(chatId, globalStorage, user)
+
 	}
 
 	if user == nil {
@@ -2089,7 +2415,6 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"))
 	if u == nil {
 		u = new(db.User)
-		u.ChatId = chatId
 
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
@@ -2098,6 +2423,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 			}
 			role = db.NoRole
 		}
+
 	}
 
 	if u.ManagerId != uuid.Nil {
@@ -2117,9 +2443,9 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		return HandleStart(chatId, globalStorage, nil)
 	case db.RoleDriver:
 		driverSessionsMu.Lock()
-		driver, exists := driverSessions[chatId]
+		driver, exists := driverSessions[u.ChatId]
 		if !exists {
-			driver, err = db.GetDriverByChatId(globalStorage, chatId)
+			driver, err = db.GetDriverByChatId(globalStorage, u.ChatId)
 			if err != nil {
 				driverSessionsMu.Unlock()
 				return fmt.Errorf("ERR: loading driver: %v\n", err)
@@ -2136,11 +2462,12 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		}
 		msg.Text = config.Translate(config.GetLang(chatId), "welcome_driver", u.Name)
 	case db.RoleManager:
+
 		managerSessionsMu.Lock()
-		if manager, exists := managerSessions[chatId]; exists {
+		if manager, exists := managerSessions[u.ChatId]; exists {
 			manager.State = db.StateDormantManager
 		} else {
-			manager, err = db.GetManagerByChatId(globalStorage, chatId)
+			manager, err = db.GetManagerByChatId(globalStorage, u.ChatId)
 			if err != nil {
 				managerSessionsMu.Unlock()
 				return fmt.Errorf("ERR: loading manager: %v\n", err)
@@ -2154,9 +2481,9 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 	case db.RoleSuperAdmin:
 		if u.SuperAdminRole == db.SARoleDriver {
 			driverSessionsMu.Lock()
-			driver, exists := driverSessions[chatId]
+			driver, exists := driverSessions[u.ChatId]
 			if !exists {
-				driver, err = db.GetDriverByChatId(globalStorage, chatId)
+				driver, err = db.GetDriverByChatId(globalStorage, u.ChatId)
 				if err != nil {
 					driverSessionsMu.Unlock()
 					return fmt.Errorf("ERR: loading driver: %v\n", err)
@@ -2172,10 +2499,10 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		} else if u.SuperAdminRole == db.SARoleManager {
 
 			managerSessionsMu.Lock()
-			if manager, exists := managerSessions[chatId]; exists {
+			if manager, exists := managerSessions[u.ChatId]; exists {
 				manager.State = db.StateDormantManager
 			} else {
-				manager, err = db.GetManagerByChatId(globalStorage, chatId)
+				manager, err = db.GetManagerByChatId(globalStorage, u.ChatId)
 				if err != nil {
 					managerSessionsMu.Unlock()
 					return fmt.Errorf("ERR: loading manager: %v\n", err)

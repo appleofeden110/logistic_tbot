@@ -88,11 +88,11 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 func (u *User) FindSuperAdmin(storage DBExecutor) error {
 	isManager, err := u.IsManager(storage)
 	if err != nil {
-		return fmt.Errorf("ERR: checking if super admin or not: %v\n", err)
+		return ErrNotSuperAdmin
 	}
 
 	if !isManager {
-		return fmt.Errorf("ERR: not even a manager")
+		return ErrNotSuperAdmin
 	}
 
 	row := storage.QueryRow("SELECT is_super_admin from users where id = ?", u.Id)

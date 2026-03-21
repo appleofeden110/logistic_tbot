@@ -1,7 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"logistictbot/config"
+	"logistictbot/db"
+	"logistictbot/parser"
+	"strconv"
+	"strings"
+	"time"
 
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 )
@@ -16,6 +22,33 @@ var (
 	// shipment id, task name, container, chassis, date formatted as "02.01.2006", times as 17:15, kilometrage, address, country with country emoji, weight and temperature (done from form, needed usually only for load and unload)
 	TaskSubmissionFormatText = "Shipment %d\n\n%s\n\n%s %s\n\n%s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
 )
+
+func CreateTaskMessage(chatId int64, task *parser.TaskSection, shipment *parser.Shipment) tgbotapi.MessageConfig {
+	country, _ := parser.ExtractCountry(task.Address)
+	endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
+		task.ShipmentId,
+		strings.ToUpper(task.Type),
+		shipment.Chassis,
+		shipment.Container,
+		time.Now().Format("02.01.2006"),
+		task.Start.Format("15:04"),
+		task.End.Format("15:04"),
+		db.FormatKilometrage(int(task.CurrentKilometrage)),
+		task.Address,
+		country.Name,
+		country.Emoji,
+		task.CurrentWeight,
+		task.CurrentTemperature),
+	)
+	endMsg.ParseMode = tgbotapi.ModeHTML
+	endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "endmsg:edit"), "driver:task_edit:"+strconv.Itoa(task.Id)),
+		),
+	)
+
+	return endMsg
+}
 
 func DriverStartMarkupPause(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(

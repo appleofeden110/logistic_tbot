@@ -72,10 +72,19 @@ func FillSessions(globalStorage *sql.DB) error {
 			taskSessions[d.Id] = task
 		}
 
-		config.SetUserLang(d.ChatId, config.LangCode(d.User.Language))
+		config.SetChatLang(d.ChatId, config.LangCode(d.User.Language))
 	}
 	taskSessionsMu.Unlock()
 	driverSessionsMu.Unlock()
+
+	dg, err := db.GetAllDriverGroups(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting all the driver groups: %v\n", err)
+	}
+
+	for _, g := range dg {
+		config.SetChatLang(g.GroupChatId, g.GroupLang)
+	}
 
 	log.Printf("Driver sessions and their tasks are filled (d-len: %d; t-len: %d)\n", len(driverSessions), len(taskSessions))
 
@@ -87,7 +96,7 @@ func FillSessions(globalStorage *sql.DB) error {
 	managerSessionsMu.Lock()
 	for _, m := range managers {
 		managerSessions[m.ChatId] = m
-		config.SetUserLang(m.ChatId, config.LangCode(m.User.Language))
+		config.SetChatLang(m.ChatId, config.LangCode(m.User.Language))
 	}
 	managerSessionsMu.Unlock()
 
