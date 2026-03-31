@@ -2430,7 +2430,9 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 
 	var err error
 	var role db.Role
-	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"))
+
+	loadingId := FindLoadingTopic(chatId, globalStorage)
+	msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "welcome"), loadingId)
 	if u == nil {
 		u = new(db.User)
 
