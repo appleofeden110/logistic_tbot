@@ -81,7 +81,7 @@
   "driver:err_nopicstosend": "Немає фотографій для відправки",
   "driver:pics_sent": "Відправлено %d фотографій менеджеру ✅",
   "manager:pics_received": "📸 Фотографії від водія %s (%s)\nМашина: %s\nЗавдання: %s (Shipment №%d)",
-  "driver:pics_attached": "Додано %d фотографій 📸",
+  "driver:pics_attached": "Додано %d фотографій 📸\n\n",
   "driver:added_one_pic": "Додано 1 фотографію 📸",
   "manager:driver_started": "Водій %s (%s) почав завдання %s для маршруту %d\nМашина: %s\n\n",
   "manager:driver_finished": "Від водія %s (%s)\nМашина: %s\n",

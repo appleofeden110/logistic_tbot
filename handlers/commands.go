@@ -1681,10 +1681,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 							}
 						}
 						if len(msgs) > 0 {
-							Bot.Send(tgbotapi.NewMessage(
+							picsAttachedMsg := tgbotapi.NewMessage(
 								msg.Chat.ID,
 								fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs))),
-							))
+							)
+							picsAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
+								tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")))
+							picsAttachedMsg.ParseMode = tgbotapi.ModeHTML
+							Bot.Send(picsAttachedMsg)
 						}
 					}(msg.MediaGroupID, task.Id)
 				}
@@ -1693,7 +1697,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
 				return driver, fmt.Errorf("ERR: saving single photo: %v", err)
 			}
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic")))
+			onePicAttachedMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic"))
+			onePicAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")))
+			onePicAttachedMsg.ParseMode = tgbotapi.ModeHTML
+			Bot.Send(onePicAttachedMsg)
 			return driver, nil
 		}
 
