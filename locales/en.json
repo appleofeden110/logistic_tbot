@@ -65,7 +65,7 @@
   "driver:choose_refuel_card": "Choose a fuel card:",
   "driver:shipment_already_done": "You are trying to perform a task of a route that has already been closed",
   "driver:kilometrage": "Enter the current vehicle mileage. \n<b><i>(previous: %d km)</i></b>\n\n(Available formats: 12345; 12,345; 12,345 km; 12,345 km)",
-  "driver:weight": "Enter the product weight\n(Available formats: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 kg; 1234 kg)",
+  "driver:weight": "Enter the product weight or just 0 if not relevant\n(Available formats: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 kg; 1234 kg)",
   "driver:task_done": "Task successfully completed!\n",
   "driver:attach_doc": "📃 Send the document you want to attach and press <b>\"Send Documents\"</b> below",
   "driver:err_taskdone": "This task is either already completed or does not exist in the database. If this is not correct, contact the developer @pinkfloydfan or @NazKan_Uk",
@@ -81,7 +81,7 @@
   "driver:added_one_pic": "Added 1 photo 📸",
   "manager:driver_started": "Driver %s (%s) started task %s for route %d\nVehicle: %s\n\n",
   "driver:err_wrongweightformat": "Incorrect weight format, please try again",
-  "driver:enter_temp": "Enter temperature.\n(Available formats: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
+  "driver:enter_temp": "Enter temperature or 0 if not relevant.\n(Available formats: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Incorrect temperature format, please try again",
 
   "wrong_km_format": "Incorrect mileage format, please try again",

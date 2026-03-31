@@ -848,8 +848,12 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		taskSessionsMu.Unlock()
 
 		if f {
+			toDeleteMu.Lock()
+			toDelete[task.Id] = tgbotapi.MessageID{messageId}
+			toDeleteMu.Unlock()
+
 			switch task.Type {
-			case parser.TaskLoad, parser.TaskUnload:
+			case parser.TaskLoad, parser.TaskUnload, parser.TaskCollect, parser.TaskDropoff:
 				driverSesh.State = db.StateWaitingWeight
 				err := driverSesh.ChangeDriverStatus(globalStorage)
 				if err != nil {
@@ -861,7 +865,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				_, err = Bot.Send(msg)
 				return err
 
-			case parser.TaskCollect, parser.TaskDropoff, parser.TaskCleaning:
+			case parser.TaskCleaning:
 				return HandleDriverCommands(chatId, fromId, "driver:sumtask", messageId, globalStorage)
 			default:
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
@@ -889,6 +893,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		taskSessionsMu.Unlock()
 
 		if f {
+			toDeleteMu.Lock()
+			toDeleteId, found := toDelete[task.Id]
+			toDeleteMu.Unlock()
+
+			if found {
+				Bot.Send(tgbotapi.NewDeleteMessage(chatId, toDeleteId.MessageID))
+			}
 
 			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 			if err != nil {
@@ -909,10 +920,10 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 			endMsg := CreateTaskMessage(chatId, task, shipment)
 
-			_, err = Bot.Send(endMsg)
-			if err != nil {
-				return err
-			}
+			/*	_, err = Bot.Send(endMsg)
+				if err != nil {
+					return err
+				}*/
 
 			endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
 
@@ -1609,87 +1620,83 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 		if err != nil {
 			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
 		}
-
 		if msg.Document != nil {
 			file, err := Bot.GetFile(tgbotapi.FileConfig{FileID: msg.Document.FileID})
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting file info: %v", err)
 			}
-
 			fileURL := file.Link(Bot.Token)
 			log.Printf("File download URL: %s", fileURL)
 
-			fullPath := config.GetOutDocsPath() + strings.Split(fileURL, "/")[6]
+			filename := strings.Split(fileURL, "/")[6]
+
+			fullPath, err := config.DownloadFile(fileURL, filename)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: downloading file: %v", err)
+			}
 
 			sentDoc := docs.File{
 				TgFileId:     msg.Document.FileID,
 				From:         msg.Chat.ID,
-				Name:         strings.Split(fileURL, "/")[6],
+				Name:         filename,
 				OriginalName: msg.Document.FileName,
 				Path:         fullPath,
 				Mimetype:     docs.Mimetype(msg.Document.MimeType),
 				Filetype:     docs.Document,
 			}
-
 			err = sentDoc.StoreFile(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: storing file: %v\n", err)
 			}
-
 			err = sentDoc.AttachFileToTask(globalStorage, task.Id)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: attaching file to task %d: %v\n", task.Id, err)
 			}
-
 			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:docs_attached")))
 			return driver, err
 		}
-
 		return driver, nil
 	case db.StateWaitingPhoto:
 		task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 		if err != nil {
 			return driver, fmt.Errorf("ERR: getting task by id (%d): %v\n", driver.PerformedTaskId, err)
 		}
-
 		if len(msg.Photo) > 0 {
 			if msg.MediaGroupID != "" {
 				photoGroups.Lock()
+				_, exists := photoGroups.m[msg.MediaGroupID]
 				photoGroups.m[msg.MediaGroupID] = append(photoGroups.m[msg.MediaGroupID], msg)
 				photoGroups.Unlock()
 
-				go func(groupID string, taskId int) {
-					time.Sleep(1000 * time.Millisecond)
-
-					photoGroups.Lock()
-					msgs := photoGroups.m[groupID]
-					delete(photoGroups.m, groupID)
-					photoGroups.Unlock()
-
-					for _, m := range msgs {
-						if err := savePhotoToTask(m, taskId, globalStorage); err != nil {
-							log.Printf("ERR: saving album photo: %v", err)
+				if !exists {
+					go func(groupID string, taskId int) {
+						time.Sleep(1500 * time.Millisecond)
+						photoGroups.Lock()
+						msgs := photoGroups.m[groupID]
+						delete(photoGroups.m, groupID)
+						photoGroups.Unlock()
+						for _, m := range msgs {
+							if err := savePhotoToTask(m, taskId, globalStorage); err != nil {
+								log.Printf("ERR: saving album photo: %v", err)
+							}
 						}
-					}
-
-					if len(msgs) > 0 {
-						Bot.Send(tgbotapi.NewMessage(
-							msg.Chat.ID,
-							fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs))),
-						))
-					}
-				}(msg.MediaGroupID, task.Id)
-
+						if len(msgs) > 0 {
+							Bot.Send(tgbotapi.NewMessage(
+								msg.Chat.ID,
+								fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs))),
+							))
+						}
+					}(msg.MediaGroupID, task.Id)
+				}
 				return driver, nil
 			}
-
 			if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
 				return driver, fmt.Errorf("ERR: saving single photo: %v", err)
 			}
-
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic")))
 			return driver, nil
 		}
+
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
 		task := new(parser.TaskSection)
 
@@ -2001,21 +2008,20 @@ func savePhotoToTask(
 	taskId int,
 	globalStorage *sql.DB,
 ) error {
-
-	// highest resolution photo
 	photo := msg.Photo[len(msg.Photo)-1]
-
 	file, err := Bot.GetFile(tgbotapi.FileConfig{FileID: photo.FileID})
 	if err != nil {
 		return fmt.Errorf("ERR: getting photo file info: %v", err)
 	}
-
 	fileURL := file.Link(Bot.Token)
 	log.Printf("Photo download URL: %s", fileURL)
 
 	filename := strings.Split(fileURL, "/")[6]
 
-	fullPath := "/Users/appleofeden110/dev/logistictbot/handlers/outpics/" + filename
+	fullPath, err := config.DownloadFile(fileURL, filename)
+	if err != nil {
+		return fmt.Errorf("ERR: downloading photo: %v", err)
+	}
 
 	sentPic := docs.File{
 		TgFileId:     photo.FileID,
@@ -2026,12 +2032,10 @@ func savePhotoToTask(
 		Mimetype:     docs.Mimetype("image/jpeg"),
 		Filetype:     docs.Image,
 	}
-
 	err = sentPic.StoreFile(globalStorage)
 	if err != nil {
 		return fmt.Errorf("ERR: storing photo: %v", err)
 	}
-
 	return sentPic.AttachFileToTask(globalStorage, taskId)
 }
 

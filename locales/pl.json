@@ -66,7 +66,7 @@
   "driver:choose_refuel_card": "Wybierz kartę paliwową:",
   "driver:shipment_already_done": "Próbujesz wykonać zadanie trasy, która została już zamknięta",
   "driver:kilometrage": "Wpisz aktualny przebieg pojazdu. \n<b><i>(poprzednio: %d km)</i></b>\n\n(Dostępne formaty: 12345; 12,345; 12,345 km; 12,345 km)",
-  "driver:weight": "Wpisz wagę produktu\n(Dostępne formaty: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 kg; 1234 kg)",
+  "driver:weight": "Wprowadź wagę produktu lub 0 jeśli nie dotyczy\n(Dostępne formaty: 1234.5; 1,234.5; 1234.5 kg; 1,234.5 kg; 1234 kg)",
   "driver:task_done": "Zadanie zostało pomyślnie wykonane!\n",
   "driver:attach_doc": "📃 Wyślij dokument, który chcesz załączyć, i naciśnij <b>\"Wyślij dokumenty\"</b> poniżej",
   "driver:err_taskdone": "To zadanie zostało już wykonane lub nie istnieje w bazie danych. Jeśli to błąd, napisz do dewelopera @pinkfloydfan lub @NazKan_Uk",
@@ -82,7 +82,7 @@
   "driver:added_one_pic": "Dodano 1 zdjęcie 📸",
   "manager:driver_started": "Kierowca %s (%s) rozpoczął zadanie %s dla trasy %d\nPojazd: %s\n\n",
   "driver:err_wrongweightformat": "Nieprawidłowy format wagi, spróbuj ponownie",
-  "driver:enter_temp": "Wpisz temperaturę.\n(Dostępne formaty: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
+  "driver:enter_temp": "Wprowadź temperaturę lub 0 jeśli nie dotyczy.\n(Dostępne formaty: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Nieprawidłowy format temperatury, spróbuj ponownie",
 
   "wrong_km_format": "Nieprawidłowy format przebiegu, spróbuj ponownie",

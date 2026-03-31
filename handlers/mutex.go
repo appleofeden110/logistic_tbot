@@ -10,6 +10,7 @@ import (
 	"logistictbot/tracking"
 	"sync"
 
+	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 	"github.com/gofrs/uuid"
 )
 
@@ -44,6 +45,9 @@ var (
 
 	trackingSessions      = make(map[int64]*tracking.TrackingSession)
 	trackingSessionsMutex sync.Mutex
+
+	toDelete   = make(map[int]tgbotapi.MessageID) // taskId -> message with performing a task
+	toDeleteMu sync.Mutex
 )
 
 func FillSessions(globalStorage *sql.DB) error {
