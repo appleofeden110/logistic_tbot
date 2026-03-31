@@ -87,6 +87,7 @@
 
   "wrong_km_format": "Nieprawidłowy format przebiegu, spróbuj ponownie",
 
+  "shipment_already_exists": "Ta trasa już istnieje",
   "shipment_format": "%d. Shipment №%d\n\tStatus: %s\n\tPojazd: %s\n\tKontener: %s\n\tZadań: %d\n",
   "shipment_notstarted": "🔴 Nie rozpoczęto",
   "shipment_active": "🟡 W trakcie",
@@ -97,6 +98,8 @@
   "shipment_details": "Szczegóły trasy #%d",
   "page:prev": "⬅️ Wstecz",
   "page:next": "Dalej ➡️",
+
+  "formTextAcceptTask": "Czy jesteś gotowy przyjąć zadanie?",
 
   "btn:driver:endtask": "Zakończ wykonanie",
   "btn:driver:add_docstotask": "Dodaj dokument",

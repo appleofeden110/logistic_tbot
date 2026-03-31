@@ -12,6 +12,7 @@
 
   "notes_from_manager": "\n\nНотатки від логіста:\n\n",
 
+  "shipment_already_exists": "Цей маршрут вже існує",
   "shipment_already_started": "Цей маршрут вже почався",
   "shipment_has_not_started": "Цей маршрут ще геть не почався, неможливо закінчити",
   "shipment_already_ended": "Цей маршрут вже був закінчений",
@@ -119,6 +120,7 @@
   "comms:success_reply": "✅ Успішно було відправлено відповідь для ",
   "comms:notification": "❗️<b>НАГАДУВАННЯ - ПОВІДОМЛЕННЯ ВІД: %s (@%s)</b>\n\n<i>%s</i>",
   "skip": "Пропустити",
+  "formTextAcceptTask": "Чи готові ви прийняти завдання?",
 
   "group_registration": "Ви ще не зареєстровані в цій групі, натисніть кнопку нижче що б зареєструвати себе",
   "group_registration_callback": "Зареєструватися",

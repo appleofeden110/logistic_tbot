@@ -165,14 +165,16 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	case strings.HasPrefix(cbq.Data, "shipment:accept:"):
 
 		driverSessionsMu.Lock()
-		driver, exists := driverSessions[cbq.Message.Chat.ID]
+		driver, exists := driverSessions[cbq.From.ID]
 		driverSessionsMu.Unlock()
 
 		if !exists {
 			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "gotta_register"))
 			msg.ParseMode = tgbotapi.ModeHTML
-			Bot.Send(msg)
-			panic("Something went very wrong, driver action triggered with button, but no driver present for this chat_id: " + strconv.Itoa(int(cbq.Message.Chat.ID)))
+			_, err = Bot.Send(msg)
+			return err
+
+			//panic("Something went very wrong, driver action triggered with button, but no driver present for this chat_id: " + strconv.Itoa(int(cbq.Message.Chat.ID)))
 		}
 
 		if driver.State == db.StatePause {
@@ -422,11 +424,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		driverChatId, _ := strconv.ParseInt(driverChatIdStr, 10, 64)
 
 		managerSessionsMu.Lock()
-		session, exists := managerSessions[cbq.Message.Chat.ID]
+		session, exists := managerSessions[cbq.From.ID]
 		managerSessionsMu.Unlock()
 
 		if exists && session.State == db.StateWaitingDriver {
 			pm := session.PendingMessage
+			// somehow store pending messages?
 			pm.ToChatId = driverChatId
 
 			if err := pm.SendDocToDriver(globalStorage, Bot); err != nil {
@@ -449,8 +452,8 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			if err != nil {
 				return fmt.Errorf("ERR: changing status from waiting driver to dormant_mng: %v\n", err)
 			}
-			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "manager:shipment_sent"))
-			_, err = Bot.Send(msg)
+			/*msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "manager:shipment_sent"))
+			_, err = Bot.Send(msg)*/
 			return err
 		}
 	case strings.HasPrefix(cbq.Data, "video:"):

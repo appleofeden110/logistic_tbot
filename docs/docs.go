@@ -29,6 +29,7 @@ type File struct {
 }
 
 func (f *File) StoreFile(globalStorage *sql.DB) error {
+	fmt.Println(f.From)
 	query := `
 	INSERT INTO files
 		(
@@ -213,7 +214,7 @@ func (f *File) AttachFileToTask(globalStorage *sql.DB, taskId int) error {
 		f.Id, taskId,
 	)
 	if err != nil {
-		return fmt.Errorf("insert file: %w", err)
+		return fmt.Errorf("attach file: %w", err)
 	}
 
 	id, err := result.LastInsertId()

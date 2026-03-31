@@ -401,7 +401,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 	case db.StateWaitingDoc:
 		if msg.Document != nil {
 			manager.PendingMessage = &db.PendingMessage{
-				FromChatId:      msg.Chat.ID,
+				FromChatId:      msg.From.ID,
 				MessageType:     "document",
 				FromUser:        msg.From,
 				DocOriginalName: msg.Document.FileName,
@@ -417,6 +417,12 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 
 			id, err := manager.PendingMessage.StoreDocForShipment(globalStorage, Bot)
 			if err != nil {
+				if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+					_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "shipment_already_exists"), msg.MessageThreadID))
+					manager.State = db.StateDormantManager
+
+					return manager, manager.ChangeManagerStatus(globalStorage)
+				}
 				return manager, err
 			}
 

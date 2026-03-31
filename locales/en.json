@@ -86,6 +86,7 @@
 
   "wrong_km_format": "Incorrect mileage format, please try again",
 
+  "shipment_already_exists": "This route already exists",
   "shipment_format": "%d. Shipment №%d\n\tStatus: %s\n\tVehicle: %s\n\tContainer: %s\n\tTasks: %d\n",
   "shipment_notstarted": "🔴 Not started",
   "shipment_active": "🟡 In progress",
@@ -96,6 +97,8 @@
   "shipment_details": "Route details #%d",
   "page:prev": "⬅️ Back",
   "page:next": "Forward ➡️",
+
+  "formTextAcceptTask": "Are you ready to accept the task?",
 
   "btn:driver:endtask": "Finish task",
   "btn:driver:add_docstotask": "Add document",

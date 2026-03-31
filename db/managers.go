@@ -15,9 +15,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var (
-	formTextAcceptTask = "Чи готові ви прийняти завдання?"
-)
+var ()
 
 type ManagerConversationState string
 
@@ -322,6 +320,31 @@ func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption strin
 	_, err = bot.Send(msg)
 	return err
 }
+func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
+	cars, err := GetAllCars(exec)
+	if err != nil {
+		return fmt.Errorf("ERR: getting all cars: %v", err)
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, c := range cars {
+		var label string
+		if c.CurrentDriverId == uuid.Nil {
+			label = fmt.Sprintf("🚗 %s — без водія", c.Id)
+		} else {
+			label = fmt.Sprintf("🚗 %s — водій: %s", c.Id, c.CurrentDriverId.String())
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(
+				label,
+				fmt.Sprintf("%s:%s", callback, c.Id),
+			),
+		))
+	}
+	msg := tgbotapi.NewMessage(chatId, "🚗 "+caption)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	_, err = bot.Send(msg)
+	return err
+}
 
 func (pm *PendingMessage) StoreDocForShipment(exec *sql.DB, bot *tgbotapi.BotAPI) (int, error) {
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: pm.FileId})
@@ -366,6 +389,16 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	if err != nil {
 		return fmt.Errorf("ERR: getting driver from chat id: %v\n", err)
 	}
+	car, err := GetCarById(exec, driver.CarId)
+	if err != nil {
+		return fmt.Errorf("ERR: getting car by car id (%s): %v\n", driver.CarId, err)
+	}
+
+	g := &DriverGroup{CurrentCar: car}
+	err = g.GetDriverGroupByCar(exec)
+	if err != nil {
+		return fmt.Errorf("ERR: getting driver group: %v\n", err)
+	}
 
 	shipment, err := parser.GetSequenceOfTasks(f.Path)
 	if err != nil {
@@ -386,8 +419,8 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 		return fmt.Errorf("store shipment: %w", err)
 	}
 
-	docMsg := tgbotapi.NewDocument(pm.ToChatId, tgbotapi.FileID(pm.FileId))
-	docMsg.Caption = formTextAcceptTask + config.Translate(config.GetLang(pm.ToChatId), "notes_from_manager") + pm.Caption
+	docMsg := tgbotapi.NewDocument(g.GroupChatId, tgbotapi.FileID(pm.FileId))
+	docMsg.Caption = fmt.Sprintf("@%s, %s%s%s", driver.User.TgTag, config.Translate(config.GetLang(g.GroupChatId), "formTextAcceptTask"), config.Translate(config.GetLang(g.GroupChatId), "notes_from_manager"), pm.Caption)
 	docMsg.ParseMode = tgbotapi.ModeHTML
 	docMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
