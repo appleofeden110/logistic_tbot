@@ -83,6 +83,7 @@
   "driver:err_wrongweightformat": "Incorrect weight format, please try again",
   "driver:enter_temp": "Enter temperature or 0 if not relevant.\n(Available formats: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Incorrect temperature format, please try again",
+  "ginit_first": "Before using commands - you need to initialize the group via /ginit@logistictbot\n\nIf you have any questions - contact the developer at @NazKan_Uk or +447990932300",
 
   "wrong_km_format": "Incorrect mileage format, please try again",
 

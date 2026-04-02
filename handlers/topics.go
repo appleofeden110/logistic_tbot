@@ -74,6 +74,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			tgbotapi.NewMessage(
 				groupChatId,
 				config.Translate(config.GetLang(driver.ChatId), "group_inited", car.Id),
+				topicId,
 			),
 		)
 	}
@@ -99,7 +100,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			superAdminList += fmt.Sprintf("@%s ", sa.TgTag)
 		}
 
-		roleMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "g:sa:assign_role", superAdminList, u.Name))
+		roleMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "g:sa:assign_role", superAdminList, u.Name), topicId)
 		roleMsg.ParseMode = tgbotapi.ModeHTML
 		roleMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -115,7 +116,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		u := &db.User{ChatId: user.ID}
 		if err := u.FindSuperAdmin(globalStorage); err != nil {
 			if errors.Is(err, db.ErrNotSuperAdmin) {
-				Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "g:not_sa")))
+				Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "g:not_sa"), topicId))
 			}
 			return fmt.Errorf("ERR: err finding a sa for a group for a command: %v\n", err)
 		}
@@ -132,7 +133,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 				return fmt.Errorf("ERR: storing driver: %v\n", err)
 			}
 
-			carQuestion := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "car_question"))
+			carQuestion := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "car_question"), topicId)
 			cars, err := db.GetAllCars(globalStorage)
 			if err != nil {
 				return fmt.Errorf("Fetching cars for question: %v\n", err)
@@ -161,7 +162,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			if err != nil {
 				return fmt.Errorf("ERR: storing manager: %v\n", err)
 			}
-			_, err = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "registration_accepted:managertoSA", driverUser.Name)))
+			_, err = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "registration_accepted:managertoSA", driverUser.Name), topicId))
 			return err
 		}
 
@@ -191,14 +192,14 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId),
 				"registration_accepted:drivertoSA",
 				driver.User.Name,
-			)))
+			), topicId))
 			driverSessionsMu.Lock()
 			driverSessions[driver.ChatId] = driver
 			driverSessionsMu.Unlock()
 			_, err = Bot.Send(tgbotapi.NewMessage(driver.User.ChatId,
 				config.Translate(config.GetLang(driver.User.ChatId),
 					"registration_accepted:driver",
-					car.Id, int(car.Kilometrage))),
+					car.Id, int(car.Kilometrage), topicId)),
 			)
 			if err != nil {
 				return fmt.Errorf("ERR: sending driver a msg: %v\n", err)

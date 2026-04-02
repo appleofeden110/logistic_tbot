@@ -84,6 +84,7 @@
   "driver:err_wrongweightformat": "Nieprawidłowy format wagi, spróbuj ponownie",
   "driver:enter_temp": "Wprowadź temperaturę lub 0 jeśli nie dotyczy.\n(Dostępne formaty: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Nieprawidłowy format temperatury, spróbuj ponownie",
+  "ginit_first": "Przed użyciem komend - należy zainicjować grupę przez /ginit@logistictbot\n\nJeśli masz pytania - napisz do programisty na @NazKan_Uk lub na +447990932300",
 
   "wrong_km_format": "Nieprawidłowy format przebiegu, spróbuj ponownie",
 

@@ -299,7 +299,7 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 	return false, nil
 }
 
-func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
+func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption string, chatId int64, topicId int, bot *tgbotapi.BotAPI) error {
 	drivers, err := GetAllDrivers(exec)
 	if err != nil {
 		return fmt.Errorf("ERR: getting all drivers: %v", err)
@@ -315,7 +315,7 @@ func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption strin
 		))
 	}
 
-	msg := tgbotapi.NewMessage(chatId, "👤 "+caption)
+	msg := tgbotapi.NewMessage(chatId, "👤 "+caption, topicId)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	_, err = bot.Send(msg)
 	return err
@@ -378,6 +378,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	} else {
 		fmt.Println(manager)
 	}
+	log.Println(pm.FromChatId, pm.ToChatId)
 
 	f := docs.File{TgFileId: pm.FileId}
 	err := f.GetFile(exec)
@@ -419,7 +420,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 		return fmt.Errorf("store shipment: %w", err)
 	}
 
-	docMsg := tgbotapi.NewDocument(g.GroupChatId, tgbotapi.FileID(pm.FileId))
+	docMsg := tgbotapi.NewDocument(g.GroupChatId, tgbotapi.FileID(pm.FileId), g.LoadingTopicId)
 	docMsg.Caption = fmt.Sprintf("@%s, %s%s%s", driver.User.TgTag, config.Translate(config.GetLang(g.GroupChatId), "formTextAcceptTask"), config.Translate(config.GetLang(g.GroupChatId), "notes_from_manager"), pm.Caption)
 	docMsg.ParseMode = tgbotapi.ModeHTML
 	docMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(

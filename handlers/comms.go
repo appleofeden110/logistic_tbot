@@ -455,7 +455,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 	}
 
-	return m.ShowDriverList(globalStorage, "senddrivermsg:"+strconv.Itoa(int(id)), config.Translate(config.GetLang(m.ChatId), "select_receiver"), m.ChatId, Bot)
+	return m.ShowDriverList(globalStorage, "senddrivermsg:"+strconv.Itoa(int(id)), config.Translate(config.GetLang(m.ChatId), "select_receiver"), m.ChatId, 0, Bot)
 }
 
 func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *sql.DB) error {

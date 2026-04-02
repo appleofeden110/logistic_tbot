@@ -174,7 +174,7 @@ func ReadTaskShort(section *TaskSection) string {
 	return result
 }
 
-func ReadDocAndSend(filePath string, chatID int64, bot *tgbotapi.BotAPI) error {
+func ReadDocAndSend(filePath string, chatID int64, loadingTopicId int, bot *tgbotapi.BotAPI) error {
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return fmt.Errorf("ERR: get absolute path: %w", err)
@@ -186,7 +186,7 @@ func ReadDocAndSend(filePath string, chatID int64, bot *tgbotapi.BotAPI) error {
 	}
 
 	res, secRes := ReadDoc(shipment)
-	msg := tgbotapi.NewMessage(chatID, res)
+	msg := tgbotapi.NewMessage(chatID, res, loadingTopicId)
 	msg.ParseMode = tgbotapi.ModeHTML
 
 	for k, v := range secRes {

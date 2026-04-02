@@ -115,14 +115,14 @@ func CreateWashingPlacesList(cleaningStations []*data_analysis.CleaningStation, 
 		if page > 0 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
 				config.Translate(config.GetLang(chatId), "page:prev"),
-				fmt.Sprintf("%s:%d-%d", callbackPrefix, page-1, sendToChatId),
+				fmt.Sprintf("%s:%dto%d", callbackPrefix, page-1, sendToChatId),
 			))
 		}
 
 		if page < totalPages-1 {
 			navButtons = append(navButtons, tgbotapi.NewInlineKeyboardButtonData(
 				config.Translate(config.GetLang(chatId), "page:next"),
-				fmt.Sprintf("%s:%d-%d", callbackPrefix, page+1, sendToChatId),
+				fmt.Sprintf("%s:%dto%d", callbackPrefix, page+1, sendToChatId),
 			))
 		}
 
@@ -218,7 +218,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 			return fmt.Errorf("invalid pagination callback data")
 		}
 
-		ids := strings.Split(parts[1], "-")
+		ids := strings.Split(parts[1], "to")
 		if len(parts) < 2 {
 			return fmt.Errorf("ERR: invalid pagination callback data")
 		}

@@ -376,12 +376,12 @@ func GetAllFilesFromUser(globalStorage *sql.DB, query tgbotapi.CallbackQuery) ([
 }
 
 // Path or FileID of the file should be present
-func (f *File) SendFileTo(caption string, markup tgbotapi.InlineKeyboardMarkup, from, to int64, bot tgbotapi.BotAPI) (tgbotapi.Message, error) {
+func (f *File) SendFileTo(caption string, markup tgbotapi.InlineKeyboardMarkup, from, to int64, topicId int, bot tgbotapi.BotAPI) (tgbotapi.Message, error) {
 	if f.From == 0 {
 		f.From = from
 	}
 
-	doc := tgbotapi.NewDocument(to, tgbotapi.FileID(f.TgFileId))
+	doc := tgbotapi.NewDocument(to, tgbotapi.FileID(f.TgFileId), topicId)
 	doc.Caption = caption
 	doc.ReplyMarkup = markup
 	doc.ParseMode = tgbotapi.ModeHTML
