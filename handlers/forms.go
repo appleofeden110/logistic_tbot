@@ -93,7 +93,7 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 		config.Translate(
 			config.GetLang(f.ChatID),
 			"tank_format",
-			time.Now().Format("02.01.2006"),
+			time.Now().In(config.WarsawLoc).Format("02.01.2006"),
 			shipment.ShipmentId,
 			fc.Name,
 			refuel.CurrentKilometrage,

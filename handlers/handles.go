@@ -51,6 +51,14 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 	switch {
 	case update.Message != nil:
 
+		Loc, err := time.LoadLocation("Europe/Warsaw")
+		if err != nil {
+			return fmt.Errorf("ERR: loading local time: %v\n", err)
+		}
+		raw := int64(update.Message.Date)
+		fmt.Println("Unix timestamp:", raw)
+		fmt.Println("UTC time:", time.Unix(raw, 0).UTC().Format("2006-01-02 15:04"))
+		fmt.Println("Warsaw time:", time.Unix(raw, 0).In(loc).Format("2006-01-02 15:04"))
 		LogTelegramMessage(update.Message)
 		return HandleMessage(update.Message, globalStorage)
 	case update.EditedMessage != nil:

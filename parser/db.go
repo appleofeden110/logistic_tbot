@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"logistictbot/config"
 	"strconv"
 	"time"
 
@@ -171,13 +172,13 @@ func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, err
 
 func (t *TaskSection) UpdateStart(db *sql.DB) error {
 	_, err := db.Exec(`UPDATE tasks SET start = ?, updated_at = datetime('now') WHERE id = ?`,
-		t.Start.Format(time.RFC3339), t.Id)
+		t.Start.In(config.WarsawLoc).Format(time.RFC3339), t.Id)
 	return err
 }
 
 func (t *TaskSection) UpdateEnd(db *sql.DB) error {
 	_, err := db.Exec(`UPDATE tasks SET end = ?, updated_at = datetime('now') WHERE id = ?`,
-		t.End.Format(time.RFC3339), t.Id)
+		t.End.In(config.WarsawLoc).Format(time.RFC3339), t.Id)
 	return err
 }
 
@@ -587,7 +588,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 		WHERE id = ?
 	`
 
-	s.Started = time.Now()
+	s.Started = time.Now().In(config.WarsawLoc)
 
 	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
@@ -604,7 +605,7 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 		WHERE id = ?
 	`
 
-	s.Finished = time.Now()
+	s.Finished = time.Now().In(config.WarsawLoc)
 
 	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
@@ -778,9 +779,9 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 func (t *TaskSection) StartTaskById(db *sql.DB) error {
 	query := `UPDATE tasks SET start = ?, updated_at = ? WHERE id = ?`
 
-	t.Start = time.Now()
+	t.Start = time.Now().In(config.WarsawLoc)
 
-	result, err := db.Exec(query, t.Start.Format(time.RFC3339), time.Now(), t.Id)
+	result, err := db.Exec(query, t.Start.In(config.WarsawLoc).Format(time.RFC3339), time.Now().In(config.WarsawLoc), t.Id)
 	if err != nil {
 		return fmt.Errorf("update task start: %w", err)
 	}
@@ -861,9 +862,9 @@ func (t *TaskSection) UpdateCurrentTempById(db *sql.DB) error {
 func (t *TaskSection) FinishTaskById(db *sql.DB) error {
 	query := `UPDATE tasks SET end = ?, updated_at = ? WHERE id = ?`
 
-	t.End = time.Now()
+	t.End = time.Now().In(config.WarsawLoc)
 
-	result, err := db.Exec(query, t.End.Format(time.RFC3339), time.Now(), t.Id)
+	result, err := db.Exec(query, t.End.In(config.WarsawLoc).Format(time.RFC3339), time.Now().In(config.WarsawLoc), t.Id)
 	if err != nil {
 		return fmt.Errorf("update task end: %w", err)
 	}

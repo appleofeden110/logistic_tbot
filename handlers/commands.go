@@ -1024,8 +1024,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				strings.ToUpper(task.Type),
 				shipment.Chassis,
 				shipment.Container,
-				time.Now().Format("02.01.2006"),
-				task.Start.Format("15:04"),
+				time.Now().In(config.WarsawLoc).Format("02.01.2006"),
+				task.Start.In(config.WarsawLoc).Format("15:04"),
 				"",
 				db.FormatKilometrage(int(task.CurrentKilometrage)),
 				task.Address,
@@ -1102,8 +1102,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				strings.ToUpper(task.Type),
 				shipment.Chassis,
 				shipment.Container,
-				time.Now().Format("02.01.2006"),
-				task.Start.Format("15:04"),
+				time.Now().In(config.WarsawLoc).Format("02.01.2006"),
+				task.Start.In(config.WarsawLoc).Format("15:04"),
 				"",
 				db.FormatKilometrage(int(task.CurrentKilometrage)),
 				task.Address,
@@ -1302,7 +1302,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		if err != nil {
 			return fmt.Errorf("ERR: getting a car for the day beggining: %v\n", err)
 		}
-		additionalInfo := fmt.Sprintf("%s\nПочатковий кілометраж: %s\n\n", time.Now().Format(time.DateTime), db.FormatKilometrage(int(car.Kilometrage)))
+		additionalInfo := fmt.Sprintf("%s\nПочатковий кілометраж: %s\n\n", time.Now().In(config.WarsawLoc).Format(time.DateTime), db.FormatKilometrage(int(car.Kilometrage)))
 
 		driverSesh.State = db.StateWorking
 		err = driverSesh.ChangeDriverStatus(globalStorage)
@@ -1751,8 +1751,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 					strings.ToUpper(task.Type),
 					shipment.Chassis,
 					shipment.Container,
-					time.Now().Format("02.01.2006"),
-					task.Start.Format("15:04"),
+					time.Now().In(config.WarsawLoc).Format("02.01.2006"),
+					task.Start.In(config.WarsawLoc).Format("15:04"),
 					"",
 					db.FormatKilometrage(int(task.CurrentKilometrage)),
 					task.Address,
@@ -1983,7 +1983,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: pausing day's session: %v\n", err)
 			}
 			finishMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("%s\nІнформація по дню:\n\nПочаток зміни: %s\nКінець зміни: %s\nПочатковий кілометраж: %s\nКінцевий кілометраж: %s\nЗагальна дистанція: %s\n\nТривалість:\nПраці (Work) - %s годин\nВодіння (Drive) - %s годин\nПаузи (Pause) - %s годин\n\nДякуємо за вашу працю, гарного дня!",
-				time.Now().Format("02/01/2006"),
+				time.Now().In(config.WarsawLoc).Format("02/01/2006"),
 				session.Started.Format("15:04"),
 				session.Paused.Time.Format("15:04"),
 				db.FormatKilometrage(int(session.StartingKilometrage.Int64)),
