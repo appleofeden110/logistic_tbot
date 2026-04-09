@@ -110,7 +110,7 @@ func WriteLogs(line string) {
 	}
 	defer f.Close()
 
-	logLine := fmt.Sprintf("[%s] %s\n", time.Now().In(config.WarsawLoc).Format("02/01/2006 15:04:05"), line)
+	logLine := fmt.Sprintf("[%s] %s\n", time.Now().In(WarsawLoc).Format("02/01/2006 15:04:05"), line)
 	if _, err := f.WriteString(logLine); err != nil {
 		fmt.Printf("ERR: failed to write to log file (%s): %v\n", filename, err)
 		return
