@@ -217,16 +217,16 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 func FormatKilometrage(km int) string {
 	kmString := strconv.Itoa(km)
 
-	switch len(kmString) {
-	case 4:
-		kmString = kmString[0:1] + "," + kmString[1:]
-	case 5:
-		kmString = kmString[0:2] + "," + kmString[2:]
-	case 6:
-		kmString = kmString[0:3] + "," + kmString[3:]
-	default:
-		break
-	}
+	// switch len(kmString) {
+	// case 4:
+	// 	kmString = kmString[0:1] + "," + kmString[1:]
+	// case 5:
+	// 	kmString = kmString[0:2] + "," + kmString[2:]
+	// case 6:
+	// 	kmString = kmString[0:3] + "," + kmString[3:]
+	// default:
+	// 	break
+	// }
 
 	return kmString + " km"
 }
