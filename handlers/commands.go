@@ -915,11 +915,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				Bot.Send(tgbotapi.NewDeleteMessage(chatId, toDeleteId.MessageID))
 			}
 
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
-			}
-			err = task.FinishTaskById(globalStorage)
+			err := task.FinishTaskById(globalStorage)
 			if err != nil {
 				return err
 			}
@@ -932,7 +928,10 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 			driverInfo := config.Translate(config.GetLang(chatId), "manager:driver_finished", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
 
-			endMsg := CreateTaskMessage(chatId, task, shipment)
+			endMsg, err := GenEndTaskMessage(chatId, task, globalStorage)
+			if err != nil {
+				return fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 
 			/*	_, err = Bot.Send(endMsg)
 				if err != nil {
@@ -1011,44 +1010,10 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return err
 		}
 
-		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		startTaskMsg, err := GenStartTaskMsg(chatId, task, globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: getting shipment to display task: %v\n", err)
+			return fmt.Errorf("ERR: generating start Task Message: %v\n", err)
 		}
-
-		country, _ := parser.ExtractCountry(task.Address)
-
-		startTaskMsg := tgbotapi.NewMessage(chatId,
-			fmt.Sprintf(TaskSubmissionFormatText,
-				task.ShipmentId,
-				strings.ToUpper(task.Type),
-				shipment.Chassis,
-				shipment.Container,
-				time.Now().In(config.WarsawLoc).Format("02.01.2006"),
-				task.Start.In(config.WarsawLoc).Format("15:04"),
-				"",
-				db.FormatKilometrage(int(task.CurrentKilometrage)),
-				task.Address,
-				country.Name,
-				country.Emoji,
-				0,
-				0.00,
-			),
-			loadingTopicId,
-		)
-		startTaskMsg.ParseMode = tgbotapi.ModeHTML
-
-		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_docstotask"), fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_picstotask"), fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
-			),
-		)
 
 		_, err = Bot.Send(startTaskMsg)
 		return err
@@ -1089,44 +1054,10 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return err
 		}
 
-		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		startTaskMsg, err := GenStartTaskMsg(chatId, task, globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: getting shipment to display task: %v\n", err)
+			return fmt.Errorf("ERR: generating start task msg: %v\n", err)
 		}
-
-		country, _ := parser.ExtractCountry(task.Address)
-
-		startTaskMsg := tgbotapi.NewMessage(chatId,
-			fmt.Sprintf(TaskSubmissionFormatText,
-				task.ShipmentId,
-				strings.ToUpper(task.Type),
-				shipment.Chassis,
-				shipment.Container,
-				time.Now().In(config.WarsawLoc).Format("02.01.2006"),
-				task.Start.In(config.WarsawLoc).Format("15:04"),
-				"",
-				db.FormatKilometrage(int(task.CurrentKilometrage)),
-				task.Address,
-				country.Name,
-				country.Emoji,
-				0,
-				0.00,
-			),
-			loadingTopicId,
-		)
-		startTaskMsg.ParseMode = tgbotapi.ModeHTML
-
-		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_docstotask"), fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_picstotask"), fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
-			),
-		)
 
 		_, err = Bot.Send(startTaskMsg)
 		return err
@@ -1396,10 +1327,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
 			}
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
-			}
 
 			km, err := db.ParseKilometrage(msg.Text)
 			if err != nil {
@@ -1418,7 +1345,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
-			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 			endMsg.MessageThreadID = loadingTopicId
 			Bot.Send(endMsg)
 		}
@@ -1428,10 +1358,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
-			}
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
 			}
 
 			parsed, err := db.ParseTime(msg.Text)
@@ -1451,7 +1377,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
-			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 			endMsg.MessageThreadID = loadingTopicId
 			Bot.Send(endMsg)
 		}
@@ -1461,10 +1390,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
-			}
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
 			}
 
 			parsed, err := db.ParseTime(msg.Text)
@@ -1484,7 +1409,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
-			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 			endMsg.MessageThreadID = loadingTopicId
 			Bot.Send(endMsg)
 		}
@@ -1494,10 +1423,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
-			}
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
 			}
 
 			temp, err := db.ParseTemperature(msg.Text)
@@ -1517,7 +1442,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
-			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 			endMsg.MessageThreadID = loadingTopicId
 			Bot.Send(endMsg)
 		}
@@ -1527,10 +1455,6 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
-			}
-			shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-			if err != nil {
-				return driver, fmt.Errorf("ERR: getting shipment to edit: %v\n", err)
 			}
 
 			weight, err := db.ParseWeight(msg.Text)
@@ -1550,7 +1474,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
-			endMsg := CreateTaskMessage(msg.Chat.ID, task, shipment)
+
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
 			endMsg.MessageThreadID = loadingTopicId
 			Bot.Send(endMsg)
 		}
@@ -1717,15 +1645,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			return driver, fmt.Errorf("ERR: getting task by driver's id: %s\n", driver.Id.String())
 		}
 
-		country, _ := parser.ExtractCountry(task.Address)
-
 		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 		if err != nil {
 			return driver, fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
 		}
-
-		log.Println(task.CurrentKilometrage, task.CurrentTemperature, task.CurrentWeight)
-		log.Println(task.Start.IsZero(), task.End.IsZero())
 
 		if task.CurrentKilometrage == 0 && task.Start.IsZero() {
 			km, err := db.ParseKilometrage(msg.Text)
@@ -1745,42 +1668,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: starting a task: %v\n", err)
 			}
 
-			startTaskMsg := tgbotapi.NewMessage(msg.Chat.ID,
-				fmt.Sprintf(TaskSubmissionFormatText,
-					task.ShipmentId,
-					strings.ToUpper(task.Type),
-					shipment.Chassis,
-					shipment.Container,
-					time.Now().In(config.WarsawLoc).Format("02.01.2006"),
-					task.Start.In(config.WarsawLoc).Format("15:04"),
-					"",
-					db.FormatKilometrage(int(task.CurrentKilometrage)),
-					task.Address,
-					country.Name,
-					country.Emoji,
-					0,
-					0.00,
-				),
-				loadingTopicId,
-			)
-			startTaskMsg.ParseMode = tgbotapi.ModeHTML
-			startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(
-						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:endtask"),
-						fmt.Sprintf("driver:endtask:%d", task.Id)),
-				),
-				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(
-						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:add_docstotask"),
-						fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
-				),
-				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(
-						config.Translate(config.GetLang(msg.Chat.ID), "btn:driver:add_picstotask"),
-						fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
-				),
-			)
+			startTaskMsg, err := GenStartTaskMsg(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating start task msg: %v\n", err)
+			}
 
 			car, err1 := db.GetCarById(globalStorage, driver.CarId)
 			if err1 != nil {
