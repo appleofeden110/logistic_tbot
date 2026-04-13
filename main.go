@@ -6,6 +6,7 @@ import (
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
+	"logistictbot/delq"
 	"logistictbot/handlers"
 	"net/http"
 	"os"
@@ -66,6 +67,7 @@ func main() {
 	defer cancel()
 
 	go handlers.PingNonReplies(globalStorage)
+	go delq.DeleteWorker(globalStorage, handlers.Bot)
 	go handlers.ReceiveUpdates(ctx, updates, globalStorage)
 
 	// Start the HTTP server and listen on the PORT specified by Heroku

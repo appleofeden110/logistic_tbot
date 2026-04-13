@@ -152,8 +152,8 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 
 func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
 		WHERE driver_id = ?
@@ -202,11 +202,11 @@ func (t *TaskSection) UpdateCurrentTemperature(db *sql.DB) error {
 
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
-		SELECT id, type, shipment_id, content, customer_ref, load_ref, 
-		       load_start_date, load_end_date, unload_ref, unload_start_date, 
-		       unload_end_date, tank_status, product, weight, volume, 
-		       temperature, compartment, remark, address, destination_address, 
-		       doc_id, start, end, current_kilometrage, current_weight, 
+		SELECT id, type, shipment_id, content, customer_ref, load_ref,
+		       load_start_date, load_end_date, unload_ref, unload_start_date,
+		       unload_end_date, tank_status, product, weight, volume,
+		       temperature, compartment, remark, address, destination_address,
+		       doc_id, start, end, current_kilometrage, current_weight,
 		       current_temperature, created_at, updated_at
 		FROM tasks
 		WHERE shipment_id = ?
@@ -279,8 +279,8 @@ func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment,
 
 func GetAllShipments(db *sql.DB) ([]*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
 	`
@@ -289,8 +289,8 @@ func GetAllShipments(db *sql.DB) ([]*Shipment, error) {
 
 func GetAllShipmentsByCarId(carId string, db *sql.DB) ([]*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
 		WHERE car_id = ?
@@ -300,8 +300,8 @@ func GetAllShipmentsByCarId(carId string, db *sql.DB) ([]*Shipment, error) {
 
 func GetAllActiveShipments(db *sql.DB) ([]*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
 		WHERE finished IS NULL OR finished = ''
@@ -311,8 +311,8 @@ func GetAllActiveShipments(db *sql.DB) ([]*Shipment, error) {
 
 func GetAllActiveShipmentsByCarId(carId string, db *sql.DB) ([]*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
 		WHERE car_id = ? AND (finished IS NULL OR finished = '')
@@ -323,13 +323,13 @@ func GetAllActiveShipmentsByCarId(carId string, db *sql.DB) ([]*Shipment, error)
 // GroupByMonth retrieves all shipments finished in a specific month and year
 func GroupByMonth(month time.Month, year int, db *sql.DB) ([]*Shipment, error) {
 	query := `
-		SELECT id, document_language, instruction_type, car_id, driver_id, 
-		       container, chassis, tankdetails, generalremark, doc_id, 
+		SELECT id, document_language, instruction_type, car_id, driver_id,
+		       container, chassis, tankdetails, generalremark, doc_id,
 		       created_at, updated_at, started, finished
 		FROM shipments
-		WHERE strftime('%m', finished) = ? 
+		WHERE strftime('%m', finished) = ?
 		  AND strftime('%Y', finished) = ?
-		ORDER BY finished 
+		ORDER BY finished
 	`
 	return queryShipments(db, query, fmt.Sprintf("%02d", month), fmt.Sprintf("%d", year))
 }
@@ -359,7 +359,7 @@ func parseTimeString(s string) (time.Time, error) {
 
 func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 	query := `
-		SELECT DISTINCT 
+		SELECT DISTINCT
 			strftime('%Y', finished) as year,
 			strftime('%m', finished) as month
 		FROM shipments
@@ -411,13 +411,23 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 	}
 	defer tx.Rollback()
 
-	query := `INSERT INTO shipments 
-		(id, document_language, instruction_type, car_id, driver_id, container, chassis, 
-		tankdetails, generalremark, doc_id, created_at, updated_at) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO shipments
+		(id, document_language, instruction_type, car_id, driver_id, container, chassis,
+		tankdetails, generalremark, doc_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			document_language = excluded.document_language,
+			instruction_type = excluded.instruction_type,
+			car_id = excluded.car_id,
+			driver_id = excluded.driver_id,
+			container = excluded.container,
+			chassis = excluded.chassis,
+			tankdetails = excluded.tankdetails,
+			generalremark = excluded.generalremark,
+			doc_id = excluded.doc_id,
+			updated_at = excluded.updated_at`
 
 	log.Println(s)
-
 	_, err = tx.Exec(
 		query,
 		s.ShipmentId,
@@ -437,11 +447,34 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		return fmt.Errorf("ERR: insert shipment: %w", err)
 	}
 
-	taskQuery := `INSERT INTO tasks 
-	(type, shipment_id, content, customer_ref, load_ref, load_start_date, load_end_date,
-	unload_ref, unload_start_date, unload_end_date, tank_status, product, weight, volume,
-	temperature, compartment, remark, address, destination_address, doc_id, current_kilometrage, current_weight, current_temperature, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	taskQuery := `INSERT INTO tasks
+		(type, shipment_id, content, customer_ref, load_ref, load_start_date, load_end_date,
+		unload_ref, unload_start_date, unload_end_date, tank_status, product, weight, volume,
+		temperature, compartment, remark, address, destination_address, doc_id, current_kilometrage, current_weight, current_temperature, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(shipment_id, type) DO UPDATE SET
+			content = excluded.content,
+			customer_ref = excluded.customer_ref,
+			load_ref = excluded.load_ref,
+			load_start_date = excluded.load_start_date,
+			load_end_date = excluded.load_end_date,
+			unload_ref = excluded.unload_ref,
+			unload_start_date = excluded.unload_start_date,
+			unload_end_date = excluded.unload_end_date,
+			tank_status = excluded.tank_status,
+			product = excluded.product,
+			weight = excluded.weight,
+			volume = excluded.volume,
+			temperature = excluded.temperature,
+			compartment = excluded.compartment,
+			remark = excluded.remark,
+			address = excluded.address,
+			destination_address = excluded.destination_address,
+			doc_id = excluded.doc_id,
+			current_kilometrage = excluded.current_kilometrage,
+			current_weight = excluded.current_weight,
+			current_temperature = excluded.current_temperature,
+			updated_at = excluded.updated_at`
 
 	for _, task := range s.Tasks {
 		if task.Type == "" {
@@ -450,7 +483,6 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		task.ShipmentId = s.ShipmentId
 		task.ShipmentDocId = s.ShipmentDocId
 		fmt.Println(task)
-
 		result, err := tx.Exec(
 			taskQuery,
 			task.Type,
@@ -482,7 +514,6 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("ERR: insert task: %w", err)
 		}
-
 		taskId, err := result.LastInsertId()
 		if err != nil {
 			return fmt.Errorf("ERR: get task id: %w", err)
@@ -493,7 +524,6 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("ERR: commit transaction: %w", err)
 	}
-
 	return nil
 }
 
@@ -505,8 +535,8 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	}
 	defer tx.Rollback()
 
-	query := `SELECT id, document_language, instruction_type, car_id, driver_id, 
-		container, chassis, tankdetails, generalremark, doc_id, created_at, updated_at, started, finished 
+	query := `SELECT id, document_language, instruction_type, car_id, driver_id,
+		container, chassis, tankdetails, generalremark, doc_id, created_at, updated_at, started, finished
 		FROM shipments WHERE id = ?`
 	row := tx.QueryRow(query, shipmentId)
 	s := &Shipment{}
@@ -584,7 +614,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 func (s *Shipment) StartShipment(db *sql.DB) error {
 	query := `
 		UPDATE shipments
-		SET started = ? 
+		SET started = ?
 		WHERE id = ?
 	`
 
@@ -601,7 +631,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 func (s *Shipment) FinishShipment(db *sql.DB) error {
 	query := `
 		UPDATE shipments
-		SET finished = ? 
+		SET finished = ?
 		WHERE id = ?
 	`
 
@@ -630,9 +660,9 @@ func (s *Shipment) IsFinished() bool {
 
 // GetTaskById retrieves a single task by ID
 func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
-	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref, 
+	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
-	tank_status, product, weight, volume, temperature, compartment, remark, 
+	tank_status, product, weight, volume, temperature, compartment, remark,
 	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at
 	FROM tasks WHERE id = ?`
 
@@ -700,9 +730,9 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 // GetAllTasksByShipmentId retrieves all tasks for a given shipment
 func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, error) {
 
-	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref, 
+	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
-	tank_status, product, weight, volume, temperature, compartment, remark, 
+	tank_status, product, weight, volume, temperature, compartment, remark,
 	address, destination_address, doc_id, start, end, current_kilometrage, current_weight, current_temperature	FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
 
 	rows, err := db.Query(query, shipmentId)

@@ -38,7 +38,7 @@ func ReceiveUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel, global
 			return
 		case update := <-updates:
 			if err := HandleUpdate(update, globalStorage); err != nil {
-				log.Println("ERR: ", err)
+				log.Println("ERR: handling update: ", err)
 			}
 		}
 	}

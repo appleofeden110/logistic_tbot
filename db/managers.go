@@ -413,6 +413,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 
 	err = shipment.StoreShipment(exec)
 	if err != nil {
+		log.Println(err)
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			_, err = bot.Send(tgbotapi.NewMessage(pm.FromChatId, config.Translate(config.GetLang(pm.FromChatId), "err_shipment_exists")))
 			return err

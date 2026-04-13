@@ -9,6 +9,7 @@ import (
 	"logistictbot/config"
 	data_analysis "logistictbot/data-analysis"
 	"logistictbot/db"
+	"logistictbot/delq"
 	"logistictbot/docs"
 	"logistictbot/duration"
 	"logistictbot/parser"
@@ -91,6 +92,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		if err != nil {
 			log.Println(u, err)
 		}
+
 	case "ginit":
 		if isGroupCmd {
 			var carQuestion tgbotapi.MessageConfig
@@ -193,6 +195,10 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
+		msg := tgbotapi.NewMessage(chatId, "TEST DELETION")
+		message, _ := Bot.Send(msg)
+
+		delq.ScheduleForDeletion(message.Chat.ID, message.MessageID, globalStorage)
 
 	case "createform:driver_registration":
 		d := db.Driver{User: &db.User{ChatId: chatId}}

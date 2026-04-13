@@ -6,6 +6,7 @@ import (
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
+	"logistictbot/delq"
 	"logistictbot/parser"
 	"logistictbot/tracking"
 	"sync"
@@ -117,6 +118,13 @@ func FillSessions(globalStorage *sql.DB) error {
 	nonRepliedMessagesMu.Unlock()
 
 	log.Printf("Non-replied messages are filled (len: %d)\n", len(nonRepliedMessages))
+
+	err = delq.FillDeleteQueue(globalStorage)
+	if err != nil {
+		return fmt.Errorf("ERR: getting all the dq nodes: %v\n", err)
+	}
+
+	log.Printf("Delete Queue is filled (len: %d)\n", len(delq.DeleteQueue))
 
 	return nil
 }
