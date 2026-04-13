@@ -320,7 +320,7 @@ func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption strin
 	_, err = bot.Send(msg)
 	return err
 }
-func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
+func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, chatId int64, topicId int, bot *tgbotapi.BotAPI) error {
 	cars, err := GetAllCars(exec)
 	if err != nil {
 		return fmt.Errorf("ERR: getting all cars: %v", err)
@@ -329,9 +329,14 @@ func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, 
 	for _, c := range cars {
 		var label string
 		if c.CurrentDriverId == uuid.Nil {
-			label = fmt.Sprintf("🚗 %s — без водія", c.Id)
+			label = config.Translate(config.GetLang(chatId), "btn:car:nod", c.Id)
 		} else {
-			label = fmt.Sprintf("🚗 %s — водій: %s", c.Id, c.CurrentDriverId.String())
+
+			d, err := GetDriverById(exec, c.CurrentDriverId)
+			if err != nil {
+				return fmt.Errorf("ERR: getting driver by id: %v\n", err)
+			}
+			label = config.Translate(config.GetLang(chatId), "btn:car:d", c.Id, d.User.Name)
 		}
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
@@ -340,7 +345,7 @@ func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, 
 			),
 		))
 	}
-	msg := tgbotapi.NewMessage(chatId, "🚗 "+caption)
+	msg := tgbotapi.NewMessage(chatId, "🚗 "+caption, topicId)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	_, err = bot.Send(msg)
 	return err

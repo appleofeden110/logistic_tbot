@@ -1351,7 +1351,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	log.Printf("Driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 	if strings.HasPrefix(strconv.Itoa(int(msg.Chat.ID)), "-100") {
 		loadingTopicId = FindLoadingTopic(msg.Chat.ID, globalStorage)
-		if msg.MessageThreadID != loadingTopicId {
+		if msg.MessageThreadID != loadingTopicId && driver.State != db.StateEditingAddress {
 			log.Println("WARN: State correct, wrong topic, ignoring")
 			return driver, nil
 		}
@@ -2014,14 +2014,6 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		return fmt.Errorf("command is incorrect: %v\n", command)
 	}
 
-	/*	managerSessionsMu.Lock()
-		saManager, exists := managerSessions[chatId]
-		managerSessionsMu.Unlock()
-
-		if !exists {
-			return fmt.Errorf("not a manager session, register")
-		}
-	*/
 	if strings.HasPrefix(strconv.Itoa(int(chatId)), "-100") {
 		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
 	}
@@ -2059,6 +2051,80 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		if err != nil {
 			return err
 		}
+	case "change_car_d":
+		managerSessionsMu.Lock()
+		saManager, exists := managerSessions[chatId]
+		managerSessionsMu.Unlock()
+
+		if !exists {
+			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
+		}
+
+		return saManager.ShowDriverList(globalStorage,
+			"sa:change_car_c",
+			config.Translate(config.GetLang(chatId), "change_car:d"),
+			chatId,
+			loadingTopicId,
+			Bot,
+		)
+	case "change_car_c":
+
+		managerSessionsMu.Lock()
+		saManager, exists := managerSessions[chatId]
+		managerSessionsMu.Unlock()
+
+		if !exists {
+			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
+		}
+		driverChatId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting driver chat id from _idString: %v\n", err)
+		}
+
+		d, err := db.GetDriverByChatId(globalStorage, int64(driverChatId))
+		if err != nil {
+			return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
+		}
+
+		return saManager.ShowCarList(globalStorage,
+			"sa:car_changed:"+_idString,
+			config.Translate(config.GetLang(chatId), "change_car:c", d.User.Name),
+			chatId,
+			loadingTopicId,
+			Bot,
+		)
+	case "car_changed":
+
+		managerSessionsMu.Lock()
+		_, exists := managerSessions[chatId]
+		managerSessionsMu.Unlock()
+
+		if !exists {
+			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
+		}
+
+		dChatId, carId, _ := strings.Cut(_idString, ":")
+
+		driverChatId, err := strconv.Atoi(dChatId)
+		if err != nil {
+			return fmt.Errorf("ERR: converting driver chat id from _idString: %v\n", err)
+		}
+
+		d, err := db.GetDriverByChatId(globalStorage, int64(driverChatId))
+		if err != nil {
+			return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
+		}
+
+		err = d.UpdateCarId(globalStorage, carId)
+		if err != nil {
+			return fmt.Errorf("ERR: updating car id: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "successful_car_change", carId, d.User.Name))
+		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+
 	case "approve":
 		approvedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {

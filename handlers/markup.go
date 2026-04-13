@@ -86,6 +86,9 @@ func SuperAdminMarkupManager(lang config.LangCode) tgbotapi.InlineKeyboardMarkup
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(config.Translate(lang, "btn:add_car"), "sa:add_car"),
 		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(lang, "btn:change_car"), "sa:change_car_d"),
+		),
 	)
 }
 func SuperAdminMarkupDriver(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
