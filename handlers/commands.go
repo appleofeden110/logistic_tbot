@@ -2120,6 +2120,10 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 			return fmt.Errorf("ERR: updating car id: %v\n", err)
 		}
 
+		driverSessionsMu.Lock()
+		driverSessions[d.ChatId].CarId = d.CarId
+		driverSessionsMu.Unlock()
+
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "successful_car_change", carId, d.User.Name))
 		msg.ParseMode = tgbotapi.ModeHTML
 		_, err = Bot.Send(msg)
