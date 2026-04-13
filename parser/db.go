@@ -69,6 +69,7 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	var loadStartDate, loadEndDate, unloadStartDate, unloadEndDate sql.NullString
 	var start, end sql.NullString
 	var createdAt, updatedAt sql.NullString
+	var originalAddress sql.NullString
 	var compartment sql.NullInt64
 	var currentKm, currentWeight sql.NullInt64
 	var currentTemp sql.NullFloat64
@@ -102,6 +103,7 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 		&currentTemp,
 		&createdAt,
 		&updatedAt,
+		&originalAddress,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ERR: scan task: %w", err)
@@ -132,6 +134,10 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	}
 	if updatedAt.Valid {
 		task.UpdatedAt, _ = parseTimeString(updatedAt.String)
+	}
+
+	if originalAddress.Valid {
+		task.OriginalAddress = originalAddress.String
 	}
 
 	if compartment.Valid {
@@ -200,6 +206,12 @@ func (t *TaskSection) UpdateCurrentTemperature(db *sql.DB) error {
 	return err
 }
 
+func (t *TaskSection) UpdateAddress(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET address = ?, original_address = ? WHERE id = ?`,
+		t.Address, t.OriginalAddress, t.Id)
+	return err
+}
+
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
 		SELECT id, type, shipment_id, content, customer_ref, load_ref,
@@ -207,7 +219,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 		       unload_end_date, tank_status, product, weight, volume,
 		       temperature, compartment, remark, address, destination_address,
 		       doc_id, start, end, current_kilometrage, current_weight,
-		       current_temperature, created_at, updated_at
+		       current_temperature, created_at, updated_at, original_address
 		FROM tasks
 		WHERE shipment_id = ?
 		ORDER BY id
@@ -663,7 +675,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address
 	FROM tasks WHERE id = ?`
 
 	row := db.QueryRow(query, taskId)
@@ -672,7 +684,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 
 	var (
 		loadStart, loadEnd, unloadStart, unloadEnd string
-		startTime, endTime                         sql.NullString
+		startTime, endTime, originalAddress        sql.NullString
 	)
 
 	err := row.Scan(
@@ -704,6 +716,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 		&task.CurrentWeight,
 		&sql.NullString{}, // created_at
 		&sql.NullString{}, // updated_at
+		&originalAddress,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -723,6 +736,9 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	if endTime.Valid {
 		task.End, _ = parseTime(endTime.String)
 	}
+	if originalAddress.Valid {
+		task.OriginalAddress = originalAddress.String
+	}
 
 	return task, nil
 }
@@ -733,7 +749,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_weight, current_temperature	FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
+	address, destination_address, doc_id, start, end, current_kilometrage, current_weight, current_temperature, original_address	FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
 
 	rows, err := db.Query(query, shipmentId)
 	if err != nil {
@@ -748,7 +764,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 
 		var (
 			loadStart, loadEnd, unloadStart, unloadEnd string
-			startTime, endTime                         sql.NullString
+			startTime, endTime, originalAddress        sql.NullString
 		)
 
 		err := rows.Scan(
@@ -778,6 +794,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 			&task.CurrentKilometrage,
 			&task.CurrentTemperature,
 			&task.CurrentWeight,
+			&originalAddress,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
@@ -793,6 +810,9 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 		}
 		if endTime.Valid {
 			task.End, _ = parseTime(endTime.String)
+		}
+		if originalAddress.Valid {
+			task.OriginalAddress = originalAddress.String
 		}
 
 		tasks = append(tasks, task)

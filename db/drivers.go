@@ -37,6 +37,7 @@ const (
 	StateEditingEndTime    DriverConversationState = "editing_endtime"
 	StateEditingTemp       DriverConversationState = "editing_temp"
 	StateEditingWeight     DriverConversationState = "editing_weight"
+	StateEditingAddress    DriverConversationState = "editing_address"
 )
 
 var (
@@ -204,7 +205,7 @@ func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
 
 func (d *Driver) SetEditTaskId(globalStorage *sql.DB) error {
 	query := `
-		UPDATE drivers 
+		UPDATE drivers
 		SET performing_task_id = ?
 		WHERE id = ?
 	`

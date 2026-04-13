@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/config"
+	data_analysis "logistictbot/data-analysis"
 	"logistictbot/docs"
 	"logistictbot/tracking"
 	"strings"
@@ -78,6 +79,35 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 
 		LogCallBackQuery(update.CallbackQuery)
 		return HandleCallbackQuery(update.CallbackQuery, globalStorage)
+
+	case update.InlineQuery != nil:
+		log.Println("INLINE: ", update.InlineQuery)
+		query := update.InlineQuery.Query // whatever the user typed after @yourbot
+		log.Println(query)
+
+		cleaningStations, err := data_analysis.GetAllCleaningStations(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: getting all cleaning stations: %v\n", err)
+		}
+
+		var results []any
+		for _, cs := range cleaningStations {
+			results = append(results, tgbotapi.NewInlineQueryResultArticle(
+				fmt.Sprintf("%d", cs.Id),
+				cs.Name,
+				cs.Name+", "+cs.Address,
+			))
+		}
+
+		inlineConf := tgbotapi.InlineConfig{
+			InlineQueryID: update.InlineQuery.ID,
+			Results:       results,
+		}
+
+		if _, err := Bot.Request(inlineConf); err != nil {
+			log.Println(err)
+		}
+
 	default:
 		err = fmt.Errorf("wrong type of update")
 	}

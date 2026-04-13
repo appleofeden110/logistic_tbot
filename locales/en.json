@@ -8,9 +8,7 @@
   "gotta_register": "You are not a driver in the system. Most likely something is wrong with the bot. If nothing works – write to the manager or developer (@NazKan_Uk | @pinkfloydfan). \n\nIf you are not registered, do it using the /start command, this will most likely solve the problem",
   "gotta_startday": "You must start your shift before performing any actions. You can do this through the menu (commands /start or /menu)",
   "gotta_be_manager": "The user must be a manager to use this command",
-
   "notes_from_manager": "\n\nNotes from the logistician:\n\n",
-
   "shipment_already_started": "This route has already been started",
   "shipment_has_not_started": "This route has not been started yet, it cannot be finished",
   "shipment_already_ended": "This route has already been finished",
@@ -28,10 +26,8 @@
   "err_car_exists": "Such a vehicle already exists in the database",
   "added_car": "Vehicle %s with mileage %d has been successfully added to the database",
   "which_driver": "Which driver are you sending the shipment to",
-
   "shipment_end": "Route <b>%d</b> has been finished!\n\nYou have 10 minutes to undo this by pressing the button below",
   "get_shipment_back": "Restore route",
-
   "register": "\n\nRegister to unlock the main bot functions as a Driver or Manager.",
   "registration_accepted:driver": "Your registration has been accepted! You have been assigned vehicle %s with mileage %d km.",
   "registration_accepted:drivertoSA": "User %s has been approved as a driver!",
@@ -40,7 +36,6 @@
   "registration_declined:SA": "User %s registration has not been approved.",
   "registration_declined:user": "Your registration has not been accepted. Contact one of the managers directly or try again.",
   "car_question": "Which vehicle are you assigning to this driver?",
-
   "manager:send_doc": "📄 Send the document you want to forward to the driver.",
   "manager:drivers_list": "Drivers list:\n\n",
   "manager:driver_hasnocar": "<b>%s</b> (@%s) - No vehicle assigned\n",
@@ -52,14 +47,12 @@
   "manager:readdoc": "⬇️ Click here to read the document",
   "manager:notes": "✏️ Enter notes or description for the document:",
   "manager:please_send_doc": "Please send a document.",
-
   "form:q:name": "Enter your name",
   "form:q:current_km": "Enter current mileage (numbers only)",
   "form:q:refuel_address": "Enter the fuel station address",
   "form:q:diesel_amount": "Enter the amount of Diesel you refueled (numbers only)",
   "form:q:adblu_amount": "Enter the amount of AdBlu you refueled (numbers only)",
   "form:q:car_id": "Enter the full vehicle number (Example: AB123CD 456789)",
-
   "driver:err_refuel": "You may report refueling only while performing a route. If this is the case but you receive this message – contact the developer @pinkfloydfan or @NazKan_Uk",
   "driver:no_refuel_cards": "No fuel cards available.",
   "driver:choose_refuel_card": "Choose a fuel card:",
@@ -84,9 +77,7 @@
   "driver:enter_temp": "Enter temperature or 0 if not relevant.\n(Available formats: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Incorrect temperature format, please try again",
   "ginit_first": "Before using commands - you need to initialize the group via /ginit@logistictbot\n\nIf you have any questions - contact the developer at @NazKan_Uk or +447990932300",
-
   "wrong_km_format": "Incorrect mileage format, please try again",
-
   "shipment_already_exists": "This route already exists",
   "shipment_format": "%d. Shipment №%d\n\tStatus: %s\n\tVehicle: %s\n\tContainer: %s\n\tTasks: %d\n",
   "shipment_notstarted": "🔴 Not started",
@@ -98,9 +89,7 @@
   "shipment_details": "Route details #%d",
   "page:prev": "⬅️ Back",
   "page:next": "Forward ➡️",
-
   "formTextAcceptTask": "Are you ready to accept the task?",
-
   "btn:driver:endtask": "Finish task",
   "btn:driver:add_docstotask": "Add document",
   "btn:driver:add_picstotask": "Add photos",
@@ -113,35 +102,31 @@
   "comms:success_reply": "✅ Reply successfully sent to ",
   "comms:notification": "❗️<b>REMINDER - MESSAGE FROM: %s (@%s)</b>\n\n<i>%s</i>",
   "skip": "Skip",
-
   "prev_answer": "%s (Previous answer: %s)\n\nPress skip if you do not need to change this",
   "delete_video": "Delete video",
-
   "refuel_saved": "✅ Refueling saved!",
-
   "group_registration": "You are not yet registered in this group. Click the button below to register yourself.",
   "group_registration_callback": "Register",
   "g:sa:assign_role": "%s assign a role for %s",
   "g:sa:assign_role:driver": "Driver",
   "g:sa:assign_role:manager": "Manager",
-
   "g:not_sa": "This button can only be used by the assigned manager.",
-
   "successful_edit": "✅ Data has been successfully updated!",
   "endmsg:edit": "Edit task data",
   "task_edit_choice": "Select what to change for the task",
   "task_edit_choice_km": "Mileage",
   "task_edit_choice_starttime": "Start time",
   "task_edit_choice_endtime": "End time",
-  "task_edit_choice_temperature": "Temperature",
+  "task_edit_choice_temp": "Temperature",
   "task_edit_choice_weight": "Weight",
-
+  "task_edit_choice_address": "Address",
+  "task_edit_address": "<b><i>Enter the new delivery address</i></b>\n\n(Note: Existing addresses are mostly for cleaning stations, but more are added to the database over time. If your required address is not listed, <b>enter it manually</b>)\n\n⬇️ <b>Press below to choose from existing ones</b> ⬇️",
   "task_edit_km": "Enter mileage\n\n<b>Examples:\n12345 | 12,345 | 12,345 km</b>",
   "task_edit_starttime": "Enter start time\n\n<b>Examples:\n09:00 | 9:00 | 0900</b>",
   "task_edit_endtime": "Enter end time\n\n<b>Examples:\n17:30 | 5:30 | 1730</b>",
   "task_edit_temperature": "Enter temperature\n\n<b>Examples:\n20 | 20°C | -5 | -5°C</b>",
   "task_edit_weight": "Enter weight\n\n<b>Examples:\n1500 | 1,500 | 1,500 kg</b>",
-
+  "btn:choose_address": "Choose",
   "btn:reply": "Reply",
   "btn:switch_to_driver": "Switch to driver",
   "btn:switch_to_manager": "Switch to manager",
@@ -175,7 +160,6 @@
   "form:refuel": "<b>Form for entering refueling by Fuel Card</b>",
   "form:driver": "<b>Driver registration form.</b>",
   "form:manager": "<b>Manager registration form.</b>",
-
   "tank_format": "Tank %s\nShipment  %d\n%s\n\n%dkm\n\nDiesel\n%.2fL\nAdblu\n%.2fL\n\n\n%s,\n%s",
   "gotta_be_group": "Must be in a group, and inside the subgroup where you want to assign the corresponding topic (subgroups: Tank, Document, Loading or Photo)",
   "car_question_g": "Assign which car belongs to this group",
@@ -194,6 +178,5 @@
   "washing_question": "❗ Driver <b>%s (%s)</b> is requesting the address of the nearest cleaning station (Shipment №: %d).\n\nChoose from the buttons the cleaning station number shown:",
   "cleaning_station:todriver": "❗ The manager has sent you a cleaning station in response to your request!\n\n%s\n\tAddress: %s\n\tCountry: %s\n\tCoordinates: %.5f, %.5f\n\tOpening hours: %s\n",
   "manager:cleaning_sent": "✅ Cleaning station has been sent to the driver",
-
   "VERY_BAD": "Something went seriously wrong. If the bot does not respond to further actions – write or call the developer: @pinkfloydfan or +447990932300"
 }

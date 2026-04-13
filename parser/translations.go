@@ -33,18 +33,19 @@ type Shipment struct {
 }
 
 type TaskSection struct {
-	Id                 int
-	Type               string // load, unload, collect, dropoff, cleaning
-	ShipmentId         int64
-	Content            string   // All content for this task
-	Lines              []string // Individual lines
-	ShipmentDocId      int
-	ShipmentDoc        *docs.File
-	Start              time.Time
-	End                time.Time
-	CurrentKilometrage int64   // things with prefix "Current" usually mean the ones that driver wrote himself, this is his kilometrage
-	CurrentTemperature float64 // things with prefix "Current" usually mean the ones that driver wrote himself, this is his product's temperature
-	CurrentWeight      int     // things with prefix "Current" usually mean the ones that driver wrote himself, this is his product's weight
+	Id            int
+	Type          string // load, unload, collect, dropoff, cleaning
+	ShipmentId    int64
+	Content       string   // All content for this task
+	Lines         []string // Individual lines
+	ShipmentDocId int
+	ShipmentDoc   *docs.File
+	Start         time.Time
+	End           time.Time
+	// things with prefix "Current" usually mean the ones that driver wrote himself
+	CurrentKilometrage int64
+	CurrentTemperature float64
+	CurrentWeight      int
 	//TaskDetails
 	CustomerReference  string    `form:"Customer референс"`
 	LoadReference      string    `form:"Load референс"`
@@ -63,6 +64,7 @@ type TaskSection struct {
 	Company            string    `form:"За дорученням"`
 	Address            string    `form:"Адреса"`
 	DestinationAddress string    `form:"Адреса доставки"`
+	OriginalAddress    string
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }

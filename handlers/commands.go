@@ -576,7 +576,6 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 	switch cmd {
 	case "task_edit":
-		fmt.Println("Chat id for task ")
 		editMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_choice"), loadingTopicId)
 		editMsg.ParseMode = tgbotapi.ModeHTML
 		editMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -603,6 +602,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
 					config.Translate(config.GetLang(chatId), "task_edit_choice_weight"), "driver:task_edit_choice_weight:"+_idString,
+				),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					config.Translate(config.GetLang(chatId), "task_edit_choice_address"), "driver:task_edit_choice_address:"+_idString,
 				),
 			),
 		)
@@ -713,6 +717,34 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_weight"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
+		_, err = Bot.Send(msg)
+		return err
+	case "task_edit_choice_address":
+		driverSesh.State = db.StateEditingAddress
+		err := driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status for editing (weight): %v\n", err)
+		}
+		editTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id for editing (wg): %v\n", err)
+		}
+
+		driverSesh.PerformedTaskId = editTaskId
+		err = driverSesh.SetEditTaskId(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's edit task id (wg): %v\n", err)
+		}
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_address"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+
+		btn := tgbotapi.InlineKeyboardButton{
+			Text:                         config.Translate(config.GetLang(chatId), "btn:choose_address"),
+			SwitchInlineQueryCurrentChat: new(string),
+		}
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(btn),
+		)
 		_, err = Bot.Send(msg)
 		return err
 
@@ -1472,6 +1504,33 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			task.CurrentWeight = weight
 			if err = task.UpdateCurrentWeight(globalStorage); err != nil {
 				return driver, fmt.Errorf("ERR: updating weight: %v\n", err)
+			}
+
+			driver.State = db.StateWorking
+			if err = driver.ChangeDriverStatus(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
+			}
+
+			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+
+			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
+			}
+			endMsg.MessageThreadID = loadingTopicId
+			Bot.Send(endMsg)
+		}
+	case db.StateEditingAddress:
+		if msg.Text != "" {
+			task, err := parser.GetTaskById(globalStorage, driver.PerformedTaskId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting task to edit: %v\n", err)
+			}
+
+			task.OriginalAddress = task.Address
+			task.Address = msg.Text
+			if err = task.UpdateAddress(globalStorage); err != nil {
+				return driver, fmt.Errorf("ERR: updating address: %v\n", err)
 			}
 
 			driver.State = db.StateWorking

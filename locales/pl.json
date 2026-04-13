@@ -8,9 +8,7 @@
   "gotta_register": "Nie jesteś kierowcą w systemie. Najprawdopodobniej coś jest nie tak z botem. Jeśli nic nie będzie działać – napisz do menedżera lub dewelopera (@NazKan_Uk | @pinkfloydfan). \n\nJeśli nie jesteś zarejestrowany, zrób to przez komendę /start, to najprawdopodobniej rozwiąże problem",
   "gotta_startday": "Musisz rozpocząć zmianę przed wykonaniem jakichkolwiek działań. Możesz to zrobić przez menu (komendy /start lub /menu)",
   "gotta_be_manager": "Użytkownik musi być menedżerem, aby użyć tej komendy",
-
   "notes_from_manager": "\n\nNotatki od logistyka:\n\n",
-
   "tank_format": "Tank %s\nShipment  %d\n%s\n\n%dkm\n\nDiesel\n%.2fL\nAdblu\n%.2fL\n\n\n%s,\n%s",
   "shipment_already_started": "Ta trasa już została rozpoczęta",
   "shipment_has_not_started": "Ta trasa jeszcze się nie rozpoczęła, nie można jej zakończyć",
@@ -29,10 +27,8 @@
   "err_car_exists": "Taki pojazd już istnieje w bazie danych",
   "added_car": "Pomyślnie dodano pojazd %s z przebiegiem %d do bazy danych",
   "which_driver": "Któremu kierowcy wysyłasz shipment",
-
   "shipment_end": "Trasa <b>%d</b> została zakończona!\n\nMasz 10 minut, aby to cofnąć, naciskając przycisk poniżej",
   "get_shipment_back": "Cofnij trasę",
-
   "register": "\n\nZarejestruj się, aby odblokować główne funkcje bota jako Kierowca lub Menedżer.",
   "registration_accepted:driver": "Twoja rejestracja została zaakceptowana! Przydzielono Ci pojazd %s z przebiegiem %d km.",
   "registration_accepted:drivertoSA": "Użytkownik %s został zatwierdzony jako kierowca!",
@@ -41,7 +37,6 @@
   "registration_declined:SA": "Rejestracja użytkownika %s nie została zatwierdzona.",
   "registration_declined:user": "Twoja rejestracja nie została zaakceptowana. Skontaktuj się bezpośrednio z jednym z menedżerów lub spróbuj ponownie.",
   "car_question": "Jaki pojazd przypisujesz temu kierowcy?",
-
   "manager:send_doc": "📄 Wyślij dokument, który chcesz wysłać kierowcy.",
   "manager:drivers_list": "Lista kierowców:\n\n",
   "manager:driver_hasnocar": "<b>%s</b> (@%s) - Kierowcy nie przypisano pojazdu\n",
@@ -53,14 +48,12 @@
   "manager:readdoc": "⬇️ Kliknij tutaj, aby przeczytać dokument",
   "manager:notes": "✏️ Wpisz notatki lub opis do dokumentu:",
   "manager:please_send_doc": "Proszę wysłać dokument.",
-
   "form:q:name": "Wpisz swoje imię",
   "form:q:current_km": "Wpisz aktualny przebieg (tylko liczba)",
   "form:q:refuel_address": "Wpisz adres stacji paliw",
   "form:q:diesel_amount": "Wpisz ilość zatankowanego diesla (tylko liczba)",
   "form:q:adblu_amount": "Wpisz ilość zatankowanego AdBlu (tylko liczba)",
   "form:q:car_id": "Wpisz pełny numer pojazdu (Przykład: AB123CD 456789)",
-
   "driver:err_refuel": "Możesz zgłosić tankowanie tylko podczas realizacji trasy. Jeśli tak jest, ale otrzymujesz tę wiadomość – napisz do dewelopera @pinkfloydfan lub @NazKan_Uk",
   "driver:no_refuel_cards": "Brak dostępnych kart paliwowych.",
   "driver:choose_refuel_card": "Wybierz kartę paliwową:",
@@ -85,9 +78,7 @@
   "driver:enter_temp": "Wprowadź temperaturę lub 0 jeśli nie dotyczy.\n(Dostępne formaty: -18.5; -18,5; -18.5°C; -18,5 °C; -18.5 C)",
   "driver:err_wrongtempformat": "Nieprawidłowy format temperatury, spróbuj ponownie",
   "ginit_first": "Przed użyciem komend - należy zainicjować grupę przez /ginit@logistictbot\n\nJeśli masz pytania - napisz do programisty na @NazKan_Uk lub na +447990932300",
-
   "wrong_km_format": "Nieprawidłowy format przebiegu, spróbuj ponownie",
-
   "shipment_already_exists": "Ta trasa już istnieje",
   "shipment_format": "%d. Shipment №%d\n\tStatus: %s\n\tPojazd: %s\n\tKontener: %s\n\tZadań: %d\n",
   "shipment_notstarted": "🔴 Nie rozpoczęto",
@@ -99,9 +90,7 @@
   "shipment_details": "Szczegóły trasy #%d",
   "page:prev": "⬅️ Wstecz",
   "page:next": "Dalej ➡️",
-
   "formTextAcceptTask": "Czy jesteś gotowy przyjąć zadanie?",
-
   "btn:driver:endtask": "Zakończ wykonanie",
   "btn:driver:add_docstotask": "Dodaj dokument",
   "btn:driver:add_picstotask": "Dodaj zdjęcia",
@@ -114,35 +103,31 @@
   "comms:success_reply": "✅ Odpowiedź została pomyślnie wysłana do ",
   "comms:notification": "❗️<b>PRZYPOMNIENIE - WIADOMOŚĆ OD: %s (@%s)</b>\n\n<i>%s</i>",
   "skip": "Pomiń",
-
   "prev_answer": "%s (Poprzednia odpowiedź: %s)\n\nNaciśnij pomin, jeśli nie trzeba tego zmieniać",
   "delete_video": "Usuń wideo",
-
   "refuel_saved": "✅ Tankowanie zapisane!",
-
   "group_registration": "Nie jesteś jeszcze zarejestrowany w tej grupie. Kliknij przycisk poniżej, aby się zarejestrować.",
   "group_registration_callback": "Zarejestruj się",
   "g:sa:assign_role": "%s przypisz rolę dla %s",
   "g:sa:assign_role:driver": "Kierowca",
   "g:sa:assign_role:manager": "Logistyk",
-
   "g:not_sa": "Funkcję tego przycisku może wykonać tylko wyznaczony menedżer.",
-
   "successful_edit": "✅ Dane zostały pomyślnie zaktualizowane!",
   "endmsg:edit": "Zmień dane zadania",
   "task_edit_choice": "Wybierz co zmienić w zadaniu",
   "task_edit_choice_km": "Przebieg",
   "task_edit_choice_starttime": "Godzina rozpoczęcia",
   "task_edit_choice_endtime": "Godzina zakończenia",
-  "task_edit_choice_temperature": "Temperatura",
+  "task_edit_choice_temp": "Temperatura",
   "task_edit_choice_weight": "Waga",
-
   "task_edit_km": "Wprowadź przebieg\n\n<b>Przykłady:\n12345 | 12,345 | 12,345 km</b>",
   "task_edit_starttime": "Wprowadź godzinę rozpoczęcia\n\n<b>Przykłady:\n09:00 | 9:00 | 0900</b>",
   "task_edit_endtime": "Wprowadź godzinę zakończenia\n\n<b>Przykłady:\n17:30 | 5:30 | 1730</b>",
   "task_edit_temperature": "Wprowadź temperaturę\n\n<b>Przykłady:\n20 | 20°C | -5 | -5°C</b>",
   "task_edit_weight": "Wprowadź wagę\n\n<b>Przykłady:\n1500 | 1,500 | 1,500 kg</b>",
-
+  "task_edit_choice_address": "Adres",
+  "task_edit_address": "<b><i>Wprowadź nowy adres dostawy</i></b>\n\n(Uwaga: Istniejące adresy dotyczą głównie myjni, ale z czasem do bazy dodawane są kolejne. Jeśli potrzebnego adresu nie ma na liście, <b>wprowadź go ręcznie</b>)\n\n⬇️ <b>Naciśnij poniżej, aby wybrać z istniejących</b> ⬇️",
+  "btn:choose_address": "Wybierz",
   "btn:reply": "Odpowiedz",
   "btn:switch_to_driver": "Przełącz na kierowcę",
   "btn:add_car": "Dodaj samochód",
@@ -176,7 +161,6 @@
   "form:refuel": "<b>Formularz wpisania tankowania kartą paliwową</b>",
   "form:driver": "<b>Formularz rejestracji kierowcy.</b>",
   "form:manager": "<b>Formularz rejestracji menedżera.</b>",
-
   "gotta_be_group": "Musi być w grupie i wewnątrz podgrupy, w której chcesz przypisać odpowiedni temat (podgrupy: Tank, Document, Loading lub Photo)",
   "car_question_g": "Przypisz, który pojazd należy do tej grupy",
   "for_groups_only": "Ta komenda jest tylko dla grup, nie będzie działać w indywidualnych czatach",
@@ -194,6 +178,5 @@
   "washing_question": "❗ Kierowca <b>%s (%s)</b> prosi o adres najbliższej myjni (Shipment №: %d).\n\nWybierz z przycisków numer myjni pokazany:",
   "cleaning_station:todriver": "❗ Menedżer wysłał Ci myjnię w odpowiedzi na Twoje zapytanie!\n\n%s\n\tAdres: %s\n\tKraj: %s\n\tWspółrzędne: %.5f, %.5f\n\tGodziny otwarcia: %s\n",
   "manager:cleaning_sent": "✅ Myjnia została wysłana do kierowcy",
-
   "VERY_BAD": "Coś poszło bardzo nie tak. Jeśli bot nie będzie reagował na dalsze działania – napisz lub zadzwoń do dewelopera: @pinkfloydfan lub +447990932300"
 }
