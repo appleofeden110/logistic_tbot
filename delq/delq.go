@@ -111,6 +111,7 @@ func DeleteWorker(globalStorage *sql.DB, bot *tgbotapi.BotAPI) {
 				if node.Requirements.areMet {
 					processNode(globalStorage, bot, &node)
 				} else {
+					node.Requirements.Check(globalStorage)
 					stillPending = append(stillPending, node)
 				}
 			}
