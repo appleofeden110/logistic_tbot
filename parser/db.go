@@ -670,6 +670,10 @@ func (s *Shipment) IsFinished() bool {
 	return !s.Started.IsZero() && !s.Finished.IsZero()
 }
 
+func (t *TaskSection) IsFinished() bool {
+	return !t.Start.IsZero() && !t.End.IsZero()
+}
+
 // GetTaskById retrieves a single task by ID
 func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
