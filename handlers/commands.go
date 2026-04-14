@@ -891,7 +891,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:kilometrage", car.Kilometrage), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		return err
 
 	case "endtask":
@@ -914,7 +918,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 				msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:weight"), loadingTopicId)
 				msg.ParseMode = tgbotapi.ModeHTML
-				_, err = Bot.Send(msg)
+				sent, err := Bot.Send(msg)
+				delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+					Type:          delq.TaskFinished,
+					TrackedTaskId: task.Id,
+				})
 				return err
 
 			case parser.TaskCleaning:
@@ -1001,6 +1009,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return err
 		}
 
+		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+		}
+
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:attach_doc"), loadingTopicId)
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -1009,7 +1022,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			),
 		)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		return err
 
 	case "back:pics":
@@ -1053,7 +1070,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: generating start Task Message: %v\n", err)
 		}
 
-		_, err = Bot.Send(startTaskMsg)
+		sent, err := Bot.Send(startTaskMsg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		return err
 
 	case "back:docs":
@@ -1097,7 +1118,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: generating start task msg: %v\n", err)
 		}
 
-		_, err = Bot.Send(startTaskMsg)
+		sent, err := Bot.Send(startTaskMsg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		return err
 
 	case "send_docs":
@@ -1120,10 +1145,14 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 
 		confirmMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:docs_sent", len(docsFiles)), loadingTopicId)
-		_, err = Bot.Send(confirmMsg)
+		sent, err := Bot.Send(confirmMsg)
 		if err != nil {
 			return err
 		}
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 
 		managerText := config.Translate(config.GetLang(chatId), "manager:docs_received",
 			driverSesh.User.Name,
@@ -1183,6 +1212,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return err
 		}
 
+		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
+		}
+
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:attach_pic"), loadingTopicId)
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -1191,7 +1225,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			),
 		)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		return err
 	case "send_pics":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
@@ -1213,7 +1251,11 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 
 		confirmMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:pics_sent", len(photos)), loadingTopicId)
-		_, err = Bot.Send(confirmMsg)
+		sent, err := Bot.Send(confirmMsg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: task.Id,
+		})
 		if err != nil {
 			return err
 		}
@@ -1645,7 +1687,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: attaching file to task %d: %v\n", task.Id, err)
 			}
-			_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:docs_attached"), loadingTopicId))
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
+			docsSentMsg, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:docs_attached"), loadingTopicId))
+			delq.EnqueueToDelete(globalStorage, docsSentMsg.Chat.ID, docsSentMsg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
 			return driver, err
 		}
 		return driver, nil
@@ -1660,6 +1710,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				_, exists := photoGroups.m[msg.MediaGroupID]
 				photoGroups.m[msg.MediaGroupID] = append(photoGroups.m[msg.MediaGroupID], msg)
 				photoGroups.Unlock()
+
+				delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+					Type:          delq.TaskFinished,
+					TrackedTaskId: task.Id,
+				})
 
 				if !exists {
 					go func(groupID string, taskId int) {
@@ -1682,7 +1737,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 							picsAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
 								tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")))
 							picsAttachedMsg.ParseMode = tgbotapi.ModeHTML
-							Bot.Send(picsAttachedMsg)
+							sent, _ := Bot.Send(picsAttachedMsg)
+							delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+								Type:          delq.TaskFinished,
+								TrackedTaskId: task.Id,
+							})
 						}
 					}(msg.MediaGroupID, task.Id)
 				}
@@ -1691,12 +1750,21 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err := savePhotoToTask(msg, task.Id, globalStorage); err != nil {
 				return driver, fmt.Errorf("ERR: saving single photo: %v", err)
 			}
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
+
 			onePicAttachedMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic"), loadingTopicId)
 			onePicAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")))
 			onePicAttachedMsg.ParseMode = tgbotapi.ModeHTML
-			Bot.Send(onePicAttachedMsg)
-			return driver, nil
+			sent, err := Bot.Send(onePicAttachedMsg)
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
+			return driver, err
 		}
 
 	case db.StateLoad, db.StateUnload, db.StateCollect, db.StateDropoff, db.StateCleaning:
@@ -1722,6 +1790,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 			task.CurrentKilometrage = km
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
 
 			err = task.UpdateCurrentKmById(globalStorage)
 			if err != nil {
@@ -1759,7 +1832,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			pin := tgbotapi.PinChatMessageConfig{
 				ChatID:              pinMsg.Chat.ID,
 				MessageID:           pinMsg.MessageID,
-				DisableNotification: false,
+				DisableNotification: true,
 			}
 
 			Bot.Send(pin)
@@ -1783,10 +1856,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			startTaskMsg.ReplyMarkup = nil
 			startTaskMsg.ChatID = g.GroupChatId
 			startTaskMsg.MessageThreadID = g.LoadingTopicId
-			_, err = Bot.Send(startTaskMsg)
+			sent, err := Bot.Send(startTaskMsg)
 			if err != nil {
 				return driver, fmt.Errorf("%d (g: %s) could not receive message: %v\n", g.GroupChatId, g.CurrentCar.Id, err)
 			}
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
 			return driver, err
 		}
 	case db.StateWaitingWeight:
@@ -1803,6 +1880,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 			task.CurrentWeight = kg
 
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
+
 			err = task.UpdateCurrentWeightById(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
@@ -1816,7 +1898,11 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			tempMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:enter_temp"), loadingTopicId)
 			tempMsg.ParseMode = tgbotapi.ModeHTML
-			_, err = Bot.Send(tempMsg)
+			sent, err := Bot.Send(tempMsg)
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
 			return driver, err
 		}
 
@@ -1831,6 +1917,12 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:err_wrongtempformat"), loadingTopicId))
 				return driver, err
 			}
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
+
 			task.CurrentTemperature = celcius
 			err = task.UpdateCurrentWeightById(globalStorage)
 			if err != nil {
