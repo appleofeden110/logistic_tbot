@@ -319,7 +319,6 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			for _, keywords := range TaskKeywords {
 				for _, keyword := range keywords {
 					if strings.HasPrefix(lineLower, keyword) {
-						log.Println(lineLower, keyword)
 						isNewSection = true
 						break
 					}
@@ -334,8 +333,7 @@ func (s *Shipment) IdentifyDeliveryDetails(docText string) (after string, found 
 			} else {
 				generalRemarkStartIdx = -1
 				after = strings.Join(lines[i:], "\n")
-				fmt.Println(after)
-				return after, found // Return here so the caller can process tasks
+				return after, found
 			}
 		}
 
@@ -458,7 +456,6 @@ func identifyTaskTypes(line string) (taskType string, found bool) {
 
 func (t *TaskSection) findAddress() (string, bool) {
 	addressLines := make([]string, 0)
-	log.Println("Lines: ", t.Lines)
 	for i := 0; i < 3; i++ {
 		line := strings.TrimSpace(t.Lines[i])
 

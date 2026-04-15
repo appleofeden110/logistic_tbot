@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"logistictbot/docs"
 	"os/exec"
 	"path/filepath"
@@ -176,6 +175,36 @@ func ReadTaskShort(section *TaskSection) string {
 	return result
 }
 
+func ReadDocAndPrint(filePath string) error {
+	var result string
+
+	fullPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("ERR: get absolute path: %w", err)
+	}
+
+	shipment, err := GetSequenceOfTasks(fullPath)
+	if err != nil {
+		return fmt.Errorf("ERR: get sequence of tasks: %w", err)
+	}
+
+	res, secRes := ReadDoc(shipment)
+
+	result = fmt.Sprintf("\n\n\nFILE: %s\n\n\n", filePath)
+	result += res
+
+	for k, v := range secRes {
+		result += fmt.Sprintf("Завдання: %s\n\n", k)
+		for line := range strings.SplitSeq(v, "\n") {
+			result += fmt.Sprintf("%s\n", line)
+		}
+	}
+
+	fmt.Println(result)
+
+	return err
+}
+
 func ReadDocAndSend(filePath string, chatID int64, loadingTopicId int, bot *tgbotapi.BotAPI) error {
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
@@ -193,39 +222,13 @@ func ReadDocAndSend(filePath string, chatID int64, loadingTopicId int, bot *tgbo
 
 	for k, v := range secRes {
 		msg.Text += fmt.Sprintf("<i><b>Завдання: %s</b></i>\n\n", k)
-		for _, line := range strings.Split(v, "\n") {
+		for line := range strings.SplitSeq(v, "\n") {
 			msg.Text += fmt.Sprintf("%s\n", line)
 		}
 	}
 
 	_, err = bot.Send(msg)
 	return err
-}
-
-func GetSequenceOfTasks(pdfFilePath string) (*Shipment, error) {
-	docText, err := ReadPdfDoc(pdfFilePath)
-	if err != nil {
-		if !strings.Contains(err.Error(), "exit status 1") {
-			return nil, fmt.Errorf("ERR: failed reading doc %s: %v", pdfFilePath, err)
-		}
-	}
-
-	details := new(Shipment)
-	after, _ := details.IdentifyInstructionForDoc(docText)
-	after, _ = details.IdentifyShipmentIdForDoc(after)
-	after, _ = details.IdentifyDeliveryDetails(docText)
-
-	fmt.Println("AFTER: ", after)
-
-	sections := details.ExtractTaskSections(after)
-	log.Println(sections)
-	for i, section := range sections {
-		log.Println("Lines for: ", i, section.Lines)
-		section.ParseTaskDetails()
-	}
-	details.Tasks = sections
-
-	return details, nil
 }
 
 // for bold
@@ -306,15 +309,39 @@ func ReadPdfDoc(pdfFilePath string) (docText string, err error) {
 	return string(output), err
 }
 
+func GetSequenceOfTasks(pdfFilePath string) (*Shipment, error) {
+	docText, err := ReadPdfDoc(pdfFilePath)
+	if err != nil {
+		if !strings.Contains(err.Error(), "exit status 1") {
+			return nil, fmt.Errorf("ERR: failed reading doc %s: %v", pdfFilePath, err)
+		}
+	}
+
+	details := new(Shipment)
+	after, _ := details.IdentifyInstructionForDoc(docText)
+	after, _ = details.IdentifyShipmentIdForDoc(after)
+	after, _ = details.IdentifyDeliveryDetails(docText)
+
+	sections := details.ExtractTaskSections(after)
+	for _, section := range sections {
+		if section.Type == "collect" {
+			fmt.Println(section.Content)
+		}
+		section.ParseTaskDetails()
+	}
+	details.Tasks = sections
+
+	return details, nil
+}
+
 // ExtractTaskSections parses the entire text and extracts sections by task
 func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
-	lines := strings.Split(docText, "\n")
 	sections := make([]*TaskSection, 0)
 	var currentSection *TaskSection
 	var isNextType bool
 	var isTask bool
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(docText, "\n") {
 		trimmed := strings.TrimSpace(line)
 		var taskType string
 
@@ -358,23 +385,31 @@ func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
 		sections = append(sections, currentSection)
 	}
 
-	fmt.Println(sections)
-
-	return findAndDeleteDuplicates(sections)
+	return mergeDuplicateTasks(sections)
 }
 
-func findAndDeleteDuplicates(tasks []*TaskSection) []*TaskSection {
-	seen := make(map[string]bool)
-	uniqueTasks := make([]*TaskSection, 0, len(tasks))
+func mergeDuplicateTasks(tasks []*TaskSection) []*TaskSection {
+	merged := make(map[string]*TaskSection)
+	order := make([]string, 0) // to preserve order
 
 	for _, task := range tasks {
-		if !seen[task.Type] {
-			seen[task.Type] = true
-			uniqueTasks = append(uniqueTasks, task)
+		if existing, ok := merged[task.Type]; ok {
+			// Merge content instead of skipping
+			existing.Content += task.Content
+			existing.Lines = append(existing.Lines, task.Lines...)
+		} else {
+			merged[task.Type] = task
+			order = append(order, task.Type)
 		}
 	}
 
-	return uniqueTasks
+	// Preserve original order
+	result := make([]*TaskSection, 0, len(order))
+	for _, t := range order {
+		result = append(result, merged[t])
+	}
+
+	return result
 }
 
 // ParseTaskDetails extracts structured data from a task section
