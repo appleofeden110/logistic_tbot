@@ -14,7 +14,8 @@ var (
 	))
 
 	// shipment id, task name, container, chassis, date formatted as "02.01.2006", times as 17:15, kilometrage, address, country with country emoji, weight and temperature (done from form, needed usually only for load and unload)
-	TaskSubmissionFormatText = "Shipment %d\n\n%s\n\n%s %s\n\n%s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
+	TaskSubmissionFormatText              = "Shipment %d\n\n%s\n\n%s %s\n\n%s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
+	TaskSubmissionFormatTextDifferentDate = "Shipment %d\n\n%s\n\n%s %s\n\n%s - %s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
 )
 
 func DriverStartMarkupPause(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {

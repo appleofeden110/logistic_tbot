@@ -63,27 +63,49 @@ func GenStartTaskMsg(chatId int64, task *parser.TaskSection, globalStorage *sql.
 }
 
 func GenEndTaskMessage(chatId int64, task *parser.TaskSection, globalStorage *sql.DB) (tgbotapi.MessageConfig, error) {
+	var endMsg tgbotapi.MessageConfig
 	shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 	if err != nil {
 		return tgbotapi.MessageConfig{}, fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
 	}
 
 	country, _ := parser.ExtractCountry(task.Address)
-	endMsg := tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
-		task.ShipmentId,
-		strings.ToUpper(task.Type),
-		shipment.Chassis,
-		shipment.Container,
-		time.Now().In(config.WarsawLoc).Format("02.01.2006"),
-		task.Start.In(config.WarsawLoc).Format("15:04"),
-		task.End.In(config.WarsawLoc).Format("15:04"),
-		db.FormatKilometrage(int(task.CurrentKilometrage)),
-		task.Address,
-		country.Name,
-		country.Emoji,
-		task.CurrentWeight,
-		task.CurrentTemperature),
-	)
+
+	if task.Start.Day() != task.End.Day() {
+		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatTextDifferentDate,
+			task.ShipmentId,
+			strings.ToUpper(task.Type),
+			shipment.Chassis,
+			shipment.Container,
+			task.Start.In(config.WarsawLoc).Format("02.01.2006"),
+			task.End.In(config.WarsawLoc).Format("02.01.2006"),
+			task.Start.In(config.WarsawLoc).Format("15:04"),
+			task.End.In(config.WarsawLoc).Format("15:04"),
+			db.FormatKilometrage(int(task.CurrentKilometrage)),
+			task.Address,
+			country.Name,
+			country.Emoji,
+			task.CurrentWeight,
+			task.CurrentTemperature),
+		)
+	} else {
+		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
+			task.ShipmentId,
+			strings.ToUpper(task.Type),
+			shipment.Chassis,
+			shipment.Container,
+			task.Start.In(config.WarsawLoc).Format("02.01.2006"),
+			task.Start.In(config.WarsawLoc).Format("15:04"),
+			task.End.In(config.WarsawLoc).Format("15:04"),
+			db.FormatKilometrage(int(task.CurrentKilometrage)),
+			task.Address,
+			country.Name,
+			country.Emoji,
+			task.CurrentWeight,
+			task.CurrentTemperature),
+		)
+	}
+
 	endMsg.ParseMode = tgbotapi.ModeHTML
 	endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
