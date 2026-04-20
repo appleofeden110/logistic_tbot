@@ -76,11 +76,11 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
 	}
 
-	cmd, isGroupCmd = strings.CutSuffix(cmd, "@alerttttttttbot")
-	if isGroupCmd {
-		log.Printf("TEST GROUP cmd: %s", cmd)
-		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
-	}
+	// cmd, isGroupCmd = strings.CutSuffix(cmd, "@alerttttttttbot")
+	// if isGroupCmd {
+	// 	log.Printf("TEST GROUP cmd: %s", cmd)
+	// 	loadingTopicId = FindLoadingTopic(chatId, globalStorage)
+	// }
 
 	switch cmd {
 	case "start":
@@ -2640,7 +2640,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		}
 
 		driverSessionsMu.Lock()
-		driverSessions[d.ChatId].CarId = d.CarId
+		driverSessions[d.ChatId] = d
 		driverSessionsMu.Unlock()
 
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "successful_car_change", carId, d.User.Name))
