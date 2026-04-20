@@ -203,7 +203,7 @@ func GetAllDeleteQueueNodes(db *sql.DB) ([]*DeleteQueueNode, error) {
 			r.surplus,
 			r.are_met,
 			r.tracked_task_id,
-			r.tracked_shipment_id
+			r.tracked_shipment_id,
 			r.tracked_refuel_id
 		FROM delete_queue dq
 		LEFT JOIN requirements r ON dq.requirements_id = r.id
