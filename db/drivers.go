@@ -184,7 +184,6 @@ func (d *Driver) SetPerformingTask(globalStorage *sql.DB) error {
 	}
 
 	return nil
-
 }
 
 func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
@@ -204,7 +203,6 @@ func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
 	}
 
 	return nil
-
 }
 
 func (d *Driver) SetEditTaskId(globalStorage *sql.DB) error {
@@ -347,6 +345,64 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 		driver.CarId = carIdStr.String
 	}
 
+	if userDriverIdStr.Valid {
+		driverId, err := uuid.FromString(userDriverIdStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %w", err)
+		}
+		driver.User.DriverId = driverId
+	}
+	if userManagerIdStr.Valid {
+		managerId, err := uuid.FromString(userManagerIdStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %w", err)
+		}
+		driver.User.ManagerId = managerId
+	}
+	return driver, nil
+}
+
+func GetDriverByPerformingTaskId(db DBExecutor, taskId int) (*Driver, error) {
+	query := `
+		SELECT
+			d.id, d.user_id, d.car_id, d.created_at, d.updated_at, d.chat_id, d.state, d.performing_task_id,
+			u.id, u.chat_id, u.name, u.driver_id, u.manager_id, u.created_at, u.updated_at, u.is_super_admin, u.tg_tag, u.lang
+		FROM drivers d
+		JOIN users u ON d.chat_id = u.chat_id
+		WHERE d.performing_task_id = ?
+	`
+	driver := new(Driver)
+	driver.User = new(User)
+	var driverIdStr, userIdStr string
+	var carIdStr sql.NullString
+	var userDriverIdStr, userManagerIdStr sql.NullString
+	var performedTaskId sql.Null[int]
+	err := db.QueryRow(query, taskId).Scan(
+		&driverIdStr, &userIdStr, &carIdStr, &driver.CreatedAt, &driver.UpdatedAt, &driver.ChatId, &driver.State, &performedTaskId,
+		&driver.User.Id, &driver.User.ChatId, &driver.User.Name,
+		&userDriverIdStr, &userManagerIdStr,
+		&driver.User.CreatedAt, &driver.User.UpdatedAt, &driver.User.IsSuperAdmin, &driver.User.TgTag, &driver.User.Language,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no driver found for performing_task_id %d", taskId)
+		}
+		return nil, fmt.Errorf("ERR: querying driver by performing_task_id: %w", err)
+	}
+	driver.Id, err = uuid.FromString(driverIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: parsing driver id: %w", err)
+	}
+	driver.UserId, err = uuid.FromString(userIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("ERR: parsing user id: %w", err)
+	}
+	if performedTaskId.Valid {
+		driver.PerformedTaskId = performedTaskId.V
+	}
+	if carIdStr.Valid {
+		driver.CarId = carIdStr.String
+	}
 	if userDriverIdStr.Valid {
 		driverId, err := uuid.FromString(userDriverIdStr.String)
 		if err != nil {

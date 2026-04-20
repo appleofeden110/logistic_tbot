@@ -47,6 +47,24 @@ func GenStartTaskMsg(chatId int64, task *parser.TaskSection, globalStorage *sql.
 	)
 	startTaskMsg.ParseMode = tgbotapi.ModeHTML
 
+	if task.Type == parser.TaskCleaning {
+		startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_docstotask"), fmt.Sprintf("driver:add_doctotask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:add_picstotask"), fmt.Sprintf("driver:add_picstotask:%d", task.Id)),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:change_cleaning"), fmt.Sprintf("driver:washing_task:%d", task.Id)),
+			),
+		)
+
+		return startTaskMsg, nil
+	}
 	startTaskMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(chatId), "btn:driver:endtask"), fmt.Sprintf("driver:endtask:%d", task.Id)),

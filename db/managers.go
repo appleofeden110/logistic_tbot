@@ -20,14 +20,13 @@ var ()
 type ManagerConversationState string
 
 const (
-	StateDormantManager ManagerConversationState = "dormant_mng"
-
-	StateWritingToDriver ManagerConversationState = "sending_driver_message"
-	StateReplyingDriver  ManagerConversationState = "replying_driver"
-
-	StateWaitingDoc    ManagerConversationState = "waiting_doc"
-	StateWaitingNotes  ManagerConversationState = "waiting_notes"
-	StateWaitingDriver ManagerConversationState = "waiting_driver"
+	StateDormantManager        ManagerConversationState = "dormant_mng"
+	StateWritingToDriver       ManagerConversationState = "sending_driver_message"
+	StateReplyingDriver        ManagerConversationState = "replying_driver"
+	StateWaitingDoc            ManagerConversationState = "waiting_doc"
+	StateWaitingNotes          ManagerConversationState = "waiting_notes"
+	StateWaitingDriver         ManagerConversationState = "waiting_driver"
+	StateSendingWashingStation ManagerConversationState = "giving_washing_stat"
 )
 
 type PendingMessage struct {

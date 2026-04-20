@@ -253,3 +253,31 @@ func GetAllSuperAdminsOfGroup(groupChatId int64, users []*db.User) ([]*db.User, 
 	}
 	return superAdmins, nil
 }
+
+func GetAllManagersOfGroup(groupChatId int64, users []*db.User) ([]*db.User, error) {
+	managers := make([]*db.User, 0)
+	for _, us := range users {
+
+		resp, err := Bot.Request(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: tgbotapi.ChatConfigWithUser{ChatID: groupChatId, UserID: us.ChatId}})
+		if err != nil {
+			return nil, fmt.Errorf("ERR: gettin")
+		}
+
+		var member ChatMemberResult
+		if err := json.Unmarshal(resp.Result, &member); err != nil {
+			return nil, fmt.Errorf("ERR: getting chat member: %v\n", err)
+		}
+
+		if member.Status == "left" || member.Status == "kicked" {
+			continue
+		}
+
+		if us.ManagerId.IsNil() {
+			continue
+		}
+
+		managers = append(managers, us)
+
+	}
+	return managers, nil
+}

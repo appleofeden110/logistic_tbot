@@ -27,6 +27,9 @@ var (
 	pendingRefuel = make(map[uuid.UUID]*db.TankRefuel) // driverId -> tankRefuel
 	refuelMu      sync.Mutex
 
+	washingStationReq = make(map[uuid.UUID]*parser.TaskSection) // managerId -> cleaning task
+	washReqMu         sync.Mutex
+
 	replyingToMessage   = make(map[int64]int64) // chatId -> commsId
 	replyingToMessageMu sync.Mutex
 

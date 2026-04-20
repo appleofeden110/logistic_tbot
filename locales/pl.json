@@ -150,6 +150,8 @@
   "btn:decline": "Odrzuć",
   "btn:send_docs": "Wyślij dokumenty",
   "btn:send_pics": "Wyślij zdjęcia",
+  "btn:driver:change_cleaning": "🔄 Poproś o adres myjni",
+  "btn:choose_address_for_task": "Przejdź do zmiany",
   "btn:back": "↩️ Wstecz",
   "btn:readdoc": "Przeczytaj dokument",
   "btn:shipment:start": "Rozpocznij trasę",
@@ -188,6 +190,9 @@
   "group_inited": "✅ Grupa została przypisana do pracy z pojazdem: %s",
   "only_for_latest": "INFO: ta funkcja pobiera Twoją ostatnią aktywną trasę i wysyła zapytanie o myjnię.\n\n✅ Zapytanie o najbliższą myjnię zostało wysłane. Oczekuj odpowiedzi.",
   "washing_question": "❗ Kierowca <b>%s (%s)</b> prosi o adres najbliższej myjni (Shipment №: %d).\n\nWybierz z przycisków numer myjni pokazany:",
+  "driver:washing": ", %s prosi o <b>adres myjni dla %d</b>, wybierz z listy naciskając przycisk poniżej",
+  "manager:washing_task": "Wpisz lyb Wybierz <b>myjni</b> z listy naciskając przycisk poniżej",
+  "washing_changed": "✅ Adres myjni został pomyślnie zmieniony! <b>Kierowca może zakończyć zadanie</b>",
   "cleaning_station:todriver": "❗ Menedżer wysłał Ci myjnię w odpowiedzi na Twoje zapytanie!\n\n%s\n\tAdres: %s\n\tKraj: %s\n\tWspółrzędne: %.5f, %.5f\n\tGodziny otwarcia: %s\n",
   "manager:cleaning_sent": "✅ Myjnia została wysłana do kierowcy",
   "VERY_BAD": "Coś poszło bardzo nie tak. Jeśli bot nie będzie reagował na dalsze działania – napisz lub zadzwoń do dewelopera: @pinkfloydfan lub +447990932300"

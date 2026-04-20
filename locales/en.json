@@ -150,6 +150,8 @@
   "btn:send_docs": "Send documents",
   "btn:send_pics": "Send photos",
   "btn:back": "↩️ Back",
+  "btn:driver:change_cleaning": "🔄 Ask for car wash address",
+  "btn:choose_address_for_task": "Go to change",
   "btn:readdoc": "Read document",
   "btn:shipment:start": "Start route",
   "btn:register_driver": "Driver Registration",
@@ -188,6 +190,9 @@
   "group_inited": "✅ The group has been assigned to work with vehicle: %s",
   "only_for_latest": "INFO: this function takes your latest active route and requests a cleaning station for it.\n\n✅ Request for the nearest cleaning station has been sent. Please wait for a response.",
   "washing_question": "❗ Driver <b>%s (%s)</b> is requesting the address of the nearest cleaning station (Shipment №: %d).\n\nChoose from the buttons the cleaning station number shown:",
+  "driver:washing": ", %s is requesting the <b>car wash address for %d</b>, select from the list by pressing the button below",
+  "manager:washing_task": "Input or Select <b>Car Wash</b> from the list by pressing the button below",
+  "washing_changed": "✅ Car wash address successfully updated! <b>The Driver can now complete the task</b>",
   "cleaning_station:todriver": "❗ The manager has sent you a cleaning station in response to your request!\n\n%s\n\tAddress: %s\n\tCountry: %s\n\tCoordinates: %.5f, %.5f\n\tOpening hours: %s\n",
   "manager:cleaning_sent": "✅ Cleaning station has been sent to the driver",
   "VERY_BAD": "Something went seriously wrong. If the bot does not respond to further actions – write or call the developer: @pinkfloydfan or +447990932300"

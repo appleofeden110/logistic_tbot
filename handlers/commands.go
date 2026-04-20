@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/config"
-	data_analysis "logistictbot/data-analysis"
 	"logistictbot/db"
 	"logistictbot/delq"
 	"logistictbot/docs"
@@ -249,6 +248,11 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 		return fmt.Errorf("ERR: not the right format of a dev cmd, should be \"dev:<command>\", not %s\n", command)
 	}
 
+	cmdString, _idString, idFound := strings.Cut(cmd, ":")
+	if idFound {
+		cmd = cmdString
+	}
+
 	managerSessionsMu.Lock()
 	managerSesh, exists := managerSessions[fromId]
 	managerSessionsMu.Unlock()
@@ -274,6 +278,42 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "manager:send_doc"), loadingTopicId)
 		_, err = Bot.Send(msg)
+		return err
+	case "choose_cleaning":
+		managerSesh.State = db.StateSendingWashingStation
+		err := managerSesh.ChangeManagerStatus(globalStorage)
+		if err != nil {
+			return err
+		}
+		taskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: getting taskId as int from _idString (%s): %v\n", _idString, err)
+		}
+
+		cleaningTask, err := parser.GetTaskById(globalStorage, taskId)
+		if err != nil {
+			return fmt.Errorf("ERR: getting cleaning task for changing address: %v\n", err)
+		}
+
+		washReqMu.Lock()
+		washingStationReq[managerSesh.Id] = cleaningTask
+		washReqMu.Unlock()
+
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "manager:washing_task"), loadingTopicId)
+		msg.ParseMode = tgbotapi.ModeHTML
+		btn := tgbotapi.InlineKeyboardButton{
+			Text:                         config.Translate(config.GetLang(chatId), "btn:choose_address"),
+			SwitchInlineQueryCurrentChat: new(string),
+		}
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(btn),
+		)
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: cleaningTask.Id,
+		})
 		return err
 	case "viewdrivers":
 		drivers, err := db.GetAllDrivers(globalStorage)
@@ -427,15 +467,74 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 
 func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalStorage *sql.DB) (updatedSession *db.Manager, err error) {
 	log.Printf("Manager input msg (%s - %d): %s\n", manager.State, manager.ChatId, msg.Text)
-	var topicId int
-	// var isGroupCmd bool
+	var loadingTopicId int
 
 	if strings.HasPrefix(strconv.Itoa(int(msg.Chat.ID)), "-100") {
-		//isGroupCmd = true
-		topicId = msg.MessageThreadID
+		loadingTopicId = FindLoadingTopic(msg.Chat.ID, globalStorage)
 	}
 
 	switch manager.State {
+	case db.StateSendingWashingStation:
+		if msg.Text != "" {
+			washReqMu.Lock()
+			cleaningTask, exists := washingStationReq[manager.Id]
+			delete(washingStationReq, manager.Id)
+			washReqMu.Unlock()
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: cleaningTask.Id,
+			})
+
+			if !exists {
+				return manager, fmt.Errorf("ERR: getting cleaning task for the washing station request, Local storage is EMPTY\n")
+			}
+
+			driver, err := db.GetDriverByPerformingTaskId(globalStorage, cleaningTask.Id)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: getting driver by the task he's currently performing: %v\n", err)
+			}
+
+			cleaningTask.Address = msg.Text
+
+			taskSessionsMu.Lock()
+			taskSessions[driver.Id].Address = cleaningTask.Address
+			taskSessionsMu.Unlock()
+
+			err = cleaningTask.UpdateAddress(globalStorage)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: updating address: %v\n", err)
+			}
+
+			manager.State = db.StateDormantManager
+			err = manager.ChangeManagerStatus(globalStorage)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: changing manager status for the task: %v\n", err)
+			}
+			startTaskMsg, err := GenStartTaskMsg(msg.Chat.ID, cleaningTask, globalStorage)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: generating start message for the cleaning task: %v\n", err)
+			}
+
+			successMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "washing_changed"), loadingTopicId)
+			successMsg.ParseMode = tgbotapi.ModeHTML
+			sent, err := Bot.Send(successMsg)
+			if err != nil {
+				return manager, fmt.Errorf("ERR: sending startTaskMsg for the cleaning task: %v\n", err)
+			}
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: cleaningTask.Id,
+			})
+
+			sent, err = Bot.Send(startTaskMsg)
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: cleaningTask.Id,
+			})
+			return manager, err
+		}
+
 	case db.StateWaitingDoc:
 		if msg.Document != nil {
 			manager.PendingMessage = &db.PendingMessage{
@@ -464,7 +563,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 				return manager, err
 			}
 
-			notesMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("%s\n\n%s", config.Translate(config.GetLang(msg.Chat.ID), "manager:notes"), config.Translate(config.GetLang(msg.Chat.ID), "manager:readdoc")), topicId)
+			notesMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("%s\n\n%s", config.Translate(config.GetLang(msg.Chat.ID), "manager:notes"), config.Translate(config.GetLang(msg.Chat.ID), "manager:readdoc")), loadingTopicId)
 			notesMsg.ParseMode = tgbotapi.ModeHTML
 			notesMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:readdoc"), "readdoc:"+strconv.Itoa(id))))
 
@@ -475,7 +574,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 		msg := tgbotapi.NewMessage(
 			msg.Chat.ID,
 			config.Translate(config.GetLang(msg.Chat.ID), "manager:please_send_doc"),
-			topicId,
+			loadingTopicId,
 		)
 		_, err = Bot.Send(msg)
 		return manager, err
@@ -494,7 +593,7 @@ func HandleManagerInputState(manager *db.Manager, msg *tgbotapi.Message, globalS
 				return manager, err
 			}
 
-			return manager, manager.ShowDriverList(globalStorage, "selectdriverfortask", config.Translate(config.GetLang(msg.Chat.ID), "which_driver"), msg.Chat.ID, topicId, Bot)
+			return manager, manager.ShowDriverList(globalStorage, "selectdriverfortask", config.Translate(config.GetLang(msg.Chat.ID), "which_driver"), msg.Chat.ID, loadingTopicId, Bot)
 		}
 	case db.StateWritingToDriver:
 		if msg.Text != "" {
@@ -760,7 +859,6 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		)
 		_, err = Bot.Send(msg)
 		return err
-
 	case "washing":
 		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
 		if err != nil {
@@ -770,26 +868,99 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return err
 		}
 
-		cleaningStations, err := data_analysis.GetAllCleaningStations(globalStorage)
+		users, err := db.GetAllUsers(globalStorage)
 		if err != nil {
 			return err
 		}
 
-		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "only_for_latest"), loadingTopicId)
-		msg.ParseMode = tgbotapi.ModeHTML
-		managerSessionsMu.Lock()
-		for _, m := range managerSessions {
-			paginationMessage, err := CreateWashingPlacesList(cleaningStations, 0, m.ChatId, "page:cleaning_stations", chatId)
-			if err != nil {
-				return err
-			}
-			washingQuestion := tgbotapi.NewMessage(m.ChatId, config.Translate(config.GetLang(m.ChatId), "washing_question", driverSesh.User.Name, driverSesh.CarId, shipment.ShipmentId), loadingTopicId)
-			washingQuestion.ParseMode = tgbotapi.ModeHTML
-			Bot.Send(washingQuestion)
-			Bot.Send(paginationMessage)
+		managers, err := GetAllManagersOfGroup(chatId, users)
+		if err != nil {
+			return fmt.Errorf("ERR: getting all managers of a group: %v\n", err)
 		}
-		managerSessionsMu.Unlock()
-		_, err = Bot.Send(msg)
+
+		var managerList string
+		for _, sa := range managers {
+			managerList += fmt.Sprintf("@%s ", sa.TgTag)
+		}
+
+		addressMsg := tgbotapi.NewMessage(chatId,
+			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.ShipmentId), loadingTopicId)
+		btn := tgbotapi.InlineKeyboardButton{
+			Text:                         config.Translate(config.GetLang(chatId), "btn:choose_address"),
+			SwitchInlineQueryCurrentChat: new(string),
+		}
+		addressMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(btn),
+		)
+		addressMsg.ParseMode = tgbotapi.ModeHTML
+
+		_, err = Bot.Send(addressMsg)
+		return err
+
+	case "washing_task":
+		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
+		if err != nil {
+			if !errors.Is(err, parser.ErrNoShipments) {
+				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+			}
+			return err
+		}
+
+		users, err := db.GetAllUsers(globalStorage)
+		if err != nil {
+			return err
+		}
+
+		managers, err := GetAllManagersOfGroup(chatId, users)
+		if err != nil {
+			return fmt.Errorf("ERR: getting all managers of a group: %v\n", err)
+		}
+
+		var managerList string
+		for _, m := range managers {
+			managerList += fmt.Sprintf("@%s ", m.TgTag)
+		}
+
+		cleaningTaskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: turning cleaning task id into int: %v\n", err)
+		}
+
+		addressMsg := tgbotapi.NewMessage(chatId,
+			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.ShipmentId), loadingTopicId)
+		btn := tgbotapi.NewInlineKeyboardButtonData(
+			config.Translate(config.GetLang(chatId), "btn:choose_address_for_task"),
+			"manager:choose_cleaning:"+_idString, // in this situation _idString is taskId
+		)
+		addressMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(btn),
+		)
+		addressMsg.ParseMode = tgbotapi.ModeHTML
+
+		// cleaningStations, err := data_analysis.GetAllCleaningStations(globalStorage)
+		// if err != nil {
+		// 	return err
+		// }
+
+		// msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "only_for_latest"), loadingTopicId)
+		// msg.ParseMode = tgbotapi.ModeHTML
+		// managerSessionsMu.Lock()
+		// for _, m := range managerSessions {
+		// 	// paginationMessage, err := CreateWashingPlacesList(cleaningStations, 0, m.ChatId, "page:cleaning_stations", chatId)
+		// 	// if err != nil {
+		// 	// 	return err
+		// 	// }
+		// 	washingQuestion := tgbotapi.NewMessage(m.ChatId, config.Translate(config.GetLang(m.ChatId), "washing_question", driverSesh.User.Name, driverSesh.CarId, shipment.ShipmentId), loadingTopicId)
+		// 	washingQuestion.ParseMode = tgbotapi.ModeHTML
+		// 	Bot.Send(washingQuestion)
+		// 	Bot.Send(paginationMessage)
+		// }
+		// managerSessionsMu.Unlock()
+		sent, err := Bot.Send(addressMsg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskFinished,
+			TrackedTaskId: cleaningTaskId,
+		})
 		return err
 	case "refuel":
 
