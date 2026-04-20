@@ -20,8 +20,12 @@ var (
 	taskSessions   = make(map[uuid.UUID]*parser.TaskSection)
 	taskSessionsMu sync.Mutex
 
-	pendingRefuelCard = make(map[int64]int)
-	formsMu           sync.Mutex
+	// DO NOT USE
+	pendingRefuelCard = make(map[int64]int) // I will delete that fucking form system one day, gimme another month of pondering please
+	// - until then DO NOT TOUCH
+
+	pendingRefuel = make(map[uuid.UUID]*db.TankRefuel) // driverId -> tankRefuel
+	refuelMu      sync.Mutex
 
 	replyingToMessage   = make(map[int64]int64) // chatId -> commsId
 	replyingToMessageMu sync.Mutex

@@ -77,6 +77,12 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
 	}
 
+	cmd, isGroupCmd = strings.CutSuffix(cmd, "@alerttttttttbot")
+	if isGroupCmd {
+		log.Printf("TEST GROUP cmd: %s", cmd)
+		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
+	}
+
 	switch cmd {
 	case "start":
 		u := new(db.User)
@@ -297,6 +303,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 		if err != nil {
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
+		msg.MessageThreadID = loadingTopicId
 
 		_, err = Bot.Send(msg)
 		if err != nil {
@@ -313,6 +320,8 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 		if err != nil {
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
+
+		msg.MessageThreadID = loadingTopicId
 
 		_, err = Bot.Send(msg)
 		if err != nil {
@@ -350,24 +359,28 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 			case config.English:
 				month = availableMonths[i].Month.String()
 			}
-
 			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(
 				fmt.Sprintf("%s %d", month, availableMonths[i].Year),
 				fmt.Sprintf("mstmt:%d.%d", availableMonths[i].Month, availableMonths[i].Year),
 			))
-
 			if (i+1)%3 == 0 {
 				markup = append(markup, buttons)
 				buttons = make([]tgbotapi.InlineKeyboardButton, 0)
 			}
 		}
-
 		if len(buttons) > 0 {
 			markup = append(markup, buttons)
 		}
 
+		if len(markup) == 0 {
+			msg.Text = "No statements available."
+			_, err = Bot.Send(msg)
+			return err
+		}
+
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(markup...)
-		Bot.Send(msg)
+		_, err = Bot.Send(msg)
+		return err
 
 	case "mrefuel":
 		drivers, err := db.GetAllDrivers(globalStorage)
@@ -811,6 +824,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		return err
 
 	case "refuel_card":
+
 		if !idFound {
 			return fmt.Errorf("ERR: refuel_card command missing card id")
 		}
@@ -819,17 +833,48 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: parsing fuel card id: %w", err)
 		}
 
-		formsMu.Lock()
-		pendingRefuelCard[chatId] = cardId
-		formsMu.Unlock()
+		s, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
+		if err != nil {
+			return fmt.Errorf("ERR: getting latest shipment by driver id: %v\n", err)
+		}
 
-		err = createForm[TankRefuelForm](
-			chatId,
-			TankRefuelForm{},
-			FormRefuel(config.GetLang(chatId)),
-			config.Translate(config.GetLang(chatId), "form:refuel"),
-			fmt.Sprintf("driver refuel, card id: %d", cardId),
-		)
+		tr := &db.TankRefuel{Driver: driverSesh, CarId: driverSesh.CarId, FuelCardId: cardId, ShipmentId: &s.ShipmentId}
+
+		err = tr.StoreTankRefuel(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: storing tank refuel: %v\n", err)
+		}
+
+		// deletes the message asking about the cards
+		delq.EnqueueToDelete(globalStorage, chatId, messageId, delq.Requirements{
+			Type:            delq.Refueled,
+			TrackedRefuelId: tr.Id,
+		})
+
+		refuelMu.Lock()
+		pendingRefuel[driverSesh.Id] = tr
+		refuelMu.Unlock()
+
+		// err = createForm[TankRefuelForm](
+		// 	chatId,
+		// 	TankRefuelForm{},
+		// 	FormRefuel(config.GetLang(chatId)),
+		// 	config.Translate(config.GetLang(chatId), "form:refuel"),
+		// 	fmt.Sprintf("driver refuel, card id: %d", cardId),
+		// )
+
+		driverSesh.State = db.StateRefuelingKM
+		err = driverSesh.ChangeDriverStatus(globalStorage)
+		if err != nil {
+			return fmt.Errorf("ERR: changing driver's status during refuel: %v\n", err)
+		}
+
+		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:kilometrage_wout_prev"), loadingTopicId)
+		sent, err := Bot.Send(msg)
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			TrackedRefuelId: tr.Id,
+			Type:            delq.Refueled,
+		})
 		return err
 
 	case "begintask":
@@ -1393,6 +1438,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	log.Printf("Driver input msg (%s - %s): %s\n", driver.State, driver.CarId, msg.Text)
 	if strings.HasPrefix(strconv.Itoa(int(msg.Chat.ID)), "-100") {
 		loadingTopicId = FindLoadingTopic(msg.Chat.ID, globalStorage)
+
 		if msg.MessageThreadID != loadingTopicId && driver.State != db.StateEditingAddress {
 			log.Println("WARN: State correct, wrong topic, ignoring")
 			return driver, nil
@@ -1400,6 +1446,216 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 	}
 
 	switch driver.State {
+	case db.StateRefuelingKM:
+		refuelMu.Lock()
+		tr, exists := pendingRefuel[driver.Id]
+		refuelMu.Unlock()
+
+		if !exists {
+			return driver, fmt.Errorf("ERR: no refuel to get km for: %v\n", err)
+		}
+
+		if msg.Text != "" {
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+			km, err := db.ParseKilometrage(msg.Text)
+			if err != nil {
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "wrong_km_format"), loadingTopicId))
+				log.Println("ERR: not the right km format, msg: ", msg.Text, msg.Chat.ID)
+				return driver, err
+			}
+			err = tr.UpdateKilometrage(globalStorage, km)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: update km for the refueling: %v\n", err)
+			}
+
+			driver.State = db.StateRefuelingDiesel
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:diesel_input"), loadingTopicId))
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+			return driver, err
+		}
+
+	case db.StateRefuelingDiesel:
+		refuelMu.Lock()
+		tr, exists := pendingRefuel[driver.Id]
+		refuelMu.Unlock()
+
+		if !exists {
+			return driver, fmt.Errorf("ERR: no refuel to get diesel for: %v\n", err)
+		}
+
+		if msg.Text != "" {
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+			diesel, err := db.ParseDieselLiters(msg.Text)
+			if err != nil {
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "wrong_diesel_format"), loadingTopicId))
+				log.Println("ERR: not the right diesel format, msg: ", msg.Text, msg.Chat.ID)
+				return driver, err
+			}
+			err = tr.UpdateDiesel(globalStorage, diesel)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: update diesel for the refueling: %v\n", err)
+			}
+
+			driver.State = db.StateRefuelingAdBlu
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:adblue_input"), loadingTopicId))
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+
+			return driver, err
+		}
+	case db.StateRefuelingAdBlu:
+		refuelMu.Lock()
+		tr, exists := pendingRefuel[driver.Id]
+		refuelMu.Unlock()
+
+		if !exists {
+			return driver, fmt.Errorf("ERR: no refuel to get adblue for: %v\n", err)
+		}
+
+		if msg.Text != "" {
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+
+			adblu, err := db.ParseAdBlueLiters(msg.Text)
+			if err != nil {
+				_, err = Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "wrong_adblue_format"), loadingTopicId))
+				log.Println("ERR: not the right adblue format, msg: ", msg.Text, msg.Chat.ID)
+				return driver, err
+			}
+			err = tr.UpdateAdBlu(globalStorage, adblu)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: update ablue for the refueling: %v\n", err)
+			}
+
+			addressMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:address_input"), loadingTopicId)
+			btn := tgbotapi.InlineKeyboardButton{
+				Text:                         config.Translate(config.GetLang(msg.Chat.ID), "btn:choose_address"),
+				SwitchInlineQueryCurrentChat: new(string),
+			}
+			addressMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(btn),
+			)
+
+			driver.State = db.StateRefuelingAddress
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
+			sent, err := Bot.Send(addressMsg)
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+			return driver, err
+		}
+	case db.StateRefuelingAddress:
+		refuelMu.Lock()
+		tr, exists := pendingRefuel[driver.Id]
+		refuelMu.Unlock()
+
+		if !exists {
+			return driver, fmt.Errorf("ERR: no refuel to get address for: %v\n", err)
+		}
+
+		if msg.Text != "" {
+
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+
+			err = tr.UpdateAddress(globalStorage, msg.Text)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: update km for the refueling: %v\n", err)
+			}
+
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "refuel_saved"), loadingTopicId))
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				TrackedRefuelId: tr.Id,
+				Type:            delq.Refueled,
+			})
+
+			g := db.DriverGroup{
+				CurrentCar: &db.Car{Id: driver.CarId},
+			}
+			err = g.GetDriverGroupByCar(globalStorage)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting driver's group by car for tank refuels: %v\n", err)
+			}
+
+			fc, err := db.GetFuelCardById(globalStorage, tr.FuelCardId)
+			if err != nil {
+				return driver, fmt.Errorf("ERR: getting fuel card by id: %v\n", err)
+			}
+
+			var countryName string
+			country, found := parser.ExtractCountry(tr.Address)
+			if !found {
+				countryName = country.Name + country.Emoji
+			}
+
+			var shipmentId int64
+			if tr.ShipmentId != nil {
+				shipmentId = *tr.ShipmentId
+			}
+
+			_, err = Bot.Send(tgbotapi.NewMessage(g.GroupChatId,
+				config.Translate(
+					config.GetLang(msg.Chat.ID),
+					"tank_format",
+					time.Now().In(config.WarsawLoc).Format("02.01.2006"),
+					shipmentId,
+					fc.Name,
+					tr.CurrentKilometrage,
+					tr.Diesel,
+					tr.AdBlu,
+					tr.Address,
+					countryName,
+				), g.TankTopicId))
+
+			log.Println("Trying to send tank refuel message to "+strconv.Itoa(g.TankTopicId)+strconv.Itoa(int(g.GroupChatId))+", err: ", err)
+
+			refuelMu.Lock()
+			delete(pendingRefuel, driver.Id)
+			refuelMu.Unlock()
+
+			driver.State = db.StateWorking
+			err = driver.ChangeDriverStatus(globalStorage)
+			if err != nil {
+				return driver, err
+			}
+
+			return driver, err
+		}
 	case db.StateEditingKm:
 		if msg.Text != "" {
 

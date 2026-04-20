@@ -38,6 +38,10 @@ const (
 	StateEditingTemp       DriverConversationState = "editing_temp"
 	StateEditingWeight     DriverConversationState = "editing_weight"
 	StateEditingAddress    DriverConversationState = "editing_address"
+	StateRefuelingKM       DriverConversationState = "refuel_km"
+	StateRefuelingAdBlu    DriverConversationState = "refuel_adblu"
+	StateRefuelingDiesel   DriverConversationState = "refuel_diesel"
+	StateRefuelingAddress  DriverConversationState = "refuel_address"
 )
 
 var (

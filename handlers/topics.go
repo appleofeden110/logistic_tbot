@@ -21,6 +21,21 @@ type ChatMemberResult struct {
 	IsAnonymous bool   `json:"is_anonymous"`
 }
 
+func FindTankTopic(chatId int64, globalStorage *sql.DB) int {
+	topicId := 0
+	if strings.Contains(strconv.Itoa(int(chatId)), "-100") {
+		g := db.DriverGroup{GroupChatId: chatId}
+		err := g.GetDriverGroup(globalStorage)
+		if err != nil {
+			log.Printf("ERR: getting loading topic: %v\n", err)
+			return 0
+		}
+		topicId = g.TankTopicId
+	}
+
+	return topicId
+}
+
 func FindLoadingTopic(chatId int64, globalStorage *sql.DB) int {
 	topicId := 0
 	if strings.Contains(strconv.Itoa(int(chatId)), "-100") {

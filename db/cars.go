@@ -291,6 +291,58 @@ func ParseKilometrage(s string) (int64, error) {
 	return km, nil
 }
 
+func parseLiters(input string, fieldName string) (float64, error) {
+	s := strings.TrimSpace(strings.ToLower(input))
+
+	// Known suffixes across EN / UA / PL
+	suffixes := []string{
+		" liters", " liter", " l",
+		" літрів", " літри", " літр", " л",
+		" litrów", " litry", " litr", " l",
+	}
+
+	for _, suf := range suffixes {
+		s = strings.TrimSuffix(s, suf)
+	}
+
+	s = strings.TrimSpace(s)
+
+	// Normalize decimal separator
+	s = strings.ReplaceAll(s, ",", ".")
+
+	var filtered strings.Builder
+	dotUsed := false
+
+	for _, ch := range s {
+		if unicode.IsDigit(ch) {
+			filtered.WriteRune(ch)
+		} else if ch == '.' && !dotUsed {
+			filtered.WriteRune(ch)
+			dotUsed = true
+		}
+	}
+
+	result := filtered.String()
+	if result == "" {
+		return 0, fmt.Errorf("no numeric value found in %s input", fieldName)
+	}
+
+	val, err := strconv.ParseFloat(result, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse %s liters: %v", fieldName, err)
+	}
+
+	return val, nil
+}
+
+func ParseDieselLiters(s string) (float64, error) {
+	return parseLiters(s, "diesel")
+}
+
+func ParseAdBlueLiters(s string) (float64, error) {
+	return parseLiters(s, "AdBlue")
+}
+
 func ParseTemperature(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 	s = strings.TrimSuffix(s, " °C")
