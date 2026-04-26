@@ -76,11 +76,11 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
 	}
 
-	// cmd, isGroupCmd = strings.CutSuffix(cmd, "@alerttttttttbot")
-	// if isGroupCmd {
-	// 	log.Printf("TEST GROUP cmd: %s", cmd)
-	// 	loadingTopicId = FindLoadingTopic(chatId, globalStorage)
-	// }
+	cmd, isGroupCmd = strings.CutSuffix(cmd, "@alerttttttttbot")
+	if isGroupCmd {
+		log.Printf("TEST GROUP cmd: %s", cmd)
+		loadingTopicId = FindLoadingTopic(chatId, globalStorage)
+	}
 
 	switch cmd {
 	case "start":
@@ -722,7 +722,27 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				),
 			),
 		)
-		Bot.Send(editMsg)
+		sent, err := Bot.Send(editMsg)
+		if err != nil {
+			return fmt.Errorf("ERR: sending task edit message: %v\n", err)
+		}
+
+		taskId, err := strconv.Atoi(_idString)
+		if err != nil {
+			return fmt.Errorf("ERR: converting id string into the taskId: %v\n", err)
+		}
+
+		// the end message that was there before
+		delq.EnqueueToDelete(globalStorage, chatId, messageId, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: taskId,
+		})
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: taskId,
+		})
+
 	case "task_edit_choice_km":
 		driverSesh.State = db.StateEditingKm
 		editTaskId, err := strconv.Atoi(_idString)
@@ -744,7 +764,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_km"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
+
 		return err
 
 	case "task_edit_choice_starttime":
@@ -766,7 +792,12 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_starttime"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
 		return err
 
 	case "task_edit_choice_endtime":
@@ -787,7 +818,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_endtime"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
 		return err
 
 	case "task_edit_choice_temp":
@@ -808,7 +845,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_temp"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
 		return err
 
 	case "task_edit_choice_weight":
@@ -829,7 +872,12 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_weight"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
 		return err
 	case "task_edit_choice_address":
 		driverSesh.State = db.StateEditingAddress
@@ -857,7 +905,12 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(btn),
 		)
-		_, err = Bot.Send(msg)
+		sent, err := Bot.Send(msg)
+
+		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			Type:          delq.TaskEdited,
+			TrackedTaskId: editTaskId,
+		})
 		return err
 	case "washing":
 		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
@@ -1120,9 +1173,10 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		taskSessionsMu.Unlock()
 
 		if f {
-			toDeleteMu.Lock()
-			toDelete[task.Id] = tgbotapi.MessageID{messageId}
-			toDeleteMu.Unlock()
+			delq.EnqueueToDelete(globalStorage, chatId, messageId, delq.Requirements{
+				Type:          delq.TaskFinished,
+				TrackedTaskId: task.Id,
+			})
 
 			switch task.Type {
 			case parser.TaskLoad, parser.TaskUnload, parser.TaskCollect, parser.TaskDropoff:
@@ -1169,14 +1223,6 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		taskSessionsMu.Unlock()
 
 		if f {
-			toDeleteMu.Lock()
-			toDeleteId, found := toDelete[task.Id]
-			toDeleteMu.Unlock()
-
-			if found {
-				Bot.Send(tgbotapi.NewDeleteMessage(chatId, toDeleteId.MessageID))
-			}
-
 			err := task.FinishTaskById(globalStorage)
 			if err != nil {
 				return err
@@ -1851,7 +1897,16 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
+
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
@@ -1883,7 +1938,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
@@ -1915,7 +1978,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
@@ -1948,7 +2019,16 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
+
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
@@ -1980,7 +2060,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
@@ -2007,7 +2095,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: resetting driver state: %v\n", err)
 			}
 
-			Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			sent, err := Bot.Send(tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "successful_edit"), loadingTopicId))
+			if err != nil {
+				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
+			}
+
+			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+				Type:          delq.TaskEdited,
+				TrackedTaskId: task.Id,
+			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {

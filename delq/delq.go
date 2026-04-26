@@ -40,8 +40,10 @@ const (
 
 var (
 	DeleteQueue = make(chan DeleteQueueNode, 1000)
+	EditChannel = make(chan int, 1000) // task_id
 
 	TaskFinished     RequirementType = "task_finished"     // messages that are left after finishing task, that do not provide any further information
+	TaskEdited       RequirementType = "task_edited"       // works almost the same as does the finished task
 	ShipmentFinished RequirementType = "shipment_finished" // mostly stuff that is left after finishing shipment
 	Refueled         RequirementType = "refueled"          // basically all of the unneccesary inputs
 	Timing           RequirementType = "timing"            // well, it is what it is
@@ -124,9 +126,18 @@ func DeleteWorker(globalStorage *sql.DB, bot *tgbotapi.BotAPI) {
 
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
-
 	for {
 		select {
+		case task_id := <-EditChannel:
+			// fucking sucks for now, I will need to change it
+			for editDQNode := range DeleteQueue {
+				if editDQNode.Requirements.TrackedTaskId == task_id && editDQNode.Requirements.Type == TaskEdited {
+					editDQNode.Requirements.areMet = true
+					editDQNode.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
+				}
+				DeleteQueue <- editDQNode
+				continue
+			}
 		case dqNode := <-DeleteQueue:
 			if !dqNode.Requirements.areMet {
 				pending = append(pending, dqNode)
@@ -154,6 +165,7 @@ func processNode(globalStorage *sql.DB, bot *tgbotapi.BotAPI, dqNode *DeleteQueu
 			dqNode.IsDeleted = true
 			dqNode.UpdateIsDeleted(globalStorage)
 			log.Println("WARN: message was deleted from the local and global storages only after not being found: ", dqNode.ChatID, dqNode.MessageID)
+			return
 		}
 
 		log.Printf("ERR: deleting a message with bot.Request for msgID %d in chatId %d: %v\n", dqNode.MessageID, dqNode.ChatID, err)

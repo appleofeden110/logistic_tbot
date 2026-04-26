@@ -786,7 +786,7 @@ func (d *Driver) PauseSession(db DBExecutor) (*DriverSession, error) {
 	}
 
 	if rowsAffected == 0 {
-		return nil, fmt.Errorf("pause session: no rows updated (session id=%d)", sessionId)
+		return nil, fmt.Errorf("pause session: no rows updated (session id=%d)", sessionId.Int64)
 	}
 
 	return session, nil
