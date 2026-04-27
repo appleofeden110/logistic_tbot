@@ -2280,7 +2280,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			onePicAttachedMsg := tgbotapi.NewMessage(msg.Chat.ID, config.Translate(config.GetLang(msg.Chat.ID), "driver:added_one_pic"), loadingTopicId)
 			onePicAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")))
+				tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(msg.Chat.ID), "btn:send_pics"), "driver:send_pics")),
+			)
 			onePicAttachedMsg.ParseMode = tgbotapi.ModeHTML
 			sent, err := Bot.Send(onePicAttachedMsg)
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
@@ -2408,7 +2409,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				TrackedTaskId: task.Id,
 			})
 
-			err = task.UpdateCurrentWeightById(globalStorage)
+			err = task.Update
 			if err != nil {
 				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
 			}
@@ -2447,7 +2448,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			})
 
 			task.CurrentTemperature = celcius
-			err = task.UpdateCurrentWeightById(globalStorage)
+			err = task.UpdateCurrentTempById(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
 			}
