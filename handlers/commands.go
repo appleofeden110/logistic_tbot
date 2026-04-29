@@ -2409,7 +2409,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				TrackedTaskId: task.Id,
 			})
 
-			err = task.Update
+			err = task.UpdateCurrentWeightById(globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: updating weight by task id: %v\n", err)
 			}
