@@ -233,6 +233,9 @@ func GetAllSuperAdminsOfGroup(groupChatId int64, users []*db.User) ([]*db.User, 
 		fmt.Println("User ids while finding super admin: ", us.Id, us.ChatId, us.Name)
 		resp, err := Bot.Request(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: tgbotapi.ChatConfigWithUser{ChatID: groupChatId, UserID: us.ChatId}})
 		if err != nil {
+			if strings.Contains(err.Error(), "PARTICIPANT_ID_INVALID") {
+				continue
+			}
 			if strings.Contains(err.Error(), "user not found") {
 				continue
 			}
