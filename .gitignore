@@ -10,3 +10,9 @@ test
 /logs
 storage/
 .DS_STORE
+.claude/settings.local.json
+.claude/.credentials.json
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/projects/
