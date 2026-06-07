@@ -669,7 +669,6 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 	// made to transfer ids of tasks and shipments, handled case by case
 	cmdString, _idString, idFound := strings.Cut(cmd, ":")
-	log.Println(cmd)
 	if idFound {
 		cmd = cmdString
 	}
@@ -916,7 +915,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
 		if err != nil {
 			if !errors.Is(err, parser.ErrNoShipments) {
-				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+				// log.
+				// return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
 			}
 			return err
 		}
@@ -3037,13 +3037,6 @@ func HandleStart(chatId int64, globalStorage *sql.DB, user *db.User) error {
 	}
 
 	if isGroup {
-		/*groupMsg := tgbotapi.NewMessage(chatId, "⚠️ Цей бот націлений на роботу в індивідуальному чаті тільки, натисніть кнопку нижче що б перейти до основної робочої зони\n\n⚠️ This bot is designed to work in individual chat only, click the button below to go to the main workspace\n\n⚠️ Ten bot jest przeznaczony wyłącznie do pracy w czacie indywidualnym, kliknij przycisk poniżej, aby przejść do głównego obszaru roboczego")
-		groupMsg.ParseMode = tgbotapi.ModeHTML
-		groupMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonURL("Bot Chat", "t.me/logistictbot"),
-			),
-		)*/
 		loadingTopicID := FindLoadingTopic(chatId, globalStorage)
 		if user == nil {
 			groupMsg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "group_registration"), loadingTopicID)

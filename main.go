@@ -7,6 +7,8 @@ import (
 	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/delq"
+	"logistictbot/errlog"
+
 	"logistictbot/handlers"
 	"net/http"
 	"os"
@@ -16,15 +18,17 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// direct comms between manager and driver probs - later, maybe tomorrow
-
 func main() {
 	var err error
 	err = godotenv.Load()
 
+	errlog.WARN.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "WARN: ", 0)
+	errlog.ERR.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "ERR: ", 0)
+	errlog.INFO.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "INFO: ", 0)
+
 	err = config.LoadLocales()
 	if err != nil {
-		log.Fatalf("ERR: loading the locales: %v\n", err)
+		errlog.ERR.Fatalf("loading the locales: %v\n", err)
 		return
 	}
 
@@ -50,7 +54,9 @@ func main() {
 	}
 
 	handlers.Bot, err = tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_API"))
-	handlers.Check(err, true)
+	if err != nil {
+		log.Fatalf("ERR: creating new bot api: %v\n", err)
+	}
 
 	handlers.Bot.Debug = false
 	u := tgbotapi.NewUpdate(0)
@@ -70,10 +76,9 @@ func main() {
 	go delq.DeleteWorker(globalStorage, handlers.Bot)
 	go handlers.ReceiveUpdates(ctx, updates, globalStorage)
 
-	// Start the HTTP server and listen on the PORT specified by Heroku
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8443" // Use a default port if PORT is not set
+		port = "8443"
 	}
 	log.Printf("Listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

@@ -22,16 +22,6 @@ var (
 	now time.Time
 )
 
-func Check(err error, print bool, message ...string) bool {
-	if err != nil {
-		if print {
-			log.Fatalf("ERR: %s: %v\n", strings.Join(message, "; "), err)
-		}
-		return true
-	}
-	return false
-}
-
 func ReceiveUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel, globalStorage *sql.DB) {
 	for {
 		select {

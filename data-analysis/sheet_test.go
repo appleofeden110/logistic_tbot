@@ -1,10 +1,16 @@
 package data_analysis
 
 import (
+	"database/sql"
+	"fmt"
+	"log"
+	"path/filepath"
+	"testing"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
-/*func TestCreateExcelSheet(t *testing.T) {
+func TestCreateExcelSheet(t *testing.T) {
 	path, err := filepath.Abs("../bot.db")
 	log.Println(path, err)
 
@@ -50,4 +56,3 @@ import (
 		fmt.Println("ERR: ", err)
 	}
 }
-*/
