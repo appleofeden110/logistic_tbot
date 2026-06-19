@@ -9,6 +9,7 @@ import (
 	"logistictbot/config"
 	data_analysis "logistictbot/data-analysis"
 	"logistictbot/docs"
+	"logistictbot/errlog"
 	"logistictbot/tracking"
 	"strings"
 	"time"
@@ -55,6 +56,7 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 				if err != nil {
 					if !errors.Is(err, tracking.ErrNotLiveLocation) {
 						trackingSessionsMutex.Unlock()
+						errlog.ERR.Printf("ERR: parsing location from an edited message: %v\n", err)
 						return fmt.Errorf("ERR: parsing location from an edited message: %v\n", err)
 					}
 					log.Println("ERR: ", tracking.ErrNotLiveLocation.Error())
@@ -77,6 +79,7 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 
 		cleaningStations, err := data_analysis.GetAllCleaningStations(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all cleaning stations: %v\n", err)
 			return fmt.Errorf("ERR: getting all cleaning stations: %v\n", err)
 		}
 

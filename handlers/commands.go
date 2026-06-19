@@ -11,6 +11,7 @@ import (
 	"logistictbot/delq"
 	"logistictbot/docs"
 	"logistictbot/duration"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"net/http"
 	"strconv"
@@ -34,17 +35,20 @@ var Bot *tgbotapi.BotAPI
 func HandleShipmentDetails(chatId, shipmentId int64, topicId int, globalStorage *sql.DB) error {
 	shipment, err := parser.GetShipment(globalStorage, shipmentId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting shipment for the details (shipmentId: %d): %v\n", shipmentId, err)
 		return fmt.Errorf("ERR: getting shipment for the details (shipmentId: %d): %v\n", shipmentId, err)
 	}
 
 	f := docs.File{Id: shipment.ShipmentDocId}
 	err = f.GetFile(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting file from ShipmentDocId (%d): %v\n", shipment.ShipmentDocId, err)
 		return fmt.Errorf("ERR: getting file from ShipmentDocId (%d): %v\n", shipment.ShipmentDocId, err)
 	}
 
 	driver, err := db.GetDriverById(globalStorage, shipment.DriverId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting driver by id: %v\n", err)
 		return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 	}
 
@@ -67,6 +71,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 
 	cmd, found := strings.CutPrefix(command, "/")
 	if !found {
+		errlog.ERR.Printf("ERR: it is not a command: %s\n", command)
 		return fmt.Errorf("ERR: it is not a command: %s\n", command)
 	}
 
@@ -89,6 +94,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		err := u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
+				errlog.ERR.Printf("ERR: Something wrong with the db: %v\n", err)
 				return fmt.Errorf("ERR: Something wrong with the db: %v\n", err)
 			}
 			u = nil
@@ -235,6 +241,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err = Bot.Send(msg)
 		return err
 	default:
+		errlog.ERR.Printf("ERR: unrecognized command")
 		return fmt.Errorf("ERR: unrecognized command")
 	}
 	return nil
@@ -264,6 +271,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 	}
 
 	if !exists {
+		errlog.ERR.Printf("ERR: not a manager session, register")
 		return fmt.Errorf("ERR: not a manager session, register")
 	}
 
@@ -287,11 +295,13 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 		}
 		taskId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting taskId as int from _idString (%s): %v\n", _idString, err)
 			return fmt.Errorf("ERR: getting taskId as int from _idString (%s): %v\n", _idString, err)
 		}
 
 		cleaningTask, err := parser.GetTaskById(globalStorage, taskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting cleaning task for changing address: %v\n", err)
 			return fmt.Errorf("ERR: getting cleaning task for changing address: %v\n", err)
 		}
 
@@ -318,6 +328,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 	case "viewdrivers":
 		drivers, err := db.GetAllDrivers(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all driver by the ask of the manager: %v\n", err)
 			return fmt.Errorf("ERR: getting all driver by the ask of the manager: %v\n", err)
 		}
 
@@ -336,28 +347,33 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 	case "viewall":
 		shipments, err := parser.GetAllShipments(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all shipments for all drivers: %v\n", err)
 			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewall")
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating shipment list message: %v\n", err)
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 		msg.MessageThreadID = loadingTopicId
 
 		_, err = Bot.Send(msg)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending message: %v\n", err)
 			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 
 	case "viewactive":
 		shipments, err := parser.GetAllActiveShipments(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all shipments for all drivers: %v\n", err)
 			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactive")
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating shipment list message: %v\n", err)
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
@@ -365,6 +381,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 
 		_, err = Bot.Send(msg)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending message: %v\n", err)
 			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 	case "sendmessage":
@@ -381,6 +398,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 
 		availableMonths, err := parser.GetAvailableMonths(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting available months for the shipments: %v\n", err)
 			return fmt.Errorf("ERR: getting available months for the shipments: %v\n", err)
 		}
 
@@ -425,6 +443,7 @@ func HandleManagerCommands(chatId int64, fromId int64, command string, messageId
 	case "mrefuel":
 		drivers, err := db.GetAllDrivers(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting drivers for refuel statement: %v\n", err)
 			return fmt.Errorf("ERR: getting drivers for refuel statement: %v\n", err)
 		}
 		if len(drivers) == 0 {
@@ -723,42 +742,57 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		)
 		sent, err := Bot.Send(editMsg)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending task edit message: %v\n", err)
 			return fmt.Errorf("ERR: sending task edit message: %v\n", err)
 		}
 
 		taskId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("converting id string into the taskId: %v\n", err)
 			return fmt.Errorf("ERR: converting id string into the taskId: %v\n", err)
+		}
+
+		err = parser.UpdateEditMessageId(globalStorage, taskId, messageId)
+		if err != nil {
+			errlog.ERR.Printf("update edit message id (%d) for task %d: %v\n", messageId, taskId, err)
+			return fmt.Errorf("ERR: update edit message id (%d) for task %d: %v\n", messageId, taskId, err)
 		}
 
 		// the end message that was there before
 		delq.EnqueueToDelete(globalStorage, chatId, messageId, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: taskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: messageId,
 		})
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: taskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: messageId,
 		})
 
 	case "task_edit_choice_km":
 		driverSesh.State = db.StateEditingKm
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("ERR: converting id for editing (km): %v\n", err)
 			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
 		}
 
 		driverSesh.PerformedTaskId = editTaskId
 		err = driverSesh.SetEditTaskId(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's edit task id (km): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
 		}
 
-		driverSesh.PerformedTaskId = editTaskId
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
+		if err != nil {
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
+		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (km): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (km): %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_km"), loadingTopicId)
@@ -766,8 +800,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 
 		return err
@@ -776,17 +810,26 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateEditingStartTime
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
-			return fmt.Errorf("ERR: converting id for editing (st): %v\n", err)
+			errlog.ERR.Printf("ERR: converting id for editing (km): %v\n", err)
+			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
 		}
 
 		driverSesh.PerformedTaskId = editTaskId
 		err = driverSesh.SetEditTaskId(globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: changing driver's edit task id (st): %v\n", err)
+			errlog.ERR.Printf("ERR: changing driver's edit task id (km): %v\n", err)
+			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
+		}
+
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
+		if err != nil {
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
 		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (starttime): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (starttime): %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_starttime"), loadingTopicId)
@@ -794,8 +837,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -803,17 +846,26 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateEditingEndTime
 		err := driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (endtime): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (endtime): %v\n", err)
 		}
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
-			return fmt.Errorf("ERR: converting id for editing (et): %v\n", err)
+			errlog.ERR.Printf("ERR: converting id for editing (km): %v\n", err)
+			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
 		}
 
 		driverSesh.PerformedTaskId = editTaskId
 		err = driverSesh.SetEditTaskId(globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: changing driver's edit task id (et): %v\n", err)
+			errlog.ERR.Printf("ERR: changing driver's edit task id (km): %v\n", err)
+			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
+		}
+
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
+		if err != nil {
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_endtime"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
@@ -821,8 +873,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -830,17 +882,26 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateEditingTemp
 		err := driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (temp): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (temp): %v\n", err)
 		}
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
-			return fmt.Errorf("ERR: converting id for editing (temp): %v\n", err)
+			errlog.ERR.Printf("ERR: converting id for editing (km): %v\n", err)
+			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
 		}
 
 		driverSesh.PerformedTaskId = editTaskId
 		err = driverSesh.SetEditTaskId(globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: changing driver's edit task id (temp): %v\n", err)
+			errlog.ERR.Printf("ERR: changing driver's edit task id (km): %v\n", err)
+			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
+		}
+
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
+		if err != nil {
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_temp"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
@@ -848,8 +909,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -857,42 +918,53 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateEditingWeight
 		err := driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (weight): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (weight): %v\n", err)
 		}
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
-			return fmt.Errorf("ERR: converting id for editing (wg): %v\n", err)
+			errlog.ERR.Printf("ERR: converting id for editing (km): %v\n", err)
+			return fmt.Errorf("ERR: converting id for editing (km): %v\n", err)
 		}
 
 		driverSesh.PerformedTaskId = editTaskId
 		err = driverSesh.SetEditTaskId(globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: changing driver's edit task id (wg): %v\n", err)
+			errlog.ERR.Printf("ERR: changing driver's edit task id (km): %v\n", err)
+			return fmt.Errorf("ERR: changing driver's edit task id (km): %v\n", err)
+		}
+
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
+		if err != nil {
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_weight"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 	case "task_edit_choice_address":
 		driverSesh.State = db.StateEditingAddress
 		err := driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status for editing (weight): %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status for editing (weight): %v\n", err)
 		}
 		editTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("ERR: converting id for editing (wg): %v\n", err)
 			return fmt.Errorf("ERR: converting id for editing (wg): %v\n", err)
 		}
 
-		driverSesh.PerformedTaskId = editTaskId
-		err = driverSesh.SetEditTaskId(globalStorage)
+		editMessageId, err := parser.GetEditMessageIdByTaskId(globalStorage, editTaskId)
 		if err != nil {
-			return fmt.Errorf("ERR: changing driver's edit task id (wg): %v\n", err)
+			errlog.ERR.Printf("getting edit message id by task id: %v\n", err)
+			return fmt.Errorf("ERR: getting edit message id by task id: %v\n", err)
 		}
 		msg := tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_edit_address"), loadingTopicId)
 		msg.ParseMode = tgbotapi.ModeHTML
@@ -907,8 +979,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:          delq.TaskEdited,
-			TrackedTaskId: editTaskId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 	case "washing":
@@ -916,7 +988,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		if err != nil {
 			if !errors.Is(err, parser.ErrNoShipments) {
 				// log.
-				// return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
+				// errlog.ERR.Printf("ERR: cannot get latest shipments for some reason: %v\n", err)
+				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
 			}
 			return err
 		}
@@ -928,6 +1001,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		managers, err := GetAllManagersOfGroup(chatId, users)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all managers of a group: %v\n", err)
 			return fmt.Errorf("ERR: getting all managers of a group: %v\n", err)
 		}
 
@@ -954,6 +1028,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		shipment, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
 		if err != nil {
 			if !errors.Is(err, parser.ErrNoShipments) {
+				errlog.ERR.Printf("ERR: cannot get latest shipments for some reason: %v\n", err)
 				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
 			}
 			return err
@@ -966,6 +1041,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		managers, err := GetAllManagersOfGroup(chatId, users)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all managers of a group: %v\n", err)
 			return fmt.Errorf("ERR: getting all managers of a group: %v\n", err)
 		}
 
@@ -976,6 +1052,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		cleaningTaskId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("ERR: turning cleaning task id into int: %v\n", err)
 			return fmt.Errorf("ERR: turning cleaning task id into int: %v\n", err)
 		}
 
@@ -1020,6 +1097,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		if _, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id); err != nil {
 			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:err_refuel"), loadingTopicId))
 			if !errors.Is(err, parser.ErrNoShipments) {
+				errlog.ERR.Printf("ERR: cannot get latest shipments for some reason: %v\n", err)
 				return fmt.Errorf("ERR: cannot get latest shipments for some reason: %v\n", err)
 			}
 			return err
@@ -1027,7 +1105,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		cards, err := db.GetAllFuelCards(globalStorage)
 		if err != nil {
-			return fmt.Errorf("ERR: fetching fuel cards for refuel: %w", err)
+			errlog.ERR.Printf("ERR: fetching fuel cards for refuel: %v", err)
+			return fmt.Errorf("ERR: fetching fuel cards for refuel: %v", err)
 		}
 		if len(cards) == 0 {
 			_, _ = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "driver:no_refuel_cards"), loadingTopicId))
@@ -1050,15 +1129,18 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 	case "refuel_card":
 
 		if !idFound {
+			errlog.ERR.Printf("ERR: refuel_card command missing card id")
 			return fmt.Errorf("ERR: refuel_card command missing card id")
 		}
 		cardId, err := strconv.Atoi(_idString)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing fuel card id: %w", err)
+			errlog.ERR.Printf("ERR: parsing fuel card id: %v", err)
+			return fmt.Errorf("ERR: parsing fuel card id: %v", err)
 		}
 
 		s, err := parser.GetLatestShipmentByDriverId(globalStorage, driverSesh.Id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting latest shipment by driver id: %v\n", err)
 			return fmt.Errorf("ERR: getting latest shipment by driver id: %v\n", err)
 		}
 
@@ -1066,6 +1148,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err = tr.StoreTankRefuel(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: storing tank refuel: %v\n", err)
 			return fmt.Errorf("ERR: storing tank refuel: %v\n", err)
 		}
 
@@ -1090,6 +1173,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateRefuelingKM
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status during refuel: %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status during refuel: %v\n", err)
 		}
 
@@ -1109,6 +1193,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		task, err := parser.GetTaskById(globalStorage, taskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", taskId, err)
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", taskId, err)
 		}
 
@@ -1124,11 +1209,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
+			errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
 		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipment to check if it is done: %v\n", err)
 			return fmt.Errorf("ERR: getting shipment to check if it is done: %v\n", err)
 		}
 
@@ -1141,16 +1228,19 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err = driverSesh.SetPerformingTask(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's performing task: %v\n", err)
 			return fmt.Errorf("ERR: changing driver's performing task: %v\n", err)
 		}
 
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status while performing a task: %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status while performing a task: %v\n", err)
 		}
 
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting a car for ending a task: %v\n", err)
 			return fmt.Errorf("ERR: getting a car for ending a task: %v\n", err)
 		}
 
@@ -1198,6 +1288,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			case parser.TaskCleaning:
 				return HandleDriverCommands(chatId, fromId, "driver:sumtask", messageId, globalStorage)
 			default:
+				errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 				return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 			}
 		} else {
@@ -1238,6 +1329,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 			endMsg, err := GenEndTaskMessage(chatId, task, globalStorage)
 			if err != nil {
+				errlog.ERR.Printf("ERR: generating end task message: %v\n", err)
 				return fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 
@@ -1273,6 +1365,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
@@ -1304,6 +1397,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err := docs.DeletePicturesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: deleting any attached fils: %v\n", err)
 			return fmt.Errorf("ERR: deleting any attached fils: %v\n", err)
 		}
 
@@ -1319,6 +1413,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
+			errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
@@ -1329,6 +1424,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		startTaskMsg, err := GenStartTaskMsg(chatId, task, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: generating start Task Message: %v\n", err)
 			return fmt.Errorf("ERR: generating start Task Message: %v\n", err)
 		}
 
@@ -1352,6 +1448,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err := docs.DeleteDocumentsAttachedToTask(globalStorage, task.Id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: deleting any attached fils: %v\n", err)
 			return fmt.Errorf("ERR: deleting any attached fils: %v\n", err)
 		}
 
@@ -1367,6 +1464,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
+			errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
@@ -1377,6 +1475,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		startTaskMsg, err := GenStartTaskMsg(chatId, task, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: generating start task msg: %v\n", err)
 			return fmt.Errorf("ERR: generating start task msg: %v\n", err)
 		}
 
@@ -1390,11 +1489,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 	case "send_docs":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
 		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting attached files: %v\n", err)
 			return fmt.Errorf("ERR: getting attached files: %v\n", err)
 		}
 
@@ -1428,6 +1529,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		/*managers, err := db.GetAllManagers(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all the managers: %v\n", err)
 			return fmt.Errorf("ERR: getting all the managers: %v\n", err)
 		}*/
 		/*
@@ -1447,6 +1549,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err = sendDocumentsToManager(g.GroupChatId, docsFiles, managerText, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending documents to manager: %v\n", err)
 			return fmt.Errorf("ERR: sending documents to manager: %v\n", err)
 		}
 
@@ -1462,6 +1565,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
+			errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
@@ -1476,6 +1580,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
@@ -1496,11 +1601,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 	case "send_pics":
 		task, err := parser.GetTaskById(globalStorage, driverSesh.PerformedTaskId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", driverSesh.PerformedTaskId, err)
 		}
 
 		files, err := docs.GetFilesAttachedToTask(globalStorage, task.Id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting attached files: %v\n", err)
 			return fmt.Errorf("ERR: getting attached files: %v\n", err)
 		}
 
@@ -1535,6 +1642,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				err = sendPhotosToManager(mChatId, photos, managerText, globalStorage)
 				if err != nil {
 					managerSessionsMu.Unlock()
+					errlog.ERR.Printf("ERR: sending photos to manager: %v\n", err)
 					return fmt.Errorf("ERR: sending photos to manager: %v\n", err)
 				}
 			}
@@ -1550,6 +1658,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		err = sendPhotosToManager(g.GroupChatId, photos, managerText, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending photos to the group: %v\n", err)
 			return fmt.Errorf("ERR: sending photos to the group: %v\n", err)
 		}
 		switch task.Type {
@@ -1564,6 +1673,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		case parser.TaskCleaning:
 			driverSesh.State = db.StateCleaning
 		default:
+			errlog.ERR.Printf("ERR: wrong type of task: %s\n", task.Type)
 			return fmt.Errorf("ERR: wrong type of task: %s\n", task.Type)
 		}
 
@@ -1573,6 +1683,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 	case "beginday":
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting a car for the day beggining: %v\n", err)
 			return fmt.Errorf("ERR: getting a car for the day beggining: %v\n", err)
 		}
 		additionalInfo := fmt.Sprintf("%s\nПочатковий кілометраж: %s\n\n", time.Now().In(config.WarsawLoc).Format(time.DateTime), db.FormatKilometrage(int(car.Kilometrage)))
@@ -1580,11 +1691,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		driverSesh.State = db.StateWorking
 		err = driverSesh.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: changing driver's status: %v\n", err)
 			return fmt.Errorf("ERR: changing driver's status: %v\n", err)
 		}
 
 		_, err = driverSesh.UnpauseSession(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: starting a day: %v\n", err)
 			return fmt.Errorf("ERR: starting a day: %v\n", err)
 		}
 
@@ -1607,6 +1720,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		car, err := db.GetCarById(globalStorage, driverSesh.CarId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting car for the end of the day: %v\n", err)
 			return fmt.Errorf("ERR: getting car for the end of the day: %v\n", err)
 		}
 
@@ -1617,32 +1731,38 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 	case "viewactive":
 		shipments, err := parser.GetAllActiveShipmentsByCarId(driverSesh.CarId, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all shipments for all drivers: %v\n", err)
 			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewactivebycar:"+driverSesh.CarId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating shipment list message: %v\n", err)
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending message: %v\n", err)
 			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 
 	case "viewall":
 		shipments, err := parser.GetAllShipmentsByCarId(driverSesh.CarId, globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all shipments for all drivers: %v\n", err)
 			return fmt.Errorf("ERR: getting all shipments for all drivers: %v\n", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, 0, chatId, "page:viewallbycar:"+driverSesh.CarId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating shipment list message: %v\n", err)
 			return fmt.Errorf("ERR: creating shipment list message: %v\n", err)
 		}
 
 		_, err = Bot.Send(msg)
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending message: %v\n", err)
 			return fmt.Errorf("ERR: sending message: %v\n", err)
 		}
 	}
@@ -1903,8 +2023,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -1912,7 +2032,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingStartTime:
@@ -1944,15 +2071,22 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingEndTime:
@@ -1984,8 +2118,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -1993,7 +2127,13 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingTemp:
@@ -2025,8 +2165,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2034,7 +2174,13 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingWeight:
@@ -2066,8 +2212,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2075,7 +2221,14 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 	case db.StateEditingAddress:
 		if msg.Text != "" {
@@ -2101,8 +2254,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskEdited,
-				TrackedTaskId: task.Id,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2110,7 +2263,15 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: generating end task message: %v\n", err)
 			}
 			endMsg.MessageThreadID = loadingTopicId
-			Bot.Send(endMsg)
+
+			_, err = Bot.Send(endMsg)
+			if err != nil {
+				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
+				return driver, err
+			}
+
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateWritingToManager:
@@ -2595,6 +2756,7 @@ func savePhotoToTask(
 	photo := msg.Photo[len(msg.Photo)-1]
 	file, err := Bot.GetFile(tgbotapi.FileConfig{FileID: photo.FileID})
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting photo file info: %v", err)
 		return fmt.Errorf("ERR: getting photo file info: %v", err)
 	}
 	fileURL := file.Link(Bot.Token)
@@ -2604,6 +2766,7 @@ func savePhotoToTask(
 
 	fullPath, err := config.DownloadFile(fileURL, filename)
 	if err != nil {
+		errlog.ERR.Printf("ERR: downloading photo: %v", err)
 		return fmt.Errorf("ERR: downloading photo: %v", err)
 	}
 
@@ -2618,6 +2781,7 @@ func savePhotoToTask(
 	}
 	err = sentPic.StoreFile(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: storing photo: %v", err)
 		return fmt.Errorf("ERR: storing photo: %v", err)
 	}
 	return sentPic.AttachFileToTask(globalStorage, taskId)
@@ -2639,10 +2803,12 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 
 	err := u.GetUserByChatId(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting the user: %v\n", err)
 		return fmt.Errorf("ERR: getting the user: %v\n", err)
 	}
 
 	if !u.IsSuperAdmin {
+		errlog.ERR.Printf("ERR: user (chat_id: %d) is not a superadmin\n", u.ChatId)
 		return fmt.Errorf("ERR: user (chat_id: %d) is not a superadmin\n", u.ChatId)
 	}
 	cmd, _idString, _ := strings.Cut(a, ":")
@@ -2650,6 +2816,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 	case "switch_to_manager":
 		err = u.ToggleSuperAdminRole(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: toggling switch for sa: %v\n", err)
 			return fmt.Errorf("ERR: toggling switch for sa: %v\n", err)
 		}
 
@@ -2657,6 +2824,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 	case "switch_to_driver":
 		err = u.ToggleSuperAdminRole(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: toggling switch for sa: %v\n", err)
 			return fmt.Errorf("ERR: toggling switch for sa: %v\n", err)
 		}
 
@@ -2673,6 +2841,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		managerSessionsMu.Unlock()
 
 		if !exists {
+			errlog.ERR.Printf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 		}
 
@@ -2690,15 +2859,18 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		managerSessionsMu.Unlock()
 
 		if !exists {
+			errlog.ERR.Printf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 		}
 		driverChatId, err := strconv.Atoi(_idString)
 		if err != nil {
+			errlog.ERR.Printf("ERR: converting driver chat id from _idString: %v\n", err)
 			return fmt.Errorf("ERR: converting driver chat id from _idString: %v\n", err)
 		}
 
 		d, err := db.GetDriverByChatId(globalStorage, int64(driverChatId))
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting driver by chat id: %v\n", err)
 			return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
 		}
 
@@ -2716,6 +2888,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		managerSessionsMu.Unlock()
 
 		if !exists {
+			errlog.ERR.Printf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 			return fmt.Errorf("ERR: SA should be manager as well, user: %s, %s\n", u.Name, u.Id)
 		}
 
@@ -2723,16 +2896,19 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 
 		driverChatId, err := strconv.Atoi(dChatId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: converting driver chat id from _idString: %v\n", err)
 			return fmt.Errorf("ERR: converting driver chat id from _idString: %v\n", err)
 		}
 
 		d, err := db.GetDriverByChatId(globalStorage, int64(driverChatId))
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting driver by chat id: %v\n", err)
 			return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
 		}
 
 		err = d.UpdateCarId(globalStorage, carId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: updating car id: %v\n", err)
 			return fmt.Errorf("ERR: updating car id: %v\n", err)
 		}
 
@@ -2748,6 +2924,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 	case "approve":
 		approvedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {
+			errlog.ERR.Printf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 			return fmt.Errorf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 		}
 
@@ -2756,6 +2933,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
+				errlog.ERR.Printf("ERR: getting this user from the db: %v\n", err)
 				return fmt.Errorf("ERR: getting this user from the db: %v\n", err)
 			}
 			return fmt.Errorf("Could not find this user, maybe already declined?: %v\n", err)
@@ -2785,6 +2963,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		} else if u.ManagerId != uuid.Nil {
 			manager, err := db.GetManagerById(globalStorage, u.ManagerId)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting manager by id after superadmin accepted him")
 				return fmt.Errorf("ERR: getting manager by id after superadmin accepted him")
 			}
 
@@ -2810,6 +2989,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 	case "decline":
 		declinedChatId, err := strconv.ParseInt(_idString, 10, 64)
 		if err != nil {
+			errlog.ERR.Printf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 			return fmt.Errorf("ERR: parsing chatid from string: %s, err:%v\n", _idString, err)
 		}
 
@@ -2818,6 +2998,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
+				errlog.ERR.Printf("ERR: getting this user from the db: %v\n", err)
 				return fmt.Errorf("ERR: getting this user from the db: %v\n", err)
 			}
 			return fmt.Errorf("Could not find this user, maybe already declined?: %v\n", err)
@@ -2825,6 +3006,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 
 		tx, err := globalStorage.Begin()
 		if err != nil {
+			errlog.ERR.Printf("ERR: starting transaction: %v", err)
 			return fmt.Errorf("ERR: starting transaction: %v", err)
 		}
 		defer tx.Rollback()
@@ -2832,6 +3014,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		if u.DriverId != uuid.Nil {
 			_, err = tx.Exec("DELETE from drivers where id = ?", u.DriverId.String())
 			if err != nil {
+				errlog.ERR.Printf("ERR: deleting declined driver: %v\n", err)
 				return fmt.Errorf("ERR: deleting declined driver: %v\n", err)
 			}
 
@@ -2841,6 +3024,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 		} else if u.ManagerId != uuid.Nil {
 			_, err = tx.Exec("DELETE from managers where id = ?", u.ManagerId.String())
 			if err != nil {
+				errlog.ERR.Printf("ERR: deleting declined manager: %v\n", err)
 				return fmt.Errorf("ERR: deleting declined manager: %v\n", err)
 			}
 
@@ -2851,6 +3035,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 
 		_, err = tx.Exec("DELETE from users where id = ?", u.Id.String())
 		if err != nil {
+			errlog.ERR.Printf("ERR: deleting declined user: %v\n", err)
 			return fmt.Errorf("ERR: deleting declined user: %v\n", err)
 		}
 
@@ -2869,26 +3054,31 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 	case "carfor":
 		driverId, carId, f := strings.Cut(_idString, ":")
 		if !f {
+			errlog.ERR.Printf("ERR: getting any info from sa:carfor command: %v\n", command)
 			return fmt.Errorf("ERR: getting any info from sa:carfor command: %v\n", command)
 		}
 
 		id, err := strconv.ParseInt(driverId, 10, 64)
 		if err != nil {
+			errlog.ERR.Printf("ERR: parsing int chat id of a driver: %v\n", err)
 			return fmt.Errorf("ERR: parsing int chat id of a driver: %v\n", err)
 		}
 
 		driver, err := db.GetDriverByChatId(globalStorage, id)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting driver by id: %v\n", err)
 			return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 		}
 
 		err = driver.UpdateCarId(globalStorage, carId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: updating car id: %v\n", err)
 			return fmt.Errorf("ERR: updating car id: %v\n", err)
 		}
 
 		car, err := db.GetCarById(globalStorage, carId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting car by id: %v\n", err)
 			return fmt.Errorf("ERR: getting car by id: %v\n", err)
 		}
 
@@ -2908,6 +3098,7 @@ func HandleSACommands(chatId int64, fromId int64, command string, messageId int,
 			loadingTopicId,
 		))
 		if err != nil {
+			errlog.ERR.Printf("ERR: sending driver a msg: %v\n", err)
 			return fmt.Errorf("ERR: sending driver a msg: %v\n", err)
 		}
 		return HandleMenu(id, globalStorage, driver.User)
@@ -2951,24 +3142,28 @@ func HandleDevCommands(chatId int64, command string, messageId int, globalStorag
 func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *sql.DB) error {
 	fileURL, err := Bot.GetFileDirectURL(doc.FileID)
 	if err != nil {
-		return fmt.Errorf("ERR: getting file URL: %w", err)
+		errlog.ERR.Printf("ERR: getting file URL: %v", err)
+		return fmt.Errorf("ERR: getting file URL: %v", err)
 	}
 
 	resp, err := http.Get(fileURL)
 	if err != nil {
-		return fmt.Errorf("ERR: downloading file: %w", err)
+		errlog.ERR.Printf("ERR: downloading file: %v", err)
+		return fmt.Errorf("ERR: downloading file: %v", err)
 	}
 	defer resp.Body.Close()
 
 	reader := csv.NewReader(resp.Body)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return fmt.Errorf("ERR: reading CSV: %w", err)
+		errlog.ERR.Printf("ERR: reading CSV: %v", err)
+		return fmt.Errorf("ERR: reading CSV: %v", err)
 	}
 
 	tx, err := globalStorage.Begin()
 	if err != nil {
-		return fmt.Errorf("ERR: starting transaction: %w", err)
+		errlog.ERR.Printf("ERR: starting transaction: %v", err)
+		return fmt.Errorf("ERR: starting transaction: %v", err)
 	}
 	defer tx.Rollback()
 
@@ -2984,7 +3179,8 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 			opening_hours = excluded.opening_hours
 	`)
 	if err != nil {
-		return fmt.Errorf("ERR: preparing statement: %w", err)
+		errlog.ERR.Printf("ERR: preparing statement: %v", err)
+		return fmt.Errorf("ERR: preparing statement: %v", err)
 	}
 	defer stmt.Close()
 
@@ -3001,27 +3197,29 @@ func HandleCleaningDevCSV(chatId int64, doc *tgbotapi.Document, globalStorage *s
 
 		id, err := strconv.Atoi(record[0])
 		if err != nil {
-			return fmt.Errorf("invalid ID at row %d: %w", i+1, err)
+			return fmt.Errorf("invalid ID at row %d: %v", i+1, err)
 		}
 
 		lat, err := strconv.ParseFloat(record[4], 64)
 		if err != nil {
-			return fmt.Errorf("invalid latitude at row %d: %w", i+1, err)
+			return fmt.Errorf("invalid latitude at row %d: %v", i+1, err)
 		}
 
 		lon, err := strconv.ParseFloat(record[5], 64)
 		if err != nil {
-			return fmt.Errorf("invalid longitude at row %d: %w", i+1, err)
+			return fmt.Errorf("invalid longitude at row %d: %v", i+1, err)
 		}
 
 		_, err = stmt.Exec(id, record[1], record[2], record[3], lat, lon, record[6])
 		if err != nil {
-			return fmt.Errorf("ERR: inserting row %d: %w", i+1, err)
+			errlog.ERR.Printf("ERR: inserting row %d: %v", i+1, err)
+			return fmt.Errorf("ERR: inserting row %d: %v", i+1, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("ERR: committing transaction: %w", err)
+		errlog.ERR.Printf("ERR: committing transaction: %v", err)
+		return fmt.Errorf("ERR: committing transaction: %v", err)
 	}
 
 	_, err = Bot.Send(tgbotapi.NewMessage(chatId, "The list has been updated"))
@@ -3084,6 +3282,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 		err = u.GetUserByChatId(globalStorage)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
+				errlog.ERR.Printf("ERR: getting the user: %v\n", err)
 				return fmt.Errorf("ERR: getting the user: %v\n", err)
 			}
 			role = db.NoRole
@@ -3113,6 +3312,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 			driver, err = db.GetDriverByChatId(globalStorage, u.ChatId)
 			if err != nil {
 				driverSessionsMu.Unlock()
+				errlog.ERR.Printf("ERR: loading driver: %v\n", err)
 				return fmt.Errorf("ERR: loading driver: %v\n", err)
 			}
 			driver.User = u
@@ -3135,6 +3335,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 			manager, err = db.GetManagerByChatId(globalStorage, u.ChatId)
 			if err != nil {
 				managerSessionsMu.Unlock()
+				errlog.ERR.Printf("ERR: loading manager: %v\n", err)
 				return fmt.Errorf("ERR: loading manager: %v\n", err)
 			}
 			manager.User = u
@@ -3151,6 +3352,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 				driver, err = db.GetDriverByChatId(globalStorage, u.ChatId)
 				if err != nil {
 					driverSessionsMu.Unlock()
+					errlog.ERR.Printf("ERR: loading driver: %v\n", err)
 					return fmt.Errorf("ERR: loading driver: %v\n", err)
 				}
 				driver.User = u
@@ -3170,6 +3372,7 @@ func HandleMenu(chatId int64, globalStorage *sql.DB, u *db.User) error {
 				manager, err = db.GetManagerByChatId(globalStorage, u.ChatId)
 				if err != nil {
 					managerSessionsMu.Unlock()
+					errlog.ERR.Printf("ERR: loading manager: %v\n", err)
 					return fmt.Errorf("ERR: loading manager: %v\n", err)
 				}
 				manager.User = u

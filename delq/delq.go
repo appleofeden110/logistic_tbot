@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/db"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"strings"
 	"time"
@@ -25,17 +26,18 @@ type DeleteQueueNode struct {
 type RequirementType string
 
 type Requirements struct {
-	ID                int             `db:"id"`
-	Type              RequirementType `db:"requirement_type"`
-	TrackedTaskId     int
-	TrackedShipmentId int64
-	TrackedRefuelId   int
-	Surplus           time.Time
-	areMet            bool
+	ID                   int             `db:"id"`
+	Type                 RequirementType `db:"requirement_type"`
+	TrackedTaskId        int
+	TrackedEditMessageId int
+	TrackedShipmentId    int64
+	TrackedRefuelId      int
+	Surplus              time.Time
+	areMet               bool
 }
 
 const (
-	SCHEDULE_SURPLUS = 3 * time.Second
+	SCHEDULE_SURPLUS = 1 * time.Second
 )
 
 var (
@@ -50,38 +52,52 @@ var (
 )
 
 func (n *DeleteQueueNode) CheckRequirements(globalStorage *sql.DB) {
-	r := n.Requirements
-
-	if r.areMet {
+	if n.Requirements.areMet {
 		log.Println("Requirements are already met")
 		return
 	}
-	switch r.Type {
+	switch n.Requirements.Type {
 	case TaskFinished:
-		task, err := parser.GetTaskById(globalStorage, r.TrackedTaskId)
+		task, err := parser.GetTaskById(globalStorage, n.Requirements.TrackedTaskId)
 		if err != nil {
-			log.Printf("ERR: getting task by id (%d): %v\n", r.TrackedTaskId, err)
+			errlog.ERR.Printf("ERR: getting task by id (%d): %v\n", n.Requirements.TrackedTaskId, err)
+			log.Printf("ERR: getting task by id (%d): %v\n", n.Requirements.TrackedTaskId, err)
 			return
 		}
 		if task.IsFinished() {
-			r.areMet = true
+			n.Requirements.areMet = true
+			n.UpdateRequirements(globalStorage)
+			n.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
+		}
+	case TaskEdited:
+		task, err := parser.GetTaskByEditMessageId(globalStorage, n.Requirements.TrackedEditMessageId)
+		if err != nil {
+			errlog.ERR.Printf("ERR: getting task by id for edit deletion (%d): %v\n", n.Requirements.TrackedTaskId, err)
+			log.Printf("ERR: getting task by id for edit deletion (%d): %v\n", n.Requirements.TrackedTaskId, err)
+			return
+		}
+
+		if task.EditMessageId == n.Requirements.TrackedEditMessageId {
+			n.Requirements.areMet = true
+			n.UpdateRequirements(globalStorage)
 			n.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
 		}
 
 	case ShipmentFinished:
-		shipment, err := parser.GetShipment(globalStorage, r.TrackedShipmentId)
+		shipment, err := parser.GetShipment(globalStorage, n.Requirements.TrackedShipmentId)
 		if err != nil {
-			log.Printf("ERR: getting shipment by id (%d): %v\n", r.TrackedShipmentId, err)
+			log.Printf("ERR: getting shipment by id (%d): %v\n", n.Requirements.TrackedShipmentId, err)
 			return
 		}
 
 		if shipment.IsFinished() {
-			r.areMet = true
+			n.Requirements.areMet = true
+			n.UpdateRequirements(globalStorage)
 			n.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
 		}
 
 	case Refueled:
-		tr, err := db.GetTankRefuelById(globalStorage, r.TrackedRefuelId)
+		tr, err := db.GetTankRefuelById(globalStorage, n.Requirements.TrackedRefuelId)
 		if err != nil {
 			if !strings.Contains(err.Error(), "sql: no rows in result set") {
 				log.Printf("ERR: getting tank refuel by id: %v\n", err)
@@ -90,13 +106,12 @@ func (n *DeleteQueueNode) CheckRequirements(globalStorage *sql.DB) {
 		}
 
 		if tr.Address != "" {
-			r.areMet = true
+			n.Requirements.areMet = true
+			n.UpdateRequirements(globalStorage)
 			n.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
 		}
 
 	}
-
-	n.Requirements = r
 }
 
 // EnqueueToDelete is used to enqueue for deletion any messages that are useless in a long run, do not hold information and are used to lead user to successful use of the bot.
@@ -128,16 +143,17 @@ func DeleteWorker(globalStorage *sql.DB, bot *tgbotapi.BotAPI) {
 	defer timer.Stop()
 	for {
 		select {
-		case task_id := <-EditChannel:
-			// fucking sucks for now, I will need to change it
-			for editDQNode := range DeleteQueue {
-				if editDQNode.Requirements.TrackedTaskId == task_id && editDQNode.Requirements.Type == TaskEdited {
-					editDQNode.Requirements.areMet = true
-					editDQNode.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
-				}
-				DeleteQueue <- editDQNode
-				continue
-			}
+		// case task_id := <-EditChannel:
+		// fucking sucks for now, I will need to change it
+		// for editDQNode := range DeleteQueue {
+		// 	if editDQNode.Requirements.TrackedTaskId == task_id && editDQNode.Requirements.Type == TaskEdited {
+		// 		editDQNode.Requirements.areMet = true
+		// 		n.UpdateRequirements(globalStorage)
+		// 		editDQNode.Scheduled = time.Now().Add(SCHEDULE_SURPLUS)
+		// 	}
+		// 	DeleteQueue <- editDQNode
+		// 	continue
+		// }
 		case dqNode := <-DeleteQueue:
 			if !dqNode.Requirements.areMet {
 				pending = append(pending, dqNode)
@@ -191,6 +207,7 @@ func ScheduleForDeletion(chatId int64, messageId int, globalStorage *sql.DB) {
 func FillDeleteQueue(db *sql.DB) error {
 	nodes, err := GetAllDeleteQueueNodes(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: filling delete queue: %v\n", err)
 		return fmt.Errorf("ERR: filling delete queue: %v\n", err)
 	}
 	for _, node := range nodes {
@@ -216,7 +233,8 @@ func GetAllDeleteQueueNodes(db *sql.DB) ([]*DeleteQueueNode, error) {
 			r.are_met,
 			r.tracked_task_id,
 			r.tracked_shipment_id,
-			r.tracked_refuel_id
+			r.tracked_refuel_id,
+			r.tracked_edit_message_id
 		FROM delete_queue dq
 		LEFT JOIN requirements r ON dq.requirements_id = r.id
 		ORDER BY dq.scheduled ASC
@@ -231,13 +249,14 @@ func GetAllDeleteQueueNodes(db *sql.DB) ([]*DeleteQueueNode, error) {
 	for rows.Next() {
 		var node DeleteQueueNode
 		var (
-			reqId                sql.NullInt64
-			reqType              sql.NullString
-			reqSurplus           sql.NullTime
-			reqAreMet            sql.NullBool
-			reqTrackedTaskId     sql.NullInt64
-			reqTrackedShipmentId sql.NullInt64
-			reqTrackedRefuelId   sql.NullInt64
+			reqId                   sql.NullInt64
+			reqType                 sql.NullString
+			reqSurplus              sql.NullTime
+			reqAreMet               sql.NullBool
+			reqTrackedTaskId        sql.NullInt64
+			reqTrackedShipmentId    sql.NullInt64
+			reqTrackedRefuelId      sql.NullInt64
+			reqTrackedEditMessageId sql.NullInt64
 		)
 		err := rows.Scan(
 			&node.ID,
@@ -252,19 +271,21 @@ func GetAllDeleteQueueNodes(db *sql.DB) ([]*DeleteQueueNode, error) {
 			&reqTrackedTaskId,
 			&reqTrackedShipmentId,
 			&reqTrackedRefuelId,
+			&reqTrackedEditMessageId,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ERR: scanning delete_queue row: %v\n", err)
 		}
 		if reqId.Valid {
 			node.Requirements = Requirements{
-				ID:                int(reqId.Int64),
-				Type:              RequirementType(reqType.String),
-				Surplus:           reqSurplus.Time,
-				areMet:            reqAreMet.Bool,
-				TrackedTaskId:     int(reqTrackedTaskId.Int64),
-				TrackedShipmentId: reqTrackedShipmentId.Int64,
-				TrackedRefuelId:   int(reqTrackedRefuelId.Int64),
+				ID:                   int(reqId.Int64),
+				Type:                 RequirementType(reqType.String),
+				Surplus:              reqSurplus.Time,
+				areMet:               reqAreMet.Bool,
+				TrackedTaskId:        int(reqTrackedTaskId.Int64),
+				TrackedShipmentId:    reqTrackedShipmentId.Int64,
+				TrackedRefuelId:      int(reqTrackedRefuelId.Int64),
+				TrackedEditMessageId: int(reqTrackedEditMessageId.Int64),
 			}
 		}
 		nodes = append(nodes, &node)
@@ -278,6 +299,7 @@ func GetAllDeleteQueueNodes(db *sql.DB) ([]*DeleteQueueNode, error) {
 func (n *DeleteQueueNode) UpdateRequirements(db *sql.DB) error {
 	_, err := db.Exec("UPDATE requirements SET are_met=1 WHERE delete_queue_id=?", n.ID)
 	if err != nil {
+		errlog.ERR.Printf("ERR: updating are_met for requirements with id %d: %v\n", n.ID, err)
 		return fmt.Errorf("ERR: updating are_met for requirements with id %d: %v\n", n.ID, err)
 	}
 	return nil
@@ -286,6 +308,7 @@ func (n *DeleteQueueNode) UpdateRequirements(db *sql.DB) error {
 func (n *DeleteQueueNode) UpdateIsDeleted(db *sql.DB) error {
 	_, err := db.Exec("UPDATE delete_queue SET is_deleted=1 WHERE message_id=? AND chat_id=?", n.MessageID, n.ChatID)
 	if err != nil {
+		errlog.ERR.Printf("ERR: updating is delete for dqNode with id %d: %v\n", n.ID, err)
 		return fmt.Errorf("ERR: updating is delete for dqNode with id %d: %v\n", n.ID, err)
 	}
 	return nil
@@ -297,17 +320,20 @@ func (n *DeleteQueueNode) StoreDeleteQueueNode(db *sql.DB) error {
 		VALUES (?, ?, ?)
 	`)
 	if err != nil {
+		errlog.ERR.Printf("ERR: preparing statement for insert delete_queue node: %v\n", err)
 		return fmt.Errorf("ERR: preparing statement for insert delete_queue node: %v\n", err)
 	}
 	defer stmt.Close()
 
 	res, err := stmt.Exec(n.MessageID, n.ChatID, n.Scheduled)
 	if err != nil {
+		errlog.ERR.Printf("ERR: executing prep insert delete_queue node stmt: %v\n", err)
 		return fmt.Errorf("ERR: executing prep insert delete_queue node stmt: %v\n", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting last insert id for delete_queue node: %v\n", err)
 		return fmt.Errorf("ERR: getting last insert id for delete_queue node: %v\n", err)
 	}
 	n.ID = id
@@ -315,6 +341,7 @@ func (n *DeleteQueueNode) StoreDeleteQueueNode(db *sql.DB) error {
 	if n.Requirements.Type != "" {
 		n.Requirements.ID = int(n.ID)
 		if err := n.Requirements.StoreRequirements(db); err != nil {
+			errlog.ERR.Printf("ERR: storing requirements for dqNode: %v\n", err)
 			return fmt.Errorf("ERR: storing requirements for dqNode: %v\n", err)
 		}
 		// update delete_queue row with requirements_id
@@ -323,6 +350,7 @@ func (n *DeleteQueueNode) StoreDeleteQueueNode(db *sql.DB) error {
 			n.Requirements.ID, n.ID,
 		)
 		if err != nil {
+			errlog.ERR.Printf("ERR: updating requirements_id on delete_queue node: %v\n", err)
 			return fmt.Errorf("ERR: updating requirements_id on delete_queue node: %v\n", err)
 		}
 	}
@@ -331,15 +359,16 @@ func (n *DeleteQueueNode) StoreDeleteQueueNode(db *sql.DB) error {
 }
 func (r *Requirements) StoreRequirements(db *sql.DB) error {
 	stmt, err := db.Prepare(`
-		INSERT INTO requirements (type, surplus, are_met, delete_queue_id, tracked_task_id, tracked_shipment_id, tracked_refuel_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO requirements (type, surplus, are_met, delete_queue_id, tracked_task_id, tracked_shipment_id, tracked_refuel_id, tracked_edit_message_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`)
 	if err != nil {
+		errlog.ERR.Printf("ERR: preparing statement for insert requirements: %v\n", err)
 		return fmt.Errorf("ERR: preparing statement for insert requirements: %v\n", err)
 	}
 	defer stmt.Close()
 
-	var trackedTaskId, trackedShipmentId, trackedRefuelId sql.NullInt64
+	var trackedTaskId, trackedShipmentId, trackedRefuelId, trackedEditMessageId sql.NullInt64
 	if r.TrackedTaskId != 0 {
 		trackedTaskId = sql.NullInt64{Int64: int64(r.TrackedTaskId), Valid: true}
 	}
@@ -347,7 +376,10 @@ func (r *Requirements) StoreRequirements(db *sql.DB) error {
 		trackedShipmentId = sql.NullInt64{Int64: r.TrackedShipmentId, Valid: true}
 	}
 	if r.TrackedRefuelId != 0 {
-		trackedRefuelId = sql.NullInt64{Int64: r.TrackedShipmentId, Valid: true}
+		trackedRefuelId = sql.NullInt64{Int64: int64(r.TrackedRefuelId), Valid: true}
+	}
+	if r.TrackedEditMessageId != 0 {
+		trackedEditMessageId = sql.NullInt64{Int64: int64(r.TrackedEditMessageId), Valid: true}
 	}
 
 	res, err := stmt.Exec(
@@ -358,13 +390,16 @@ func (r *Requirements) StoreRequirements(db *sql.DB) error {
 		trackedTaskId,
 		trackedShipmentId,
 		trackedRefuelId,
+		trackedEditMessageId,
 	)
 	if err != nil {
+		errlog.ERR.Printf("ERR: executing prep insert requirements stmt: %v\n", err)
 		return fmt.Errorf("ERR: executing prep insert requirements stmt: %v\n", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting last insert id for requirements: %v\n", err)
 		return fmt.Errorf("ERR: getting last insert id for requirements: %v\n", err)
 	}
 	r.ID = int(id)

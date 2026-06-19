@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"logistictbot/config"
+	"logistictbot/errlog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -70,13 +71,13 @@ func GetCarById(exec DBExecutor, carId string) (*Car, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("car with id %s not found", carId)
 		}
-		return nil, fmt.Errorf("ERR: scanning car: %w", err)
+		return nil, fmt.Errorf("ERR: scanning car: %v", err)
 	}
 
 	if currentDriverId.Valid {
 		car.CurrentDriverId, err = uuid.FromString(currentDriverId.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing current_driver_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing current_driver_id: %v", err)
 		}
 	} else {
 		car.CurrentDriverId = uuid.Nil
@@ -94,6 +95,7 @@ func (c *Car) UpdateCarKilometrage(exec DBExecutor) error {
 	)
 
 	if err != nil {
+		errlog.ERR.Printf("ERR: giving updating kilometrage for %s: %v\n", c.Id, err)
 		return fmt.Errorf("ERR: giving updating kilometrage for %s: %v\n", c.Id, err)
 	}
 
@@ -114,11 +116,13 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_not_admin")))
 			return ErrNotSuperAdmin
 		}
+		errlog.ERR.Printf("ERR: checking if you are SA or not. Probably not actually...: %v\n", err)
 		return fmt.Errorf("ERR: checking if you are SA or not. Probably not actually...: %v\n", err)
 	}
 
 	stmt, err := executor.Prepare("INSERT INTO cars (id, current_kilometrage) VALUES (?, ?)")
 	if err != nil {
+		errlog.ERR.Printf("ERR: prepping stmt for adding a car to the db: %v\n", err)
 		return fmt.Errorf("ERR: prepping stmt for adding a car to the db: %v\n", err)
 	}
 	defer stmt.Close()
@@ -128,6 +132,7 @@ func (c *Car) AddCarToDB(chatId int64, bot *tgbotapi.BotAPI, executor DBExecutor
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_car_exists")))
 		}
+		errlog.ERR.Printf("ERR: executing stmt to add car to the db: %v\n", err)
 		return fmt.Errorf("ERR: executing stmt to add car to the db: %v\n", err)
 	}
 
@@ -144,17 +149,20 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 			bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "err_not_admin")))
 			return ErrNotSuperAdmin
 		}
+		errlog.ERR.Printf("ERR: checking if you are SA: %v", err)
 		return fmt.Errorf("ERR: checking if you are SA: %v", err)
 	}
 
 	file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting file from Telegram: %v", err)
 		return fmt.Errorf("ERR: getting file from Telegram: %v", err)
 	}
 
 	fileURL := file.Link(bot.Token)
 	resp, err := http.Get(fileURL)
 	if err != nil {
+		errlog.ERR.Printf("ERR: downloading file: %v", err)
 		return fmt.Errorf("ERR: downloading file: %v", err)
 	}
 	defer resp.Body.Close()
@@ -162,17 +170,20 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 	reader := csv.NewReader(resp.Body)
 	records, err := reader.ReadAll()
 	if err != nil {
+		errlog.ERR.Printf("ERR: reading CSV: %v", err)
 		return fmt.Errorf("ERR: reading CSV: %v", err)
 	}
 
 	tx, err := globalStorage.Begin()
 	if err != nil {
+		errlog.ERR.Printf("ERR: starting transaction: %v", err)
 		return fmt.Errorf("ERR: starting transaction: %v", err)
 	}
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare("INSERT INTO cars (id, current_kilometrage) VALUES (?, ?)")
 	if err != nil {
+		errlog.ERR.Printf("ERR: preparing statement: %v", err)
 		return fmt.Errorf("ERR: preparing statement: %v", err)
 	}
 	defer stmt.Close()
@@ -202,6 +213,7 @@ func (c *Car) AddCarsFromTelegramCSV(chatId int64, bot *tgbotapi.BotAPI, globalS
 	}
 
 	if err := tx.Commit(); err != nil {
+		errlog.ERR.Printf("ERR: committing transaction: %v", err)
 		return fmt.Errorf("ERR: committing transaction: %v", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/config"
+	"logistictbot/errlog"
 	"strconv"
 	"time"
 
@@ -41,7 +42,7 @@ func scanShipment(rows *sql.Rows) (*Shipment, error) {
 		&finished,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: scan shipment: %w", err)
+		return nil, fmt.Errorf("ERR: scan shipment: %v", err)
 	}
 
 	shipment.DocLang = Language(docLang)
@@ -70,9 +71,10 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	var start, end sql.NullString
 	var createdAt, updatedAt sql.NullString
 	var originalAddress sql.NullString
-	var compartment sql.NullInt64
-	var currentKm, currentWeight sql.NullInt64
+	var compartment, currentKm, currentWeight sql.NullInt64
 	var currentTemp sql.NullFloat64
+	var editMessageId sql.NullInt32
+	var editStatus sql.NullString
 
 	err := taskRows.Scan(
 		&task.Id,
@@ -104,12 +106,18 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 		&createdAt,
 		&updatedAt,
 		&originalAddress,
+		&editMessageId,
+		&editStatus,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: scan task: %w", err)
+		return nil, fmt.Errorf("ERR: scan task: %v", err)
 	}
 
 	task.Type = taskType
+
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
+	}
 
 	if loadStartDate.Valid {
 		task.LoadStartDate, _ = parseTimeString(loadStartDate.String)
@@ -152,6 +160,9 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	if currentTemp.Valid {
 		task.CurrentTemperature = currentTemp.Float64
 	}
+	if editMessageId.Valid {
+		task.EditMessageId = int(editMessageId.Int32)
+	}
 
 	return task, nil
 }
@@ -168,7 +179,7 @@ func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, err
 	`
 	shipments, err := queryShipments(db, query, driverId.String())
 	if err != nil {
-		return nil, fmt.Errorf("ERR: getting latest shipment for driver %s: %w", driverId, err)
+		return nil, fmt.Errorf("ERR: getting latest shipment for driver %s: %v", driverId, err)
 	}
 	if len(shipments) == 0 {
 		return nil, ErrNoShipments
@@ -212,6 +223,56 @@ func (t *TaskSection) UpdateAddress(db *sql.DB) error {
 	return err
 }
 
+// UpdateEditMessageId sets edit_message_id for a task by task id.
+func UpdateEditMessageId(db *sql.DB, taskId int, editMessageId int) error {
+	_, err := db.Exec(`UPDATE tasks SET edit_message_id = ?, edit_status = 'editing' WHERE id = ?`,
+		editMessageId, taskId)
+	if err != nil {
+		return fmt.Errorf("ERR: updating edit_message_id for task %d: %v", taskId, err)
+	}
+	return nil
+}
+
+// GetEditMessageIdByTaskId reads edit_message_id for a task by task id.
+func GetEditMessageIdByTaskId(db *sql.DB, taskId int) (int, error) {
+	var editMessageId sql.NullInt32
+	err := db.QueryRow(`SELECT edit_message_id FROM tasks WHERE id = ?`, taskId).Scan(&editMessageId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("task not found")
+		}
+		return 0, fmt.Errorf("ERR: getting edit_message_id for task %d: %v", taskId, err)
+	}
+	if !editMessageId.Valid {
+		return 0, nil
+	}
+	return int(editMessageId.Int32), nil
+}
+
+func (t *TaskSection) UpdateEditStatus(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET edit_status = ? WHERE id = ?`,
+		t.EditStatus, t.Id)
+	if err != nil {
+		return fmt.Errorf("ERR: updating edit_status for task %d: %v", t.Id, err)
+	}
+	return nil
+}
+
+func GetEditStatusByTaskId(db *sql.DB, taskId int) (EditStatus, error) {
+	var editStatus sql.NullString
+	err := db.QueryRow(`SELECT edit_status FROM tasks WHERE id = ?`, taskId).Scan(&editStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("task not found")
+		}
+		return "", fmt.Errorf("ERR: getting edit_status for task %d: %v", taskId, err)
+	}
+	if !editStatus.Valid {
+		return "", nil
+	}
+	return EditStatus(editStatus.String), nil
+}
+
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
 		SELECT id, type, shipment_id, content, customer_ref, load_ref,
@@ -219,7 +280,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 		       unload_end_date, tank_status, product, weight, volume,
 		       temperature, compartment, remark, address, destination_address,
 		       doc_id, start, end, current_kilometrage, current_weight,
-		       current_temperature, created_at, updated_at, original_address
+		       current_temperature, created_at, updated_at, original_address, edit_message_id, edit_status
 		FROM tasks
 		WHERE shipment_id = ?
 		ORDER BY id
@@ -227,7 +288,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 
 	taskRows, err := tx.Query(taskQuery, shipmentId)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: query tasks for shipment %d: %w", shipmentId, err)
+		return nil, fmt.Errorf("ERR: query tasks for shipment %d: %v", shipmentId, err)
 	}
 	defer taskRows.Close()
 
@@ -242,7 +303,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 	}
 
 	if err := taskRows.Err(); err != nil {
-		return nil, fmt.Errorf("ERR: iterate tasks: %w", err)
+		return nil, fmt.Errorf("ERR: iterate tasks: %v", err)
 	}
 
 	return tasks, nil
@@ -257,7 +318,7 @@ func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment,
 
 	rows, err := tx.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: query shipments: %w", err)
+		return nil, fmt.Errorf("ERR: query shipments: %v", err)
 	}
 	defer rows.Close()
 
@@ -279,11 +340,11 @@ func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment,
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("ERR: iterate shipments: %w", err)
+		return nil, fmt.Errorf("ERR: iterate shipments: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("ERR: commit transaction: %w", err)
+		return nil, fmt.Errorf("ERR: commit transaction: %v", err)
 	}
 
 	return shipments, nil
@@ -380,7 +441,7 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 	`
 	rows, err := db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: query available months: %w", err)
+		return nil, fmt.Errorf("ERR: query available months: %v", err)
 	}
 	defer rows.Close()
 
@@ -388,7 +449,7 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 	for rows.Next() {
 		var yearStr, monthStr sql.NullString
 		if err := rows.Scan(&yearStr, &monthStr); err != nil {
-			return nil, fmt.Errorf("ERR: scan month: %w", err)
+			return nil, fmt.Errorf("ERR: scan month: %v", err)
 		}
 
 		if !yearStr.Valid || !monthStr.Valid {
@@ -419,7 +480,8 @@ func GetAvailableMonths(db *sql.DB) ([]MonthYear, error) {
 func (s *Shipment) StoreShipment(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("ERR: begin transaction: %w", err)
+		errlog.ERR.Printf("ERR: begin transaction: %v", err)
+		return fmt.Errorf("ERR: begin transaction: %v", err)
 	}
 	defer tx.Rollback()
 
@@ -456,7 +518,8 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		time.Now(),
 	)
 	if err != nil {
-		return fmt.Errorf("ERR: insert shipment: %w", err)
+		errlog.ERR.Printf("ERR: insert shipment: %v", err)
+		return fmt.Errorf("ERR: insert shipment: %v", err)
 	}
 
 	taskQuery := `INSERT INTO tasks
@@ -524,17 +587,20 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 			time.Now(),
 		)
 		if err != nil {
-			return fmt.Errorf("ERR: insert task: %w", err)
+			errlog.ERR.Printf("ERR: insert task: %v", err)
+			return fmt.Errorf("ERR: insert task: %v", err)
 		}
 		taskId, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("ERR: get task id: %w", err)
+			errlog.ERR.Printf("ERR: get task id: %v", err)
+			return fmt.Errorf("ERR: get task id: %v", err)
 		}
 		task.Id = int(taskId)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("ERR: commit transaction: %w", err)
+		errlog.ERR.Printf("ERR: commit transaction: %v", err)
+		return fmt.Errorf("ERR: commit transaction: %v", err)
 	}
 	return nil
 }
@@ -543,7 +609,7 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("ERR: beginning transaction for the shipment: %w\n", err)
+		return nil, fmt.Errorf("ERR: beginning transaction for the shipment: %v\n", err)
 	}
 	defer tx.Rollback()
 
@@ -579,14 +645,14 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sql.ErrNoRows
 		}
-		return nil, fmt.Errorf("scan shipment: %w", err)
+		return nil, fmt.Errorf("scan shipment: %v", err)
 	}
 	s.DocLang = Language(docLang)
 	s.InstructionType = InstructionType(instrType)
 	if driverIdStr != "" {
 		driverId, err := uuid.FromString(driverIdStr)
 		if err != nil {
-			return nil, fmt.Errorf("parse driver id: %w", err)
+			return nil, fmt.Errorf("parse driver id: %v", err)
 		}
 		s.DriverId = driverId
 	}
@@ -594,7 +660,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	if createdAtStr.Valid && createdAtStr.String != "" {
 		t, err := parseTime(createdAtStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("parse created_at: %w", err)
+			return nil, fmt.Errorf("parse created_at: %v", err)
 		}
 		s.CreatedAt = t
 	}
@@ -602,7 +668,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	if updatedAtStr.Valid && updatedAtStr.String != "" {
 		t, err := parseTime(updatedAtStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("parse updated_at: %w", err)
+			return nil, fmt.Errorf("parse updated_at: %v", err)
 		}
 		s.UpdatedAt = t
 	}
@@ -634,6 +700,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 
 	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: starting shipment: %v\n", err)
 		return fmt.Errorf("ERR: starting shipment: %v\n", err)
 	}
 
@@ -651,6 +718,7 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: finishing shipment: %v\n", err)
 		return fmt.Errorf("ERR: finishing shipment: %v\n", err)
 	}
 
@@ -661,7 +729,8 @@ func (s *Shipment) UnfinishShipment(db *sql.DB) error {
 	query := `UPDATE shipments SET finished = NULL WHERE id = ?`
 	_, err := db.Exec(query, s.ShipmentId)
 	if err != nil {
-		return fmt.Errorf("ERR: unfinish shipment %d: %w", s.ShipmentId, err)
+		errlog.ERR.Printf("ERR: unfinish shipment %d: %v", s.ShipmentId, err)
+		return fmt.Errorf("ERR: unfinish shipment %d: %v", s.ShipmentId, err)
 	}
 	return nil
 }
@@ -679,7 +748,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id, edit_status
 	FROM tasks WHERE id = ?`
 
 	row := db.QueryRow(query, taskId)
@@ -689,6 +758,9 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	var (
 		loadStart, loadEnd, unloadStart, unloadEnd string
 		startTime, endTime, originalAddress        sql.NullString
+		createdAt, updatedAt                       sql.NullString
+		editMessageId                              sql.NullInt32
+		editStatus                                 sql.NullString
 	)
 
 	err := row.Scan(
@@ -718,15 +790,17 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 		&task.CurrentKilometrage,
 		&task.CurrentTemperature,
 		&task.CurrentWeight,
-		&sql.NullString{}, // created_at
-		&sql.NullString{}, // updated_at
+		&createdAt,
+		&updatedAt,
 		&originalAddress,
+		&editMessageId,
+		&editStatus,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("task not found")
 		}
-		return nil, fmt.Errorf("scan task: %w", err)
+		return nil, fmt.Errorf("scan task: %v", err)
 	}
 
 	task.LoadStartDate, _ = parseTime(loadStart)
@@ -740,8 +814,110 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	if endTime.Valid {
 		task.End, _ = parseTime(endTime.String)
 	}
+	if createdAt.Valid {
+		task.CreatedAt, _ = parseTime(createdAt.String)
+	}
+	if updatedAt.Valid {
+		task.UpdatedAt, _ = parseTime(updatedAt.String)
+	}
 	if originalAddress.Valid {
 		task.OriginalAddress = originalAddress.String
+	}
+	if editMessageId.Valid {
+		task.EditMessageId = int(editMessageId.Int32)
+	}
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
+	}
+
+	return task, nil
+}
+
+func GetTaskByEditMessageId(db *sql.DB, taskId int) (*TaskSection, error) {
+	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
+	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
+	tank_status, product, weight, volume, temperature, compartment, remark,
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id,
+	edit_status
+	FROM tasks WHERE edit_message_id = ?`
+
+	row := db.QueryRow(query, taskId)
+
+	task := &TaskSection{}
+
+	var (
+		loadStart, loadEnd, unloadStart, unloadEnd string
+		startTime, endTime, originalAddress        sql.NullString
+		createdAt, updatedAt                       sql.NullString
+		editMessageId                              sql.NullInt32
+		editStatus                                 sql.NullString
+	)
+
+	err := row.Scan(
+		&task.Id,
+		&task.Type,
+		&task.ShipmentId,
+		&task.Content,
+		&task.CustomerReference,
+		&task.LoadReference,
+		&loadStart,
+		&loadEnd,
+		&task.UnloadReference,
+		&unloadStart,
+		&unloadEnd,
+		&task.TankStatus,
+		&task.Product,
+		&task.Weight,
+		&task.Volume,
+		&task.Temperature,
+		&task.Compartment,
+		&task.Remark,
+		&task.Address,
+		&task.DestinationAddress,
+		&task.ShipmentDocId,
+		&startTime,
+		&endTime,
+		&task.CurrentKilometrage,
+		&task.CurrentTemperature,
+		&task.CurrentWeight,
+		&createdAt,
+		&updatedAt,
+		&originalAddress,
+		&editMessageId,
+		&editStatus,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("task not found")
+		}
+		return nil, fmt.Errorf("scan task: %v", err)
+	}
+
+	task.LoadStartDate, _ = parseTime(loadStart)
+	task.LoadEndDate, _ = parseTime(loadEnd)
+	task.UnloadStartDate, _ = parseTime(unloadStart)
+	task.UnloadEndDate, _ = parseTime(unloadEnd)
+
+	if startTime.Valid {
+		task.Start, _ = parseTime(startTime.String)
+	}
+	if endTime.Valid {
+		task.End, _ = parseTime(endTime.String)
+	}
+	if createdAt.Valid {
+		task.CreatedAt, _ = parseTime(createdAt.String)
+	}
+	if updatedAt.Valid {
+		task.UpdatedAt, _ = parseTime(updatedAt.String)
+	}
+	if originalAddress.Valid {
+		task.OriginalAddress = originalAddress.String
+	}
+	if editMessageId.Valid {
+		task.EditMessageId = int(editMessageId.Int32)
+	}
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
 	}
 
 	return task, nil
@@ -753,11 +929,11 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_weight, current_temperature, original_address	FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, original_address, edit_message_id, edit_status FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
 
 	rows, err := db.Query(query, shipmentId)
 	if err != nil {
-		return nil, fmt.Errorf("query tasks: %w", err)
+		return nil, fmt.Errorf("query tasks: %v", err)
 	}
 	defer rows.Close()
 
@@ -769,6 +945,8 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 		var (
 			loadStart, loadEnd, unloadStart, unloadEnd string
 			startTime, endTime, originalAddress        sql.NullString
+			editMessageId                              sql.NullInt32
+			editStatus                                 sql.NullString
 		)
 
 		err := rows.Scan(
@@ -799,9 +977,11 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 			&task.CurrentTemperature,
 			&task.CurrentWeight,
 			&originalAddress,
+			&editMessageId,
+			&editStatus,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan task: %w", err)
+			return nil, fmt.Errorf("scan task: %v", err)
 		}
 
 		task.LoadStartDate, _ = parseTime(loadStart)
@@ -818,12 +998,18 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 		if originalAddress.Valid {
 			task.OriginalAddress = originalAddress.String
 		}
+		if editMessageId.Valid {
+			task.EditMessageId = int(editMessageId.Int32)
+		}
+		if editStatus.Valid {
+			task.EditStatus = EditStatus(editStatus.String)
+		}
 
 		tasks = append(tasks, task)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate tasks: %w", err)
+		return nil, fmt.Errorf("iterate tasks: %v", err)
 	}
 
 	return tasks, nil
@@ -837,12 +1023,12 @@ func (t *TaskSection) StartTaskById(db *sql.DB) error {
 
 	result, err := db.Exec(query, t.Start.In(config.WarsawLoc).Format(time.RFC3339), time.Now().In(config.WarsawLoc), t.Id)
 	if err != nil {
-		return fmt.Errorf("update task start: %w", err)
+		return fmt.Errorf("update task start: %v", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
+		return fmt.Errorf("get rows affected: %v", err)
 	}
 
 	if rows == 0 {
@@ -857,12 +1043,12 @@ func (t *TaskSection) UpdateCurrentKmById(db *sql.DB) error {
 
 	result, err := db.Exec(query, t.CurrentKilometrage, t.Id)
 	if err != nil {
-		return fmt.Errorf("update km: %w", err)
+		return fmt.Errorf("update km: %v", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
+		return fmt.Errorf("get rows affected: %v", err)
 	}
 
 	if rows == 0 {
@@ -877,12 +1063,12 @@ func (t *TaskSection) UpdateCurrentWeightById(db *sql.DB) error {
 
 	result, err := db.Exec(query, t.CurrentWeight, t.Id)
 	if err != nil {
-		return fmt.Errorf("update kg: %w", err)
+		return fmt.Errorf("update kg: %v", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
+		return fmt.Errorf("get rows affected: %v", err)
 	}
 
 	if rows == 0 {
@@ -897,12 +1083,12 @@ func (t *TaskSection) UpdateCurrentTempById(db *sql.DB) error {
 
 	result, err := db.Exec(query, t.CurrentTemperature, t.Id)
 	if err != nil {
-		return fmt.Errorf("update c: %w", err)
+		return fmt.Errorf("update c: %v", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
+		return fmt.Errorf("get rows affected: %v", err)
 	}
 
 	if rows == 0 {
@@ -920,12 +1106,12 @@ func (t *TaskSection) FinishTaskById(db *sql.DB) error {
 
 	result, err := db.Exec(query, t.End.In(config.WarsawLoc).Format(time.RFC3339), time.Now().In(config.WarsawLoc), t.Id)
 	if err != nil {
-		return fmt.Errorf("update task end: %w", err)
+		return fmt.Errorf("update task end: %v", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
+		return fmt.Errorf("get rows affected: %v", err)
 	}
 
 	if rows == 0 {

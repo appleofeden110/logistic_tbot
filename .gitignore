@@ -16,3 +16,5 @@ storage/
 .claude/shell-snapshots/
 .claude/statsig/
 .claude/projects/
+
+notes/

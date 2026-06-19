@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/duration"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"strings"
 	"time"
@@ -86,10 +87,12 @@ func SetAllDriversToDormant(db DBExecutor) error {
 	`
 	result, err := db.Exec(query, StateWorking, StateWorking)
 	if err != nil {
+		errlog.ERR.Printf("ERR: setting all drivers to pause state: %v", err)
 		return fmt.Errorf("ERR: setting all drivers to pause state: %v", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting rows affected: %v", err)
 		return fmt.Errorf("ERR: getting rows affected: %v", err)
 	}
 	log.Printf("Set %d driver(s) to pause state", rowsAffected)
@@ -99,6 +102,7 @@ func SetAllDriversToDormant(db DBExecutor) error {
 func (d *Driver) ShowManagerList(exec DBExecutor, callback string, caption string, chatId int64, bot *tgbotapi.BotAPI) error {
 	managers, err := GetAllManagers(exec)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all drivers: %v", err)
 		return fmt.Errorf("ERR: getting all drivers: %v", err)
 	}
 
@@ -121,7 +125,8 @@ func (d *Driver) ShowManagerList(exec DBExecutor, callback string, caption strin
 func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	id, err := uuid.NewV4()
 	if err != nil {
-		return fmt.Errorf("ERR: creating a new uuid for a driver: %w", err)
+		errlog.ERR.Printf("ERR: creating a new uuid for a driver: %v", err)
+		return fmt.Errorf("ERR: creating a new uuid for a driver: %v", err)
 	}
 	d.Id = id
 
@@ -130,13 +135,15 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		VALUES (?, ?, ?)
 	`)
 	if err != nil {
-		return fmt.Errorf("ERR: preparing statement for insert driver: %w", err)
+		errlog.ERR.Printf("ERR: preparing statement for insert driver: %v", err)
+		return fmt.Errorf("ERR: preparing statement for insert driver: %v", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id.String(), d.UserId.String(), d.ChatId)
 	if err != nil {
-		return fmt.Errorf("ERR: executing prep insert driver stmt: %w", err)
+		errlog.ERR.Printf("ERR: executing prep insert driver stmt: %v", err)
+		return fmt.Errorf("ERR: executing prep insert driver stmt: %v", err)
 	}
 
 	updateStmt, err := db.Prepare(`
@@ -145,13 +152,15 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		WHERE id = ?
 	`)
 	if err != nil {
-		return fmt.Errorf("ERR: preparing statement for update user driver_id: %w", err)
+		errlog.ERR.Printf("ERR: preparing statement for update user driver_id: %v", err)
+		return fmt.Errorf("ERR: preparing statement for update user driver_id: %v", err)
 	}
 	defer updateStmt.Close()
 
 	_, err = updateStmt.Exec(id.String(), d.UserId.String())
 	if err != nil {
-		return fmt.Errorf("ERR: executing update user driver_id stmt: %w", err)
+		errlog.ERR.Printf("ERR: executing update user driver_id stmt: %v", err)
+		return fmt.Errorf("ERR: executing update user driver_id stmt: %v", err)
 	}
 
 	d.User = new(User)
@@ -159,10 +168,11 @@ func (d *Driver) StoreDriver(db DBExecutor, bot *tgbotapi.BotAPI) error {
 	d.Id = id
 	d.User.DriverId = id
 
-	//err = d.User.SendRequestToSuperAdmins(db, bot)
-	//if err != nil {
-	//	return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
-	//}
+	// err = d.User.SendRequestToSuperAdmins(db, bot)
+	// if err != nil {
+	// 	errlog.ERR.Printf("ERR: sending request to accept user to superadmins: %v\n", err)
+	// return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
+	// }
 
 	return nil
 }
@@ -175,11 +185,13 @@ func (d *Driver) SetPerformingTask(globalStorage *sql.DB) error {
 	`
 
 	if d.Id == uuid.Nil {
+		errlog.ERR.Printf("ERR: getting id: %v\n", d.Id)
 		return fmt.Errorf("ERR: getting id: %v\n", d.Id)
 	}
 
 	_, err := globalStorage.Exec(query, d.PerformedTaskId, d.Id)
 	if err != nil {
+		errlog.ERR.Printf("ERR: setting drivers task: %v\n", err)
 		return fmt.Errorf("ERR: setting drivers task: %v\n", err)
 	}
 
@@ -194,11 +206,13 @@ func (d *Driver) DeletePerformingTask(globalStorage *sql.DB) error {
 	`
 
 	if d.Id == uuid.Nil {
+		errlog.ERR.Printf("ERR: getting id: %v\n", d.Id)
 		return fmt.Errorf("ERR: getting id: %v\n", d.Id)
 	}
 
 	_, err := globalStorage.Exec(query, d.Id)
 	if err != nil {
+		errlog.ERR.Printf("ERR: deleting drivers task: %v\n", err)
 		return fmt.Errorf("ERR: deleting drivers task: %v\n", err)
 	}
 
@@ -212,11 +226,13 @@ func (d *Driver) SetEditTaskId(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if d.Id == uuid.Nil {
+		errlog.ERR.Printf("ERR: getting id for changing driver's edit_id: %v\n", d.Id)
 		return fmt.Errorf("ERR: getting id for changing driver's edit_id: %v\n", d.Id)
 	}
 
 	_, err := globalStorage.Exec(query, d.PerformedTaskId, d.Id)
 	if err != nil {
+		errlog.ERR.Printf("ERR: changing drivers edit task id: %v\n", err)
 		return fmt.Errorf("ERR: changing drivers edit task id: %v\n", err)
 	}
 
@@ -230,11 +246,13 @@ func (d *Driver) ChangeDriverStatus(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if d.Id == uuid.Nil {
+		errlog.ERR.Printf("ERR: getting id for changing driver's status: %v\n", d.Id)
 		return fmt.Errorf("ERR: getting id for changing driver's status: %v\n", d.Id)
 	}
 
 	_, err := globalStorage.Exec(query, d.State, d.Id)
 	if err != nil {
+		errlog.ERR.Printf("ERR: changing drivers status: %v\n", err)
 		return fmt.Errorf("ERR: changing drivers status: %v\n", err)
 	}
 
@@ -266,16 +284,16 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no driver found for id %s", driverId.String())
 		}
-		return nil, fmt.Errorf("ERR: querying driver by id: %w", err)
+		return nil, fmt.Errorf("ERR: querying driver by id: %v", err)
 	}
 
 	driver.Id, err = uuid.FromString(driverIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing driver id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing driver id: %v", err)
 	}
 	driver.UserId, err = uuid.FromString(userIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing user id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing user id: %v", err)
 	}
 
 	if carIdStr.Valid {
@@ -285,14 +303,14 @@ func GetDriverById(db DBExecutor, driverId uuid.UUID) (*Driver, error) {
 	if userDriverIdStr.Valid {
 		driverId, err := uuid.FromString(userDriverIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user driver_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
 		}
 		driver.User.DriverId = driverId
 	}
 	if userManagerIdStr.Valid {
 		managerId, err := uuid.FromString(userManagerIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user manager_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
 		}
 		driver.User.ManagerId = managerId
 	}
@@ -325,16 +343,16 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no driver found for chat_id %d", chatId)
 		}
-		return nil, fmt.Errorf("ERR: querying driver by chat_id: %w", err)
+		return nil, fmt.Errorf("ERR: querying driver by chat_id: %v", err)
 	}
 
 	driver.Id, err = uuid.FromString(driverIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing driver id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing driver id: %v", err)
 	}
 	driver.UserId, err = uuid.FromString(userIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing user id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing user id: %v", err)
 	}
 
 	if performedTaskId.Valid {
@@ -348,14 +366,14 @@ func GetDriverByChatId(db DBExecutor, chatId int64) (*Driver, error) {
 	if userDriverIdStr.Valid {
 		driverId, err := uuid.FromString(userDriverIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user driver_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
 		}
 		driver.User.DriverId = driverId
 	}
 	if userManagerIdStr.Valid {
 		managerId, err := uuid.FromString(userManagerIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user manager_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
 		}
 		driver.User.ManagerId = managerId
 	}
@@ -387,15 +405,15 @@ func GetDriverByPerformingTaskId(db DBExecutor, taskId int) (*Driver, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no driver found for performing_task_id %d", taskId)
 		}
-		return nil, fmt.Errorf("ERR: querying driver by performing_task_id: %w", err)
+		return nil, fmt.Errorf("ERR: querying driver by performing_task_id: %v", err)
 	}
 	driver.Id, err = uuid.FromString(driverIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing driver id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing driver id: %v", err)
 	}
 	driver.UserId, err = uuid.FromString(userIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing user id: %w", err)
+		return nil, fmt.Errorf("ERR: parsing user id: %v", err)
 	}
 	if performedTaskId.Valid {
 		driver.PerformedTaskId = performedTaskId.V
@@ -406,14 +424,14 @@ func GetDriverByPerformingTaskId(db DBExecutor, taskId int) (*Driver, error) {
 	if userDriverIdStr.Valid {
 		driverId, err := uuid.FromString(userDriverIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user driver_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user driver_id: %v", err)
 		}
 		driver.User.DriverId = driverId
 	}
 	if userManagerIdStr.Valid {
 		managerId, err := uuid.FromString(userManagerIdStr.String)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user manager_id: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user manager_id: %v", err)
 		}
 		driver.User.ManagerId = managerId
 	}
@@ -508,6 +526,7 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: preparing statement for update driver car_id: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: preparing statement for update driver car_id: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmtDriver.Close()
@@ -517,6 +536,7 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: executing update driver car_id stmt: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: executing update driver car_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -525,6 +545,7 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: getting rows affected: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: getting rows affected: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -546,6 +567,7 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: preparing statement for update driver for a car in cars table: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: preparing statement for update driver for a car in cars table: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmtCar.Close()
@@ -555,6 +577,7 @@ func (d *Driver) UpdateCarId(db DBExecutor, newCarId string) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: executing update driver car_id stmt: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: executing update driver car_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -634,7 +657,7 @@ func GetSessionById(db DBExecutor, id int) (*DriverSession, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("session %d not found", id)
 		}
-		return nil, fmt.Errorf("failed to query session: %w", err)
+		return nil, fmt.Errorf("failed to query session: %v", err)
 	}
 
 	return session, nil
@@ -670,7 +693,7 @@ func (d *Driver) GetLastActiveSession(db DBExecutor) (*DriverSession, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return new(DriverSession), nil
 		}
-		return nil, fmt.Errorf("failed to query session: %w", err)
+		return nil, fmt.Errorf("failed to query session: %v", err)
 	}
 
 	d.Session = session
@@ -687,6 +710,7 @@ func UpdatePausedTime(db DBExecutor) error {
 	err := db.QueryRow("SELECT id, paused FROM drivers_sessions ORDER BY id DESC LIMIT 1 OFFSET 1").Scan(&id, &pausedStr)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
+			errlog.ERR.Printf("ERR: getting last paused time from the db: %v\n", err)
 			return fmt.Errorf("ERR: getting last paused time from the db: %v\n", err)
 		}
 		log.Printf("ERR: sessions table is empty, or has only one entry, making checking for previous pause redundant")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"logistictbot/config"
 	"logistictbot/db"
+	"logistictbot/errlog"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -63,7 +64,8 @@ func writeRefuelRow(f *ex.File, sheet string, row int, data RefuelStatement) err
 	for i, value := range values {
 		cell, _ := ex.CoordinatesToCellName(i+1, row)
 		if err := f.SetCellValue(sheet, cell, value); err != nil {
-			return fmt.Errorf("ERR: setting cell value at col %d row %d: %w", i+1, row, err)
+			errlog.ERR.Printf("ERR: setting cell value at col %d row %d: %v", i+1, row, err)
+			return fmt.Errorf("ERR: setting cell value at col %d row %d: %v", i+1, row, err)
 		}
 	}
 	return nil
@@ -72,7 +74,7 @@ func writeRefuelRow(f *ex.File, sheet string, row int, data RefuelStatement) err
 func CreateRefuelsStatement(from, to time.Time, storage *sql.DB) (string, error) {
 	refuels, err := db.GetAllTankRefuels(storage)
 	if err != nil {
-		return "", fmt.Errorf("ERR: getting tank refuels: %w", err)
+		return "", fmt.Errorf("ERR: getting tank refuels: %v", err)
 	}
 
 	if !from.IsZero() || !to.IsZero() {
@@ -93,21 +95,21 @@ func CreateRefuelsStatement(from, to time.Time, storage *sql.DB) (string, error)
 	sheet := "Заправки"
 	index, err := f.NewSheet(sheet)
 	if err != nil {
-		return "", fmt.Errorf("ERR: creating sheet: %w", err)
+		return "", fmt.Errorf("ERR: creating sheet: %v", err)
 	}
 	f.SetActiveSheet(index)
 	f.DeleteSheet("Sheet1")
 
 	headers := GetHeaders(RefuelStatement{})
 	if err := WriteHeaders(f, sheet, headers); err != nil {
-		return "", fmt.Errorf("ERR: writing headers: %w", err)
+		return "", fmt.Errorf("ERR: writing headers: %v", err)
 	}
 
 	currentRow := 2
 	for _, refuel := range refuels {
 		statement := convertRefuelToStatement(refuel)
 		if err := writeRefuelRow(f, sheet, currentRow, statement); err != nil {
-			return "", fmt.Errorf("ERR: writing row %d: %w", currentRow, err)
+			return "", fmt.Errorf("ERR: writing row %d: %v", currentRow, err)
 		}
 		currentRow++
 	}
@@ -129,7 +131,7 @@ func CreateRefuelsStatement(from, to time.Time, storage *sql.DB) (string, error)
 	}
 
 	if err := f.SaveAs(filename); err != nil {
-		return "", fmt.Errorf("ERR: saving refuels xlsx: %w", err)
+		return "", fmt.Errorf("ERR: saving refuels xlsx: %v", err)
 	}
 
 	return filename, nil
@@ -137,7 +139,7 @@ func CreateRefuelsStatement(from, to time.Time, storage *sql.DB) (string, error)
 func CreateRefuelsStatementByDriver(driverId uuid.UUID, storage *sql.DB) (string, error) {
 	refuels, err := db.GetTankRefuelsByDriver(storage, driverId)
 	if err != nil {
-		return "", fmt.Errorf("ERR: getting tank refuels for driver %s: %w", driverId, err)
+		return "", fmt.Errorf("ERR: getting tank refuels for driver %s: %v", driverId, err)
 	}
 
 	f := ex.NewFile()
@@ -146,21 +148,21 @@ func CreateRefuelsStatementByDriver(driverId uuid.UUID, storage *sql.DB) (string
 	sheet := "Заправки"
 	index, err := f.NewSheet(sheet)
 	if err != nil {
-		return "", fmt.Errorf("ERR: creating sheet: %w", err)
+		return "", fmt.Errorf("ERR: creating sheet: %v", err)
 	}
 	f.SetActiveSheet(index)
 	f.DeleteSheet("Sheet1")
 
 	headers := GetHeaders(RefuelStatement{})
 	if err := WriteHeaders(f, sheet, headers); err != nil {
-		return "", fmt.Errorf("ERR: writing headers: %w", err)
+		return "", fmt.Errorf("ERR: writing headers: %v", err)
 	}
 
 	currentRow := 2
 	for _, refuel := range refuels {
 		statement := convertRefuelToStatement(refuel)
 		if err := writeRefuelRow(f, sheet, currentRow, statement); err != nil {
-			return "", fmt.Errorf("ERR: writing row %d: %w", currentRow, err)
+			return "", fmt.Errorf("ERR: writing row %d: %v", currentRow, err)
 		}
 		currentRow++
 	}
@@ -177,7 +179,7 @@ func CreateRefuelsStatementByDriver(driverId uuid.UUID, storage *sql.DB) (string
 
 	filename := fmt.Sprintf(config.GetOutDocsPath()+"refuels_%s.xlsx", carId)
 	if err := f.SaveAs(filename); err != nil {
-		return "", fmt.Errorf("ERR: saving refuels xlsx: %w", err)
+		return "", fmt.Errorf("ERR: saving refuels xlsx: %v", err)
 	}
 
 	return filename, nil

@@ -8,6 +8,7 @@ import (
 	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/docs"
+	"logistictbot/errlog"
 	"strconv"
 	"strings"
 	"time"
@@ -98,9 +99,11 @@ func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			errlog.ERR.Printf("ERR: communication message with id %d not found", comms.Id)
 			return fmt.Errorf("ERR: communication message with id %d not found", comms.Id)
 		}
-		return fmt.Errorf("ERR: fetching communication message: %w", err)
+		errlog.ERR.Printf("ERR: fetching communication message: %v", err)
+		return fmt.Errorf("ERR: fetching communication message: %v", err)
 	}
 
 	if replyContent.Valid {
@@ -114,24 +117,28 @@ func (comms *CommunicationMsg) GetCommsMessage(globalStorage *sql.DB) error {
 	if receiverID.Valid && receiverID.String != "" {
 		receiverUUID, err := uuid.FromString(receiverID.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing receiver_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing receiver_id: %v", err)
+			return fmt.Errorf("ERR: parsing receiver_id: %v", err)
 		}
 
 		comms.Receiver = &db.User{Id: receiverUUID}
 		if err := comms.Receiver.GetUserById(globalStorage); err != nil {
-			return fmt.Errorf("ERR: fetching receiver user: %w", err)
+			errlog.ERR.Printf("ERR: fetching receiver user: %v", err)
+			return fmt.Errorf("ERR: fetching receiver user: %v", err)
 		}
 	}
 
 	if senderID.Valid && senderID.String != "" {
 		senderUUID, err := uuid.FromString(senderID.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing sender_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing sender_id: %v", err)
+			return fmt.Errorf("ERR: parsing sender_id: %v", err)
 		}
 
 		comms.Sender = &db.User{Id: senderUUID}
 		if err := comms.Sender.GetUserById(globalStorage); err != nil {
-			return fmt.Errorf("ERR: fetching sender user: %w", err)
+			errlog.ERR.Printf("ERR: fetching sender user: %v", err)
+			return fmt.Errorf("ERR: fetching sender user: %v", err)
 		}
 	}
 
@@ -143,6 +150,7 @@ func SendWithCommsAndChat(globalStorage *sql.DB, msgId int64, chatId int64) erro
 	receiver := &db.User{ChatId: chatId}
 	err := receiver.GetUserByChatId(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting receiver by chat id: %v\n", err)
 		return fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
 	}
 
@@ -336,6 +344,7 @@ func (comms *CommunicationMsg) Send(globalStorage *sql.DB) error {
 		comms.Id,
 	)
 	if err != nil {
+		errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
 
@@ -364,6 +373,7 @@ func (comms *CommunicationMsg) Reply(globalStorage *sql.DB) error {
 		comms.Id,
 	)
 	if err != nil {
+		errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
 
@@ -387,12 +397,14 @@ func (comms *CommunicationMsg) CreateMessage(text string, globalStorage *sql.DB)
 		return comms.createManagerMessage(text, globalStorage)
 	}
 
+	errlog.ERR.Printf("ERR: User has both manager's and driver's ids nil (user id: %v)\n", comms.Sender.Id)
 	return fmt.Errorf("ERR: User has both manager's and driver's ids nil (user id: %v)\n", comms.Sender.Id)
 }
 
 func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *sql.DB) error {
 	m, err := db.GetManagerByChatId(globalStorage, comms.Sender.ChatId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting manager by chat id: %v\n", err)
 		return fmt.Errorf("ERR: getting manager by chat id: %v\n", err)
 	}
 
@@ -404,6 +416,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		receiver := &db.User{ChatId: receiverChatId}
 		err = receiver.GetUserByChatId(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting receiver by chat id: %v\n", err)
 			return fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
 		}
 		comms.Receiver = receiver
@@ -416,11 +429,13 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 			text,
 		)
 		if err != nil {
+			errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 			return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting last insert id: %v\n", err)
 			return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 		}
 
@@ -434,6 +449,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		m.State = db.StateDormantManager
 		err = m.ChangeManagerStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: resetting manager state: %v\n", err)
 			return fmt.Errorf("ERR: resetting manager state: %v\n", err)
 		}
 
@@ -447,11 +463,13 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 		text,
 	)
 	if err != nil {
+		errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting last insert id: %v\n", err)
 		return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 	}
 
@@ -461,6 +479,7 @@ func (comms *CommunicationMsg) createManagerMessage(text string, globalStorage *
 func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *sql.DB) error {
 	d, err := db.GetDriverByChatId(globalStorage, comms.Sender.ChatId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting driver by chat id: %v\n", err)
 		return fmt.Errorf("ERR: getting driver by chat id: %v\n", err)
 	}
 
@@ -472,6 +491,7 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		receiver := &db.User{ChatId: receiverChatId}
 		err = receiver.GetUserByChatId(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting receiver by chat id: %v\n", err)
 			return fmt.Errorf("ERR: getting receiver by chat id: %v\n", err)
 		}
 		comms.Receiver = receiver
@@ -485,11 +505,13 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 			text,
 		)
 		if err != nil {
+			errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 			return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting last insert id: %v\n", err)
 			return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 		}
 
@@ -503,6 +525,7 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		d.State = db.StateWorking
 		err = d.ChangeDriverStatus(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: resetting driver state: %v\n", err)
 			return fmt.Errorf("ERR: resetting driver state: %v\n", err)
 		}
 
@@ -516,11 +539,13 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		text,
 	)
 	if err != nil {
+		errlog.ERR.Printf("ERR: inserting into communication messages: %v\n", err)
 		return fmt.Errorf("ERR: inserting into communication messages: %v\n", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting last insert id: %v\n", err)
 		return fmt.Errorf("ERR: getting last insert id: %v\n", err)
 	}
 
@@ -531,11 +556,13 @@ func getSessionAndSetWritingState(chatId int64, commsId int64, globalStorage *sq
 	user := &db.User{ChatId: chatId}
 	err := user.GetUserByChatId(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting user by chat id: %v\n", err)
 		return fmt.Errorf("ERR: getting user by chat id: %v\n", err)
 	}
 
 	isM, err := user.IsManager(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: couldn't find if the guy is the manager or the driver: %v\n", err)
 		return fmt.Errorf("ERR: couldn't find if the guy is the manager or the driver: %v\n", err)
 	}
 
@@ -548,6 +575,7 @@ func getSessionAndSetWritingState(chatId int64, commsId int64, globalStorage *sq
 			manager.State = db.StateWritingToDriver
 			return manager.ChangeManagerStatus(globalStorage)
 		}
+		errlog.ERR.Printf("ERR: couldn't find the manager with this chatid: %v\n", chatId)
 		return fmt.Errorf("ERR: couldn't find the manager with this chatid: %v\n", chatId)
 
 	}
@@ -591,7 +619,7 @@ func sendDocumentsToManager(
 		doc.Caption = caption
 
 		if _, err := Bot.Send(doc); err != nil {
-			return fmt.Errorf("send document: %w", err)
+			return fmt.Errorf("send document: %v", err)
 		}
 	}
 
@@ -640,7 +668,7 @@ func sendPhotosToManager(
 		}
 
 		if _, err := Bot.SendMediaGroup(group); err != nil {
-			return fmt.Errorf("send photo group: %w", err)
+			return fmt.Errorf("send photo group: %v", err)
 		}
 	}
 

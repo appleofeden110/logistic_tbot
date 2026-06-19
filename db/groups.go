@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"logistictbot/config"
+	"logistictbot/errlog"
 	"strings"
 	"time"
 
@@ -44,12 +45,12 @@ func GetAllDriverGroups(globalStorage *sql.DB) ([]*DriverGroup, error) {
 		groupLang      sql.NullString
 	)
 
-	rows, err := globalStorage.Query(`SELECT 
-			dg.id, 
-				dg.group_chat_id, 
+	rows, err := globalStorage.Query(`SELECT
+			dg.id,
+				dg.group_chat_id,
 				dg.tank_topic_id,
 				dg.loading_topic_id,
-				dg.document_topic_id, 
+				dg.document_topic_id,
 				dg.photo_topic_id,
 				dg.created_at,
 				dg.updated_at,
@@ -81,7 +82,7 @@ func GetAllDriverGroups(globalStorage *sql.DB) ([]*DriverGroup, error) {
 			&carKilometrage,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: GetAllDriverGroups: %w", err)
+			return nil, fmt.Errorf("ERR: GetAllDriverGroups: %v", err)
 		}
 
 		if tankTopicId.Valid {
@@ -110,7 +111,7 @@ func GetAllDriverGroups(globalStorage *sql.DB) ([]*DriverGroup, error) {
 			if carDriverId.Valid {
 				g.CurrentCar.CurrentDriverId, err = uuid.FromString(carDriverId.String)
 				if err != nil {
-					return nil, fmt.Errorf("ERR: GetAllDriverGroups parsing car driver id: %w", err)
+					return nil, fmt.Errorf("ERR: GetAllDriverGroups parsing car driver id: %v", err)
 				}
 			}
 			if carKilometrage.Valid {
@@ -124,7 +125,7 @@ func GetAllDriverGroups(globalStorage *sql.DB) ([]*DriverGroup, error) {
 
 func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow(`
-		SELECT 
+		SELECT
 			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at, dg.lang,
 			c.id, c.current_driver, c.current_kilometrage
 		FROM driver_groups dg
@@ -158,7 +159,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 		&carKilometrage,
 	)
 	if err != nil {
-		return fmt.Errorf("GetDriverGroupByCar: %w", err)
+		return fmt.Errorf("GetDriverGroupByCar: %v", err)
 	}
 
 	if tankTopicId.Valid {
@@ -187,7 +188,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 		if carDriverId.Valid {
 			g.CurrentCar.CurrentDriverId, err = uuid.FromString(carDriverId.String)
 			if err != nil {
-				return fmt.Errorf("GetDriverGroupByCar parsing car driver id: %w", err)
+				return fmt.Errorf("GetDriverGroupByCar parsing car driver id: %v", err)
 			}
 		}
 		if carKilometrage.Valid {
@@ -200,7 +201,7 @@ func (g *DriverGroup) GetDriverGroupByCar(globalStorage *sql.DB) error {
 
 func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 	row := globalStorage.QueryRow(`
-		SELECT 
+		SELECT
 			dg.id, dg.group_chat_id, dg.tank_topic_id, dg.loading_topic_id, dg.document_topic_id, dg.photo_topic_id, dg.created_at, dg.updated_at, dg.lang,
 			c.id, c.current_driver, c.current_kilometrage
 		FROM driver_groups dg
@@ -233,7 +234,7 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 		&carKilometrage,
 	)
 	if err != nil {
-		return fmt.Errorf("GetDriverGroup: %w", err)
+		return fmt.Errorf("GetDriverGroup: %v", err)
 	}
 
 	if tankTopicId.Valid {
@@ -260,7 +261,7 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 		if carDriverId.Valid {
 			car.CurrentDriverId, err = uuid.FromString(carDriverId.String)
 			if err != nil {
-				return fmt.Errorf("GetDriverGroup parsing car driver id: %w", err)
+				return fmt.Errorf("GetDriverGroup parsing car driver id: %v", err)
 			}
 		}
 		if carKilometrage.Valid {
@@ -275,6 +276,7 @@ func (g *DriverGroup) GetDriverGroup(globalStorage *sql.DB) error {
 func (g *DriverGroup) CreateDriverGroup(globalStorage *sql.DB) error {
 	stmt, err := globalStorage.Prepare("INSERT INTO driver_groups(group_chat_id, current_car_id) VALUES (?, ?)")
 	if err != nil {
+		errlog.ERR.Printf("ERR: prepping stmt for adding a group to the db: %v\n", err)
 		return fmt.Errorf("ERR: prepping stmt for adding a group to the db: %v\n", err)
 	}
 	defer stmt.Close()
@@ -285,6 +287,7 @@ func (g *DriverGroup) CreateDriverGroup(globalStorage *sql.DB) error {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return ErrGroupExists
 		}
+		errlog.ERR.Printf("ERR: executing stmt to add group to the db: %v\n", err)
 		return fmt.Errorf("ERR: executing stmt to add group to the db: %v\n", err)
 	}
 

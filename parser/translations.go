@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"logistictbot/docs"
+	"logistictbot/errlog"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
 	"github.com/gofrs/uuid"
 )
+
+type EditStatus string
 
 type Shipment struct {
 	ShipmentId      int64
@@ -45,6 +48,9 @@ type TaskSection struct {
 	CurrentKilometrage int64
 	CurrentTemperature float64
 	CurrentWeight      int
+	// This shows the last edit made
+	EditMessageId int
+	EditStatus    EditStatus
 	//TaskDetails
 	CustomerReference  string    `form:"Customer референс"`
 	LoadReference      string    `form:"Load референс"`
@@ -70,6 +76,12 @@ type TaskSection struct {
 
 type Language string
 type InstructionType string
+
+var (
+	StatusOriginal EditStatus = "original"
+	StatusEditing  EditStatus = "editing"
+	StatusDone     EditStatus = "done"
+)
 
 func (it InstructionType) IsValid() bool {
 	switch it {
@@ -180,12 +192,14 @@ func ReadDocAndPrint(filePath string) error {
 
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return fmt.Errorf("ERR: get absolute path: %w", err)
+		errlog.ERR.Printf("ERR: get absolute path: %v", err)
+		return fmt.Errorf("ERR: get absolute path: %v", err)
 	}
 
 	shipment, err := GetSequenceOfTasks(fullPath)
 	if err != nil {
-		return fmt.Errorf("ERR: get sequence of tasks: %w", err)
+		errlog.ERR.Printf("ERR: get sequence of tasks: %v", err)
+		return fmt.Errorf("ERR: get sequence of tasks: %v", err)
 	}
 
 	res, secRes := ReadDoc(shipment)
@@ -208,12 +222,14 @@ func ReadDocAndPrint(filePath string) error {
 func ReadDocAndSend(filePath string, chatID int64, loadingTopicId int, bot *tgbotapi.BotAPI) error {
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return fmt.Errorf("ERR: get absolute path: %w", err)
+		errlog.ERR.Printf("ERR: get absolute path: %v", err)
+		return fmt.Errorf("ERR: get absolute path: %v", err)
 	}
 
 	shipment, err := GetSequenceOfTasks(fullPath)
 	if err != nil {
-		return fmt.Errorf("ERR: get sequence of tasks: %w", err)
+		errlog.ERR.Printf("ERR: get sequence of tasks: %v", err)
+		return fmt.Errorf("ERR: get sequence of tasks: %v", err)
 	}
 
 	res, secRes := ReadDoc(shipment)
