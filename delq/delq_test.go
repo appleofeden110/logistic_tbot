@@ -2,7 +2,6 @@ package delq
 
 import (
 	"database/sql"
-	"log"
 	"os"
 	"strconv"
 	"testing"
@@ -30,15 +29,21 @@ func TestDeleteWorker(t *testing.T) {
 
 	globalStorage, err := sql.Open("sqlite3", "../bot.db")
 	if err != nil {
-		log.Fatalln("ERR: ", err)
+		t.Error("ERR: ", err)
 	}
 	defer globalStorage.Close()
 
-	msg := tgbotapi.NewMessage(chat_id, "TEST_")
+	go DeleteWorker(globalStorage, bot)
+
+	msg := tgbotapi.NewMessage(chat_id, "TEST_EDIT")
 	sent, err := bot.Send(msg)
 	if err != nil {
 		t.Error(err)
 	}
 
-	EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, Requirements{})
+	EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, Requirements{
+		Type:                 TaskEdited,
+		TrackedEditMessageId: sent.MessageID,
+	})
+
 }

@@ -228,9 +228,11 @@ func CheckTasksTable(db DBExecutor) error {
 			current_weight INTEGER,
 			current_temperature REAL,
 			edit_message_id INTEGER,
+			edit_status TEXT,
 			FOREIGN KEY (shipment_id) REFERENCES shipments(id),
 			FOREIGN KEY (doc_id) REFERENCES files(id),
-			CHECK (type IN ('load', 'unload', 'collect', 'dropoff', 'cleaning'))
+			CHECK (type IN ('load', 'unload', 'collect', 'dropoff', 'cleaning')),
+			CHECK (edit_status IN ('original', 'editing', 'done'))
 		)
 	`)
 	return err

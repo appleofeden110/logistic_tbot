@@ -13,6 +13,8 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+type EditStatus string
+
 type Shipment struct {
 	ShipmentId      int64
 	DocLang         Language
@@ -48,6 +50,7 @@ type TaskSection struct {
 	CurrentWeight      int
 	// This shows the last edit made
 	EditMessageId int
+	EditStatus    EditStatus
 	//TaskDetails
 	CustomerReference  string    `form:"Customer референс"`
 	LoadReference      string    `form:"Load референс"`
@@ -73,6 +76,12 @@ type TaskSection struct {
 
 type Language string
 type InstructionType string
+
+var (
+	StatusOriginal EditStatus = "original"
+	StatusEditing  EditStatus = "editing"
+	StatusDone     EditStatus = "done"
+)
 
 func (it InstructionType) IsValid() bool {
 	switch it {

@@ -760,13 +760,13 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 
 		// the end message that was there before
 		delq.EnqueueToDelete(globalStorage, chatId, messageId, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: messageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: messageId,
 		})
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: messageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: messageId,
 		})
 
 	case "task_edit_choice_km":
@@ -800,8 +800,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 
 		return err
@@ -837,8 +837,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -873,8 +873,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -909,8 +909,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 
@@ -944,8 +944,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 	case "task_edit_choice_address":
@@ -979,8 +979,8 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		sent, err := Bot.Send(msg)
 
 		delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-			Type:                delq.TaskEdited,
-			TrackedEditedTaskId: editMessageId,
+			Type:                 delq.TaskEdited,
+			TrackedEditMessageId: editMessageId,
 		})
 		return err
 	case "washing":
@@ -2023,8 +2023,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2038,7 +2038,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingStartTime:
@@ -2070,8 +2071,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
 			if err != nil {
@@ -2084,7 +2085,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingEndTime:
@@ -2116,8 +2118,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2130,8 +2132,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
 				return driver, err
 			}
-
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingTemp:
@@ -2163,8 +2165,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2177,8 +2179,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				errlog.ERR.Printf("message couldn't be sent: %v\n", err)
 				return driver, err
 			}
-
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateEditingWeight:
@@ -2210,8 +2212,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2225,7 +2227,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 	case db.StateEditingAddress:
 		if msg.Text != "" {
@@ -2251,8 +2254,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			}
 
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:                delq.TaskEdited,
-				TrackedEditedTaskId: task.EditMessageId,
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
 			})
 
 			endMsg, err := GenEndTaskMessage(msg.Chat.ID, task, globalStorage)
@@ -2267,7 +2270,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, err
 			}
 
-			return driver, parser.UpdateEditMessageId(globalStorage, task.Id, 0)
+			task.EditStatus = parser.StatusDone
+			return driver, task.UpdateEditStatus(globalStorage)
 		}
 
 	case db.StateWritingToManager:

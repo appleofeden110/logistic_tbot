@@ -74,6 +74,7 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	var compartment, currentKm, currentWeight sql.NullInt64
 	var currentTemp sql.NullFloat64
 	var editMessageId sql.NullInt32
+	var editStatus sql.NullString
 
 	err := taskRows.Scan(
 		&task.Id,
@@ -106,12 +107,17 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 		&updatedAt,
 		&originalAddress,
 		&editMessageId,
+		&editStatus,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ERR: scan task: %v", err)
 	}
 
 	task.Type = taskType
+
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
+	}
 
 	if loadStartDate.Valid {
 		task.LoadStartDate, _ = parseTimeString(loadStartDate.String)
@@ -219,7 +225,7 @@ func (t *TaskSection) UpdateAddress(db *sql.DB) error {
 
 // UpdateEditMessageId sets edit_message_id for a task by task id.
 func UpdateEditMessageId(db *sql.DB, taskId int, editMessageId int) error {
-	_, err := db.Exec(`UPDATE tasks SET edit_message_id = ? WHERE id = ?`,
+	_, err := db.Exec(`UPDATE tasks SET edit_message_id = ?, edit_status = 'editing' WHERE id = ?`,
 		editMessageId, taskId)
 	if err != nil {
 		return fmt.Errorf("ERR: updating edit_message_id for task %d: %v", taskId, err)
@@ -243,6 +249,30 @@ func GetEditMessageIdByTaskId(db *sql.DB, taskId int) (int, error) {
 	return int(editMessageId.Int32), nil
 }
 
+func (t *TaskSection) UpdateEditStatus(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE tasks SET edit_status = ? WHERE id = ?`,
+		t.EditStatus, t.Id)
+	if err != nil {
+		return fmt.Errorf("ERR: updating edit_status for task %d: %v", t.Id, err)
+	}
+	return nil
+}
+
+func GetEditStatusByTaskId(db *sql.DB, taskId int) (EditStatus, error) {
+	var editStatus sql.NullString
+	err := db.QueryRow(`SELECT edit_status FROM tasks WHERE id = ?`, taskId).Scan(&editStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("task not found")
+		}
+		return "", fmt.Errorf("ERR: getting edit_status for task %d: %v", taskId, err)
+	}
+	if !editStatus.Valid {
+		return "", nil
+	}
+	return EditStatus(editStatus.String), nil
+}
+
 func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) {
 	taskQuery := `
 		SELECT id, type, shipment_id, content, customer_ref, load_ref,
@@ -250,7 +280,7 @@ func loadTasksForShipment(tx *sql.Tx, shipmentId int64) ([]*TaskSection, error) 
 		       unload_end_date, tank_status, product, weight, volume,
 		       temperature, compartment, remark, address, destination_address,
 		       doc_id, start, end, current_kilometrage, current_weight,
-		       current_temperature, created_at, updated_at, original_address, edit_message_id
+		       current_temperature, created_at, updated_at, original_address, edit_message_id, edit_status
 		FROM tasks
 		WHERE shipment_id = ?
 		ORDER BY id
@@ -718,7 +748,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id, edit_status
 	FROM tasks WHERE id = ?`
 
 	row := db.QueryRow(query, taskId)
@@ -730,6 +760,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 		startTime, endTime, originalAddress        sql.NullString
 		createdAt, updatedAt                       sql.NullString
 		editMessageId                              sql.NullInt32
+		editStatus                                 sql.NullString
 	)
 
 	err := row.Scan(
@@ -763,6 +794,7 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 		&updatedAt,
 		&originalAddress,
 		&editMessageId,
+		&editStatus,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -794,6 +826,9 @@ func GetTaskById(db *sql.DB, taskId int) (*TaskSection, error) {
 	if editMessageId.Valid {
 		task.EditMessageId = int(editMessageId.Int32)
 	}
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
+	}
 
 	return task, nil
 }
@@ -802,7 +837,8 @@ func GetTaskByEditMessageId(db *sql.DB, taskId int) (*TaskSection, error) {
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, created_at, updated_at, original_address, edit_message_id,
+	edit_status
 	FROM tasks WHERE edit_message_id = ?`
 
 	row := db.QueryRow(query, taskId)
@@ -814,6 +850,7 @@ func GetTaskByEditMessageId(db *sql.DB, taskId int) (*TaskSection, error) {
 		startTime, endTime, originalAddress        sql.NullString
 		createdAt, updatedAt                       sql.NullString
 		editMessageId                              sql.NullInt32
+		editStatus                                 sql.NullString
 	)
 
 	err := row.Scan(
@@ -847,6 +884,7 @@ func GetTaskByEditMessageId(db *sql.DB, taskId int) (*TaskSection, error) {
 		&updatedAt,
 		&originalAddress,
 		&editMessageId,
+		&editStatus,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -878,6 +916,9 @@ func GetTaskByEditMessageId(db *sql.DB, taskId int) (*TaskSection, error) {
 	if editMessageId.Valid {
 		task.EditMessageId = int(editMessageId.Int32)
 	}
+	if editStatus.Valid {
+		task.EditStatus = EditStatus(editStatus.String)
+	}
 
 	return task, nil
 }
@@ -888,7 +929,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 	query := `SELECT id, type, shipment_id, content, customer_ref, load_ref,
 	load_start_date, load_end_date, unload_ref, unload_start_date, unload_end_date,
 	tank_status, product, weight, volume, temperature, compartment, remark,
-	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, original_address, edit_message_id FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
+	address, destination_address, doc_id, start, end, current_kilometrage, current_temperature, current_weight, original_address, edit_message_id, edit_status FROM tasks WHERE shipment_id = ? ORDER BY id ASC`
 
 	rows, err := db.Query(query, shipmentId)
 	if err != nil {
@@ -905,6 +946,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 			loadStart, loadEnd, unloadStart, unloadEnd string
 			startTime, endTime, originalAddress        sql.NullString
 			editMessageId                              sql.NullInt32
+			editStatus                                 sql.NullString
 		)
 
 		err := rows.Scan(
@@ -936,6 +978,7 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 			&task.CurrentWeight,
 			&originalAddress,
 			&editMessageId,
+			&editStatus,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan task: %v", err)
@@ -957,6 +1000,9 @@ func GetAllTasksByShipmentId(db *sql.DB, shipmentId int64) ([]*TaskSection, erro
 		}
 		if editMessageId.Valid {
 			task.EditMessageId = int(editMessageId.Int32)
+		}
+		if editStatus.Valid {
+			task.EditStatus = EditStatus(editStatus.String)
 		}
 
 		tasks = append(tasks, task)
