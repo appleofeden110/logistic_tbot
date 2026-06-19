@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"logistictbot/errlog"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -154,13 +155,15 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sql.ErrNoRows
 		}
-		return fmt.Errorf("ERR: scanning user: %w", err)
+		errlog.ERR.Printf("ERR: scanning user: %v", err)
+		return fmt.Errorf("ERR: scanning user: %v", err)
 	}
 
 	if driverIdNull.Valid {
 		driverId, err := uuid.FromString(driverIdNull.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing driver_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing driver_id: %v", err)
+			return fmt.Errorf("ERR: parsing driver_id: %v", err)
 		}
 		u.DriverId = driverId
 	} else {
@@ -170,7 +173,8 @@ func (u *User) GetUserById(globalStorage *sql.DB) error {
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing manager_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing manager_id: %v", err)
+			return fmt.Errorf("ERR: parsing manager_id: %v", err)
 		}
 		u.ManagerId = managerId
 	} else {
@@ -216,13 +220,15 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sql.ErrNoRows
 		}
-		return fmt.Errorf("ERR: scanning user: %w", err)
+		errlog.ERR.Printf("ERR: scanning user: %v", err)
+		return fmt.Errorf("ERR: scanning user: %v", err)
 	}
 
 	if driverIdNull.Valid {
 		driverId, err := uuid.FromString(driverIdNull.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing driver_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing driver_id: %v", err)
+			return fmt.Errorf("ERR: parsing driver_id: %v", err)
 		}
 		u.DriverId = driverId
 	} else {
@@ -232,7 +238,8 @@ func (u *User) GetUserByChatId(globalStorage *sql.DB) error {
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return fmt.Errorf("ERR: parsing manager_id: %w", err)
+			errlog.ERR.Printf("ERR: parsing manager_id: %v", err)
+			return fmt.Errorf("ERR: parsing manager_id: %v", err)
 		}
 		u.ManagerId = managerId
 	} else {
@@ -264,6 +271,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: creating a new uuid for a user: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: creating a new uuid for a user: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -275,6 +283,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: preparing statement for insert user: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: preparing statement for insert user: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmt.Close()
@@ -284,6 +293,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: executing prep insert user stmt: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: executing prep insert user stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -296,6 +306,7 @@ func (u *User) StoreUser(db DBExecutor) error {
 // Only works if the user is a super admin.
 func (u *User) SetSuperAdminRole(globalStorage *sql.DB, role SARole) error {
 	if !u.IsSuperAdmin {
+		errlog.ERR.Printf("ERR: user %v is not a super admin", u.Id)
 		return fmt.Errorf("ERR: user %v is not a super admin", u.Id)
 	}
 
@@ -312,7 +323,8 @@ func (u *User) SetSuperAdminRole(globalStorage *sql.DB, role SARole) error {
 		)
 	}
 	if err != nil {
-		return fmt.Errorf("ERR: updating super_admin_role: %w", err)
+		errlog.ERR.Printf("ERR: updating super_admin_role: %v", err)
+		return fmt.Errorf("ERR: updating super_admin_role: %v", err)
 	}
 
 	u.SuperAdminRole = role
@@ -323,6 +335,7 @@ func (u *User) SetSuperAdminRole(globalStorage *sql.DB, role SARole) error {
 // Only works if the user is a super admin and already has a role set.
 func (u *User) ToggleSuperAdminRole(globalStorage *sql.DB) error {
 	if !u.IsSuperAdmin {
+		errlog.ERR.Printf("ERR: user %v is not a super admin", u.Id)
 		return fmt.Errorf("ERR: user %v is not a super admin", u.Id)
 	}
 
@@ -333,6 +346,7 @@ func (u *User) ToggleSuperAdminRole(globalStorage *sql.DB) error {
 	case SARoleDriver:
 		newRole = SARoleManager
 	default:
+		errlog.ERR.Printf("ERR: user has no super_admin_role set, use SetSuperAdminRole first")
 		return fmt.Errorf("ERR: user has no super_admin_role set, use SetSuperAdminRole first")
 	}
 

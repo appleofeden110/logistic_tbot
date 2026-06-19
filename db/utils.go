@@ -59,8 +59,8 @@ func CheckDriversTable(db DBExecutor) error {
 			FOREIGN KEY (chat_id) REFERENCES users(chat_id),
 			FOREIGN KEY (car_id) REFERENCES cars(id),
 			FOREIGN KEY (performing_task_id) REFERENCES tasks(id),
-			CHECK (state IN ('waiting_loc', 'waiting_form_end', 'on_rest', 'performing_load', 'performing_unload', 
-			                 'performing_collect', 'performing_dropoff', 'performing_cleaning', 'on_the_road', 
+			CHECK (state IN ('waiting_loc', 'waiting_form_end', 'on_rest', 'performing_load', 'performing_unload',
+			                 'performing_collect', 'performing_dropoff', 'performing_cleaning', 'on_the_road',
 			                 'waiting_photo', 'tracking', 'waiting_km', 'working', 'waiting_attach'))
 		)
 	`)
@@ -227,6 +227,7 @@ func CheckTasksTable(db DBExecutor) error {
 			current_kilometrage INTEGER,
 			current_weight INTEGER,
 			current_temperature REAL,
+			edit_message_id INTEGER,
 			FOREIGN KEY (shipment_id) REFERENCES shipments(id),
 			FOREIGN KEY (doc_id) REFERENCES files(id),
 			CHECK (type IN ('load', 'unload', 'collect', 'dropoff', 'cleaning'))

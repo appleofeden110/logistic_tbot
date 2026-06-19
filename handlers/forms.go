@@ -6,6 +6,7 @@ import (
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"logistictbot/utils"
 	"reflect"
@@ -29,6 +30,7 @@ type TankRefuelForm struct {
 func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *db.Driver, chosenFuelCardId int) error {
 	data, ok := f.Data.(TankRefuelForm)
 	if !ok {
+		errlog.ERR.Printf("ERR: refuel form data is wrong type: %T", f.Data)
 		return fmt.Errorf("ERR: refuel form data is wrong type: %T", f.Data)
 	}
 
@@ -67,11 +69,13 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 	}
 
 	if err := refuel.StoreTankRefuel(storage); err != nil {
-		return fmt.Errorf("ERR: storing refuel: %w", err)
+		errlog.ERR.Printf("ERR: storing refuel: %v", err)
+		return fmt.Errorf("ERR: storing refuel: %v", err)
 	}
 
 	fc, err := db.GetFuelCardById(storage, chosenFuelCardId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting fuel card by id: %v\n", err)
 		return fmt.Errorf("ERR: getting fuel card by id: %v\n", err)
 	}
 
@@ -86,6 +90,7 @@ func storeRefuel(f db.Form, storage *sql.DB, bot *tgbotapi.BotAPI, driverSesh *d
 	}
 	err = g.GetDriverGroupByCar(storage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting driver's group by car for tank refuels: %v\n", err)
 		return fmt.Errorf("ERR: getting driver's group by car for tank refuels: %v\n", err)
 	}
 
@@ -113,6 +118,7 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 	questionAnswers := make(map[string]string)
 	tags, err := utils.GetAllFormTags[T](entity)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting tags: %v", err)
 		return fmt.Errorf("ERR: getting tags: %v", err)
 	}
 
@@ -122,6 +128,7 @@ func createForm[T any](chatId int64, entity T, markup tgbotapi.InlineKeyboardMar
 
 	_, err = RegisterFormMessage(chatId, questionAnswers, markup, text)
 	if err != nil {
+		errlog.ERR.Printf("ERR: could not create a form message: %v", err)
 		return fmt.Errorf("ERR: could not create a form message: %v", err)
 	}
 
@@ -172,6 +179,7 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 			chosenFormText = config.Translate(config.GetLang(chatId), "form:done")
 			chosenFormMarkup = FormAddCarDone(config.GetLang(chatId))
 		default:
+			errlog.ERR.Printf("ERR: unknown form type: %T", state.Form.Data)
 			return fmt.Errorf("ERR: unknown form type: %T", state.Form.Data)
 		}
 
@@ -201,17 +209,20 @@ func finishForm(chatId int64, state *db.FormState, globalStorage *sql.DB, from *
 
 	err = db.CheckFormTable(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: checking if the form states table exists: %v\n", err)
 		return fmt.Errorf("ERR: checking if the form states table exists: %v\n", err)
 	}
 
 	if state.Form.WhichTable == db.RefuelsTable {
 		refuelData, ok := state.Form.Data.(TankRefuelForm)
 		if !ok {
+			errlog.ERR.Printf("ERR: refuel form data wrong type after finish")
 			return fmt.Errorf("ERR: refuel form data wrong type after finish")
 		}
 		driver, err := db.GetDriverByChatId(globalStorage, chatId)
 		if err != nil {
-			return fmt.Errorf("ERR: getting driver for refuel store: %w", err)
+			errlog.ERR.Printf("ERR: getting driver for refuel store: %v", err)
+			return fmt.Errorf("ERR: getting driver for refuel store: %v", err)
 		}
 		return storeRefuel(state.Form, globalStorage, Bot, driver, refuelData.ChosenFuelCardId)
 	}
@@ -321,17 +332,20 @@ func setField(field reflect.Value, answer string, fieldName string) error {
 			strings.Contains(strings.ToLower(fieldName), "km") {
 			val, err := db.ParseKilometrage(answer)
 			if err != nil {
+				errlog.ERR.Printf("ERR: invalid kilometrage for %s: %v", fieldName, err)
 				return fmt.Errorf("ERR: invalid kilometrage for %s: %v", fieldName, err)
 			}
 			field.SetInt(val)
 		} else {
 			val, err := strconv.ParseInt(answer, 10, 64)
 			if err != nil {
+				errlog.ERR.Printf("ERR: invalid number for %s: %v", fieldName, err)
 				return fmt.Errorf("ERR: invalid number for %s: %v", fieldName, err)
 			}
 			field.SetInt(val)
 		}
 	default:
+		errlog.ERR.Printf("ERR: unsupported type for field %s: %v", fieldName, field.Kind())
 		return fmt.Errorf("ERR: unsupported type for field %s: %v", fieldName, field.Kind())
 	}
 	return nil
@@ -348,6 +362,7 @@ func GatherInfo(f db.Form) error {
 	case db.RefuelsTable:
 		return gatherFormInfo[TankRefuelForm](f, TankRefuelForm{})
 	default:
+		errlog.ERR.Printf("ERR: unsupported table type: %s", f.WhichTable)
 		return fmt.Errorf("ERR: unsupported table type: %s", f.WhichTable)
 	}
 }
@@ -355,7 +370,8 @@ func GatherInfo(f db.Form) error {
 func gatherFormInfo[T any](f db.Form, entity T) error {
 	tags, err := utils.GetAllFormTags[T](entity)
 	if err != nil {
-		return fmt.Errorf("ERR: getting form tags from the struct: %w", err)
+		errlog.ERR.Printf("ERR: getting form tags from the struct: %v", err)
+		return fmt.Errorf("ERR: getting form tags from the struct: %v", err)
 	}
 
 	fieldNames, questions := getAllFieldsAndQuestions(tags, f.ChatID)

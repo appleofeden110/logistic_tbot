@@ -8,6 +8,7 @@ import (
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
+	"logistictbot/errlog"
 	"strconv"
 	"strings"
 
@@ -66,6 +67,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		}
 		groupChatId, err := strconv.ParseInt(strings.TrimSpace(temp[0]), 10, 64)
 		if err != nil {
+			errlog.ERR.Printf("ERR: there should be a number here!")
 			return fmt.Errorf("ERR: there should be a number here!")
 		}
 		carId := temp[1]
@@ -78,10 +80,12 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		g := db.DriverGroup{CurrentCar: car, GroupChatId: groupChatId}
 		err = g.CreateDriverGroup(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: Creating driver group: %v\n", err)
 			return fmt.Errorf("ERR: Creating driver group: %v\n", err)
 		}
 		driver, err := db.GetDriverById(globalStorage, car.CurrentDriverId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting driver by his id from the car object: %v\n", err)
 			return fmt.Errorf("ERR: getting driver by his id from the car object: %v\n", err)
 		}
 
@@ -98,6 +102,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		u := db.User{ChatId: user.ID, Name: fmt.Sprintf("%s %s", user.FirstName, user.LastName), TgTag: user.UserName}
 		err := u.StoreUser(globalStorage)
 		if err != nil {
+			errlog.ERR.Printf("ERR: storing user for a group: %v\n", err)
 			return fmt.Errorf("ERR: storing user for a group: %v\n", err)
 		}
 
@@ -107,6 +112,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		}
 		superAdmins, err := GetAllSuperAdminsOfGroup(chatId, users)
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting all super admins of a group: %v\n", err)
 			return fmt.Errorf("ERR: getting all super admins of a group: %v\n", err)
 		}
 
@@ -133,6 +139,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			if errors.Is(err, db.ErrNotSuperAdmin) {
 				Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "g:not_sa"), topicId))
 			}
+			errlog.ERR.Printf("ERR: err finding a sa for a group for a command: %v\n", err)
 			return fmt.Errorf("ERR: err finding a sa for a group for a command: %v\n", err)
 		}
 
@@ -140,11 +147,13 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			driverUser := &db.User{Id: uuid.FromStringOrNil(userIdStr)}
 			err := driverUser.GetUserById(globalStorage)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting user by id: %v\n", err)
 				return fmt.Errorf("ERR: getting user by id: %v\n", err)
 			}
 			d := &db.Driver{UserId: driverUser.Id, ChatId: driverUser.ChatId}
 			err = d.StoreDriver(globalStorage, Bot)
 			if err != nil {
+				errlog.ERR.Printf("ERR: storing driver: %v\n", err)
 				return fmt.Errorf("ERR: storing driver: %v\n", err)
 			}
 
@@ -170,11 +179,13 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 			driverUser := &db.User{Id: uuid.FromStringOrNil(userIdStr)}
 			err := driverUser.GetUserById(globalStorage)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting user by id: %v\n", err)
 				return fmt.Errorf("ERR: getting user by id: %v\n", err)
 			}
 			m := &db.Manager{UserId: driverUser.Id, ChatId: driverUser.ChatId}
 			err = m.StoreManager(globalStorage, Bot)
 			if err != nil {
+				errlog.ERR.Printf("ERR: storing manager: %v\n", err)
 				return fmt.Errorf("ERR: storing manager: %v\n", err)
 			}
 			_, err = Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "registration_accepted:managertoSA", driverUser.Name), topicId))
@@ -184,24 +195,29 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 		if _idString, f := strings.CutPrefix(command, "carfor:"); f {
 			driverUserId, carId, f := strings.Cut(_idString, ":")
 			if !f {
+				errlog.ERR.Printf("ERR: getting any info from sa:carfor command: %v\n", command)
 				return fmt.Errorf("ERR: getting any info from sa:carfor command: %v\n", command)
 			}
 			u := &db.User{Id: uuid.FromStringOrNil(driverUserId)}
 
 			err := u.GetUserById(globalStorage)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting driver by id: %v\n", err)
 				return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 			}
 			driver, err := db.GetDriverById(globalStorage, u.DriverId)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting driver by id: %v\n", err)
 				return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 			}
 			err = driver.UpdateCarId(globalStorage, carId)
 			if err != nil {
+				errlog.ERR.Printf("ERR: updating car id: %v\n", err)
 				return fmt.Errorf("ERR: updating car id: %v\n", err)
 			}
 			car, err := db.GetCarById(globalStorage, carId)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting car by id: %v\n", err)
 				return fmt.Errorf("ERR: getting car by id: %v\n", err)
 			}
 			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId),
@@ -217,6 +233,7 @@ func HandleGroupCommands(chatId int64, command string, messageId int, user *tgbo
 					car.Id, int(car.Kilometrage), topicId)),
 			)
 			if err != nil {
+				errlog.ERR.Printf("ERR: sending driver a msg: %v\n", err)
 				return fmt.Errorf("ERR: sending driver a msg: %v\n", err)
 			}
 			return HandleMenu(chatId, globalStorage, driver.User)

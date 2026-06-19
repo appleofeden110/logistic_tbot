@@ -149,18 +149,15 @@ func (s *Shipment) IdentifyInstructionForDoc(docText string) (after string, foun
 				case DetailsKeywords[Instruction][0]: // FRENCH: "instructions de"
 					language = French
 					instructionKeyword = DetailsKeywords[Instruction][0]
-					break
 				case DetailsKeywords[Instruction][1]: // GERMAN: "anweisung"
 					language = German
 					instructionKeyword = DetailsKeywords[Instruction][1]
-					break
 				case DetailsKeywords[Instruction][2]: // ENGLISH: "instruction"
 					if keyword == "instruction" && strings.Contains(lines[lineNumber], strings.ToUpper("INSTRUCTIONS DE")) {
 						continue
 					}
 					language = English
 					instructionKeyword = DetailsKeywords[Instruction][2]
-					break
 				default:
 					return docText, false
 				}

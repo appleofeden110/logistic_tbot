@@ -7,6 +7,7 @@ import (
 	"log"
 	"logistictbot/config"
 	"logistictbot/docs"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"strings"
 	"time"
@@ -63,11 +64,13 @@ func SetAllManagersToDormant(db DBExecutor) error {
 
 	result, err := db.Exec(query, StateDormantManager, StateDormantManager)
 	if err != nil {
+		errlog.ERR.Printf("ERR: setting all managers to dormant state: %v", err)
 		return fmt.Errorf("ERR: setting all managers to dormant state: %v", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting rows affected: %v", err)
 		return fmt.Errorf("ERR: getting rows affected: %v", err)
 	}
 
@@ -82,11 +85,13 @@ func (m *Manager) ChangeManagerStatus(globalStorage *sql.DB) error {
 		WHERE id = ?
 	`
 	if m.Id == uuid.Nil {
+		errlog.ERR.Printf("ERR: getting id for changing manager's status: %v\n", m.Id)
 		return fmt.Errorf("ERR: getting id for changing manager's status: %v\n", m.Id)
 	}
 
 	_, err := globalStorage.Exec(query, m.State, m.Id)
 	if err != nil {
+		errlog.ERR.Printf("ERR: changing manager's status: %v\n", err)
 		return fmt.Errorf("ERR: changing manager's status: %v\n", err)
 	}
 
@@ -213,6 +218,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: creating a new uuid for a manager: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: creating a new uuid for a manager: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -224,6 +230,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: preparing statement for insert manager: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: preparing statement for insert manager: %v (txErr: %v)\n", err, txErr)
 	}
 	defer stmt.Close()
@@ -233,6 +240,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: executing prep insert manager stmt: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: executing prep insert manager stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
@@ -249,6 +257,7 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: preparing statement for update user manager_id: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: preparing statement for update user manager_id: %v (txErr: %v)\n", err, txErr)
 	}
 	defer updateStmt.Close()
@@ -258,11 +267,13 @@ func (m *Manager) StoreManager(db DBExecutor, bot *tgbotapi.BotAPI) error {
 		if ok {
 			txErr = tx.Rollback()
 		}
+		errlog.ERR.Printf("ERR: executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
 		return fmt.Errorf("ERR: executing update user manager_id stmt: %v (txErr: %v)\n", err, txErr)
 	}
 
 	/*err = m.User.SendRequestToSuperAdmins(db, bot)
 	if err != nil {
+		errlog.ERR.Printf("ERR: sending request to accept user to superadmins: %v\n", err)
 		return fmt.Errorf("ERR: sending request to accept user to superadmins: %v\n", err)
 	}
 	*/
@@ -288,7 +299,7 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 	if managerIdNull.Valid {
 		managerId, err := uuid.FromString(managerIdNull.String)
 		if err != nil {
-			return false, fmt.Errorf("ERR: parsing manager_id: %w", err)
+			return false, fmt.Errorf("ERR: parsing manager_id: %v", err)
 		}
 		u.ManagerId = managerId
 		return true, nil
@@ -301,6 +312,7 @@ func (u *User) IsManager(exec DBExecutor) (bool, error) {
 func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption string, chatId int64, topicId int, bot *tgbotapi.BotAPI) error {
 	drivers, err := GetAllDrivers(exec)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all drivers: %v", err)
 		return fmt.Errorf("ERR: getting all drivers: %v", err)
 	}
 
@@ -322,6 +334,7 @@ func (m *Manager) ShowDriverList(exec DBExecutor, callback string, caption strin
 func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, chatId int64, topicId int, bot *tgbotapi.BotAPI) error {
 	cars, err := GetAllCars(exec)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all cars: %v", err)
 		return fmt.Errorf("ERR: getting all cars: %v", err)
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -333,6 +346,7 @@ func (m *Manager) ShowCarList(exec DBExecutor, callback string, caption string, 
 
 			d, err := GetDriverById(exec, c.CurrentDriverId)
 			if err != nil {
+				errlog.ERR.Printf("ERR: getting driver by id: %v\n", err)
 				return fmt.Errorf("ERR: getting driver by id: %v\n", err)
 			}
 			label = config.Translate(config.GetLang(chatId), "btn:car:d", c.Id, d.User.Name)
@@ -387,26 +401,31 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	f := docs.File{TgFileId: pm.FileId}
 	err := f.GetFile(exec)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting file from file id of tg: %v\n", err)
 		return fmt.Errorf("ERR: getting file from file id of tg: %v\n", err)
 	}
 
 	driver, err := GetDriverByChatId(exec, pm.ToChatId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting driver from chat id: %v\n", err)
 		return fmt.Errorf("ERR: getting driver from chat id: %v\n", err)
 	}
 	car, err := GetCarById(exec, driver.CarId)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting car by car id (%s): %v\n", driver.CarId, err)
 		return fmt.Errorf("ERR: getting car by car id (%s): %v\n", driver.CarId, err)
 	}
 
 	g := &DriverGroup{CurrentCar: car}
 	err = g.GetDriverGroupByCar(exec)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting driver group: %v\n", err)
 		return fmt.Errorf("ERR: getting driver group: %v\n", err)
 	}
 
 	shipment, err := parser.GetSequenceOfTasks(f.Path)
 	if err != nil {
+		errlog.ERR.Printf("ERR: reading the shipment doc: %v\n", err)
 		return fmt.Errorf("ERR: reading the shipment doc: %v\n", err)
 	}
 
@@ -422,7 +441,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 			_, err = bot.Send(tgbotapi.NewMessage(pm.FromChatId, config.Translate(config.GetLang(pm.FromChatId), "err_shipment_exists")))
 			return err
 		}
-		return fmt.Errorf("store shipment: %w", err)
+		return fmt.Errorf("store shipment: %v", err)
 	}
 
 	docMsg := tgbotapi.NewDocument(g.GroupChatId, tgbotapi.FileID(pm.FileId), g.LoadingTopicId)

@@ -7,6 +7,7 @@ import (
 	"logistictbot/config"
 	"logistictbot/db"
 	"logistictbot/delq"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"logistictbot/tracking"
 	"sync"
@@ -61,6 +62,7 @@ var (
 func FillSessions(globalStorage *sql.DB) error {
 	drivers, err := db.GetAllDrivers(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all drivers: %v\n", err)
 		return fmt.Errorf("ERR: getting all drivers: %v\n", err)
 	}
 
@@ -71,6 +73,7 @@ func FillSessions(globalStorage *sql.DB) error {
 		if err != nil {
 			driverSessionsMu.Unlock()
 			taskSessionsMu.Unlock()
+			errlog.ERR.Printf("ERR: getting a session for driver %s: %v\n", d.User.Name, err)
 			return fmt.Errorf("ERR: getting a session for driver %s: %v\n", d.User.Name, err)
 		}
 		driverSessions[d.ChatId] = d
@@ -79,6 +82,7 @@ func FillSessions(globalStorage *sql.DB) error {
 			if err != nil {
 				driverSessionsMu.Unlock()
 				taskSessionsMu.Unlock()
+				errlog.ERR.Printf("ERR: getting task that is being performed: %v\n", err)
 				return fmt.Errorf("ERR: getting task that is being performed: %v\n", err)
 			}
 			taskSessions[d.Id] = task
@@ -91,6 +95,7 @@ func FillSessions(globalStorage *sql.DB) error {
 
 	dg, err := db.GetAllDriverGroups(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all the driver groups: %v\n", err)
 		return fmt.Errorf("ERR: getting all the driver groups: %v\n", err)
 	}
 
@@ -102,6 +107,7 @@ func FillSessions(globalStorage *sql.DB) error {
 
 	managers, err := db.GetAllManagers(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all the managers: %v\n", err)
 		return fmt.Errorf("ERR: getting all the managers: %v\n", err)
 	}
 
@@ -116,6 +122,7 @@ func FillSessions(globalStorage *sql.DB) error {
 
 	comms, err := GetAllNonRepliedMessages(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all non replied messages: %v\n", err)
 		return fmt.Errorf("ERR: getting all non replied messages: %v\n", err)
 	}
 	nonRepliedMessagesMu.Lock()
@@ -128,6 +135,7 @@ func FillSessions(globalStorage *sql.DB) error {
 
 	err = delq.FillDeleteQueue(globalStorage)
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting all the dq nodes: %v\n", err)
 		return fmt.Errorf("ERR: getting all the dq nodes: %v\n", err)
 	}
 

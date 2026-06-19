@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"logistictbot/errlog"
 	"strconv"
 	"strings"
 	"time"
@@ -56,12 +57,12 @@ func (f *File) StoreFile(globalStorage *sql.DB) error {
 		time.Now(),
 	)
 	if err != nil {
-		return fmt.Errorf("insert file: %w", err)
+		return fmt.Errorf("insert file: %v", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("get last insert id: %w", err)
+		return fmt.Errorf("get last insert id: %v", err)
 	}
 
 	f.Id = int(id)
@@ -81,41 +82,44 @@ func DeleteFilesAttachedToTask(globalStorage *sql.DB, taskId int) error {
 	`
 	_, err := globalStorage.Exec(query, taskId)
 	if err != nil {
-		return fmt.Errorf("ERR: delete files attached to task %d: %w", taskId, err)
+		errlog.ERR.Printf("ERR: delete files attached to task %d: %v", taskId, err)
+		return fmt.Errorf("ERR: delete files attached to task %d: %v", taskId, err)
 	}
 	return nil
 }
 
 func DeleteDocumentsAttachedToTask(globalStorage *sql.DB, taskId int) error {
 	query := `
-		UPDATE files 
+		UPDATE files
 		SET deleted_at = CURRENT_TIMESTAMP
 		WHERE id IN (
 		    SELECT file_id from task_docs WHERE task_id = ?
 		)
-		AND deleted_at IS NULL 
+		AND deleted_at IS NULL
 		AND filetype != 'image'
 	`
 	_, err := globalStorage.Exec(query, taskId)
 	if err != nil {
-		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %w\n", taskId, err)
+		errlog.ERR.Printf("ERR: deleting documents attached to the task id %d: %v\n", taskId, err)
+		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %v\n", taskId, err)
 	}
 	return nil
 }
 
 func DeletePicturesAttachedToTask(globalStorage *sql.DB, taskId int) error {
 	query := `
-		UPDATE files 
+		UPDATE files
 		SET deleted_at = CURRENT_TIMESTAMP
 		WHERE id IN (
 		    SELECT file_id from task_docs WHERE task_id = ?
 		)
-		AND deleted_at IS NULL 
+		AND deleted_at IS NULL
 		AND filetype = 'image'
 	`
 	_, err := globalStorage.Exec(query, taskId)
 	if err != nil {
-		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %w\n", taskId, err)
+		errlog.ERR.Printf("ERR: deleting documents attached to the task id %d: %v\n", taskId, err)
+		return fmt.Errorf("ERR: deleting documents attached to the task id %d: %v\n", taskId, err)
 	}
 	return nil
 }
@@ -141,7 +145,7 @@ func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) 
 
 	rows, err := globalStorage.Query(query, taskId)
 	if err != nil {
-		return nil, fmt.Errorf("query files attached to task %d: %w", taskId, err)
+		return nil, fmt.Errorf("query files attached to task %d: %v", taskId, err)
 	}
 	defer rows.Close()
 
@@ -170,14 +174,14 @@ func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) 
 			&deletedAtStr,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan file: %w", err)
+			return nil, fmt.Errorf("scan file: %v", err)
 		}
 
 		// Parse created_at
 		if createdAtStr != "" {
 			t, err := time.Parse("2006-01-02 15:04:05.999999-07:00", createdAtStr)
 			if err != nil {
-				return nil, fmt.Errorf("parse created_at: %w", err)
+				return nil, fmt.Errorf("parse created_at: %v", err)
 			}
 			f.CreatedAt = t
 		}
@@ -186,7 +190,7 @@ func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) 
 		if deletedAtStr.Valid {
 			t, err := time.Parse("2006-01-02 15:04:05.999999-07:00", deletedAtStr.String)
 			if err != nil {
-				return nil, fmt.Errorf("parse deleted_at: %w", err)
+				return nil, fmt.Errorf("parse deleted_at: %v", err)
 			}
 			f.DeletedAt = t
 		}
@@ -198,7 +202,7 @@ func GetFilesAttachedToTask(globalStorage *sql.DB, taskId int) ([]*File, error) 
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		return nil, fmt.Errorf("rows error: %v", err)
 	}
 
 	return files, nil
@@ -214,12 +218,12 @@ func (f *File) AttachFileToTask(globalStorage *sql.DB, taskId int) error {
 		f.Id, taskId,
 	)
 	if err != nil {
-		return fmt.Errorf("attach file: %w", err)
+		return fmt.Errorf("attach file: %v", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("get last insert id: %w", err)
+		return fmt.Errorf("get last insert id: %v", err)
 	}
 
 	f.Id = int(id)
@@ -269,20 +273,20 @@ func (f *File) GetFile(globalStorage *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("file not found")
 		}
-		return fmt.Errorf("scan file: %w", err)
+		return fmt.Errorf("scan file: %v", err)
 	}
 
 	if createdAtStr != "" {
 		t, err := time.Parse("2006-01-02 15:04:05.999999-07:00", createdAtStr)
 		if err != nil {
-			return fmt.Errorf("parse created_at: %w", err)
+			return fmt.Errorf("parse created_at: %v", err)
 		}
 		f.CreatedAt = t
 	}
 	if deletedAtStr.Valid {
 		t, err := time.Parse("2006-01-02 15:04:05.999999-07:00", deletedAtStr.String)
 		if err != nil {
-			return fmt.Errorf("parse deleted_at: %w", err)
+			return fmt.Errorf("parse deleted_at: %v", err)
 		}
 		f.DeletedAt = t
 	}
@@ -317,7 +321,7 @@ func GetAllFilesFromUser(globalStorage *sql.DB, query tgbotapi.CallbackQuery) ([
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("how are you a user, I could not find you")
 		}
-		return nil, fmt.Errorf("scan admin: %w", err)
+		return nil, fmt.Errorf("scan admin: %v", err)
 	}
 
 	isSuperAdmin = superAdminTemp != 0
@@ -357,7 +361,7 @@ func GetAllFilesFromUser(globalStorage *sql.DB, query tgbotapi.CallbackQuery) ([
 			&f.DeletedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan row: %w", err)
+			return nil, fmt.Errorf("scan row: %v", err)
 		}
 
 		// Convert string to custom types
@@ -369,7 +373,7 @@ func GetAllFilesFromUser(globalStorage *sql.DB, query tgbotapi.CallbackQuery) ([
 
 	// Check for errors from iterating over rows
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
+		return nil, fmt.Errorf("iterate rows: %v", err)
 	}
 
 	return files, nil

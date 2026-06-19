@@ -77,7 +77,7 @@ func (d *Duration) Scan(value interface{}) error {
 
 	duration, err := time.ParseDuration(str)
 	if err != nil {
-		return fmt.Errorf("Duration.Scan: %w", err)
+		return fmt.Errorf("Duration.Scan: %v", err)
 	}
 
 	d.Duration = duration

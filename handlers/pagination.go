@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"logistictbot/config"
 	data_analysis "logistictbot/data-analysis"
+	"logistictbot/errlog"
 	"logistictbot/parser"
 	"strconv"
 	"strings"
@@ -220,15 +221,18 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		ids := strings.Split(parts[1], "to")
 		if len(parts) < 2 {
+			errlog.ERR.Printf("ERR: invalid pagination callback data")
 			return fmt.Errorf("ERR: invalid pagination callback data")
 		}
 
 		sendToChatId, err := strconv.ParseInt(ids[1], 10, 64)
 		if err != nil {
+			errlog.ERR.Printf("ERR: invalid send to chat id number: %v", err)
 			return fmt.Errorf("ERR: invalid send to chat id number: %v", err)
 		}
 		page, err := strconv.Atoi(ids[0])
 		if err != nil {
+			errlog.ERR.Printf("ERR: invalid page number: %v", err)
 			return fmt.Errorf("ERR: invalid page number: %v", err)
 		}
 
@@ -238,11 +242,13 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		cleaningStations, err = data_analysis.GetAllCleaningStations(globalStorage)
 		callbackPrefix = "page:cleaning_stations"
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipments: %v", err)
 			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateWashingPlacesList(cleaningStations, page, chatId, callbackPrefix, sendToChatId)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating message: %v", err)
 			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
@@ -252,6 +258,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
+			errlog.ERR.Printf("ERR: editing message: %v", err)
 			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewall:"):
@@ -271,11 +278,13 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllShipments(globalStorage)
 		callbackPrefix = "page:viewall"
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipments: %v", err)
 			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating message: %v", err)
 			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
@@ -285,6 +294,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
+			errlog.ERR.Printf("ERR: editing message: %v", err)
 			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewallbycar:"):
@@ -305,11 +315,13 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllShipmentsByCarId(carId, globalStorage)
 		callbackPrefix = "page:viewallbycar:" + carId
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipments: %v", err)
 			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating message: %v", err)
 			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
@@ -319,6 +331,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
+			errlog.ERR.Printf("ERR: editing message: %v", err)
 			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 
@@ -340,11 +353,13 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllActiveShipmentsByCarId(carId, globalStorage)
 		callbackPrefix = "page:viewactivebycar:" + carId
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipments: %v", err)
 			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating message: %v", err)
 			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
@@ -354,6 +369,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
+			errlog.ERR.Printf("ERR: editing message: %v", err)
 			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	case strings.Contains(cmd, "viewactive:"):
@@ -373,11 +389,13 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 		shipments, err = parser.GetAllActiveShipments(globalStorage)
 		callbackPrefix = "page:viewactive"
 		if err != nil {
+			errlog.ERR.Printf("ERR: getting shipments: %v", err)
 			return fmt.Errorf("ERR: getting shipments: %v", err)
 		}
 
 		msg, err := CreateShipmentListMessage(shipments, page, chatId, callbackPrefix)
 		if err != nil {
+			errlog.ERR.Printf("ERR: creating message: %v", err)
 			return fmt.Errorf("ERR: creating message: %v", err)
 		}
 
@@ -387,6 +405,7 @@ func HandlePaginationCommands(chatId int64, command string, msgId int, globalSto
 
 		_, err = Bot.Send(edit)
 		if err != nil {
+			errlog.ERR.Printf("ERR: editing message: %v", err)
 			return fmt.Errorf("ERR: editing message: %v", err)
 		}
 	}

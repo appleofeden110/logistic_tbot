@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"logistictbot/config"
+	"logistictbot/errlog"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ func CheckFormTable(db *sql.DB) error {
 func (f Form) StoreForm(db *sql.DB, bot *tgbotapi.BotAPI) error {
 	tx, err := db.Begin()
 	if err != nil {
+		errlog.ERR.Printf("ERR: beginning transaction: %v\n", err)
 		return fmt.Errorf("ERR: beginning transaction: %v\n", err)
 	}
 
@@ -74,6 +76,7 @@ func (f Form) StoreForm(db *sql.DB, bot *tgbotapi.BotAPI) error {
 	`)
 	if err != nil {
 		tx.Rollback()
+		errlog.ERR.Printf("ERR: prepping stmt for inserting into form states: %v \n", err)
 		return fmt.Errorf("ERR: prepping stmt for inserting into form states: %v \n", err)
 	}
 	defer stmt.Close()
@@ -81,6 +84,7 @@ func (f Form) StoreForm(db *sql.DB, bot *tgbotapi.BotAPI) error {
 	_, err = stmt.Exec(f.ChatID, f.FormMsgText, f.FormMsgId, f.WhichTable)
 	if err != nil {
 		tx.Rollback()
+		errlog.ERR.Printf("ERR: executing insert stmt for a form: %v \n", err)
 		return fmt.Errorf("ERR: executing insert stmt for a form: %v \n", err)
 	}
 
@@ -100,6 +104,7 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "user_exists")))
 			}
+			errlog.ERR.Printf("ERR: storing user: %v\n", err)
 			return fmt.Errorf("ERR: storing user: %v\n", err)
 		}
 
@@ -107,11 +112,13 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		err = v.StoreDriver(tx, bot)
 		if err != nil {
 			tx.Rollback()
+			errlog.ERR.Printf("ERR: storing driver in the table: %v\n", err)
 			return fmt.Errorf("ERR: storing driver in the table: %v\n", err)
 		}
 
 		err = tx.Commit()
 		if err != nil {
+			errlog.ERR.Printf("ERR: committing transaction: %v\n", err)
 			return fmt.Errorf("ERR: committing transaction: %v\n", err)
 		}
 
@@ -121,6 +128,7 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		err = v.User.StoreUser(tx)
 		if err != nil {
 			tx.Rollback()
+			errlog.ERR.Printf("ERR: storing user based on manager's form: %v\n", err)
 			return fmt.Errorf("ERR: storing user based on manager's form: %v\n", err)
 		}
 		v.UserId = v.User.Id
@@ -128,6 +136,7 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		err = v.StoreManager(tx, bot)
 		if err != nil {
 			tx.Rollback()
+			errlog.ERR.Printf("ERR: storing manager in the table: %v\n", err)
 			return fmt.Errorf("ERR: storing manager in the table: %v\n", err)
 		}
 
@@ -141,6 +150,7 @@ func insertIntoSpecTable(data any, tx *sql.Tx, chatId int64, bot *tgbotapi.BotAP
 		err = v.AddCarToDB(chatId, bot, tx)
 		if err != nil {
 			tx.Rollback()
+			errlog.ERR.Printf("ERR: adding car to db: %v\n", err)
 			return fmt.Errorf("ERR: adding car to db: %v\n", err)
 		}
 
@@ -156,78 +166,91 @@ func CheckAllTables(db *sql.DB) (err error) {
 
 	err = CheckTaskDocsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table task_docs: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table task_docs: %v\n", err)
 	}
 	log.Println("task_docs is ok.")
 
 	err = CheckFormStatesTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table form_states: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table form_states: %v\n", err)
 	}
 	log.Println("form_states is ok.")
 
 	err = CheckUsersTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table users: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table users: %v\n", err)
 	}
 	log.Println("users is ok.")
 
 	err = CheckManagersTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table managers: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table managers: %v\n", err)
 	}
 	log.Println("managers is ok.")
 
 	err = CheckDriversTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table drivers: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table drivers: %v\n", err)
 	}
 	log.Println("drivers is ok.")
 
 	err = CheckDriversSessionsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table drivers_sessions: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table drivers_sessions: %v\n", err)
 	}
 	log.Println("drivers_sessions is ok.")
 
 	err = CheckCarsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table cars: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table cars: %v\n", err)
 	}
 	log.Println("cars is ok.")
 
 	err = CheckCleaningStationsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table cleaning_stations: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table cleaning_stations: %v\n", err)
 	}
 	log.Println("cleaning_stations is ok.")
 
 	err = CheckFilesTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table files: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table files: %v\n", err)
 	}
 	log.Println("files is ok.")
 
 	err = CheckShipmentsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table shipments: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table shipments: %v\n", err)
 	}
 	log.Println("shipments is ok.")
 
 	err = CheckTasksTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table tasks: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table tasks: %v\n", err)
 	}
 	log.Println("tasks is ok.")
 
 	err = CheckShipmentSessionsTable(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table shipment_sessions: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table shipment_sessions: %v\n", err)
 	}
 	log.Println("shipment_sessions is ok.")
 
 	err = CheckCommunicationMessages(db)
 	if err != nil {
+		errlog.ERR.Printf("ERR: creating or checking the table shipment_sessions: %v\n", err)
 		return fmt.Errorf("ERR: creating or checking the table shipment_sessions: %v\n", err)
 	}
 	log.Println("communication_messages is ok.")

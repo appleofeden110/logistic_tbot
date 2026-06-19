@@ -28,7 +28,7 @@ func (c *CleaningStation) GetByName(globalStorage *sql.DB) error {
 func GetAllCleaningStations(globalStorage *sql.DB) ([]*CleaningStation, error) {
 	rows, err := globalStorage.Query(`SELECT id, name, address, country, lat, lon, opening_hours FROM cleaning_stations`)
 	if err != nil {
-		return nil, fmt.Errorf("GetAllCleaningStations: %w", err)
+		return nil, fmt.Errorf("GetAllCleaningStations: %v", err)
 	}
 	defer rows.Close()
 
@@ -36,7 +36,7 @@ func GetAllCleaningStations(globalStorage *sql.DB) ([]*CleaningStation, error) {
 	for rows.Next() {
 		c := new(CleaningStation)
 		if err := rows.Scan(&c.Id, &c.Name, &c.Address, &c.Country, &c.Lat, &c.Lon, &c.OpeningHours); err != nil {
-			return nil, fmt.Errorf("GetAllCleaningStations scan: %w", err)
+			return nil, fmt.Errorf("GetAllCleaningStations scan: %v", err)
 		}
 		stations = append(stations, c)
 	}

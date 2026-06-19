@@ -122,7 +122,7 @@ func DownloadFile(url, fileName string) (string, error) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("failed to download: %w", err)
+		return "", fmt.Errorf("failed to download: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -133,13 +133,13 @@ func DownloadFile(url, fileName string) (string, error) {
 	fullPath = GetFullPathOutDocs(fileName)
 	out, err := os.Create(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create file: %w", err)
+		return "", fmt.Errorf("failed to create file: %v", err)
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to write to file: %w", err)
+		return "", fmt.Errorf("failed to write to file: %v", err)
 	}
 
 	return fullPath, nil

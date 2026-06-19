@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"logistictbot/errlog"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -35,7 +36,8 @@ func (t *TankRefuel) StoreTankRefuel(db DBExecutor) error {
 		VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
 	`)
 	if err != nil {
-		return fmt.Errorf("ERR: preparing statement for insert tank_refuel: %w", err)
+		errlog.ERR.Printf("ERR: preparing statement for insert tank_refuel: %v", err)
+		return fmt.Errorf("ERR: preparing statement for insert tank_refuel: %v", err)
 	}
 	defer stmt.Close()
 
@@ -51,12 +53,14 @@ func (t *TankRefuel) StoreTankRefuel(db DBExecutor) error {
 		t.CarId,
 	)
 	if err != nil {
-		return fmt.Errorf("ERR: executing insert tank_refuel stmt: %w", err)
+		errlog.ERR.Printf("ERR: executing insert tank_refuel stmt: %v", err)
+		return fmt.Errorf("ERR: executing insert tank_refuel stmt: %v", err)
 	}
 
 	newId, err := result.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("ERR: getting last insert id for tank_refuel: %w", err)
+		errlog.ERR.Printf("ERR: getting last insert id for tank_refuel: %v", err)
+		return fmt.Errorf("ERR: getting last insert id for tank_refuel: %v", err)
 	}
 	t.Id = int(newId)
 	return nil
@@ -67,7 +71,8 @@ func (t *TankRefuel) UpdateAddress(db DBExecutor, address string) error {
 		UPDATE tank_refuels SET address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, address, t.Id)
 	if err != nil {
-		return fmt.Errorf("ERR: updating address for tank_refuel %d: %w", t.Id, err)
+		errlog.ERR.Printf("ERR: updating address for tank_refuel %d: %v", t.Id, err)
+		return fmt.Errorf("ERR: updating address for tank_refuel %d: %v", t.Id, err)
 	}
 	t.Address = address
 	return nil
@@ -78,7 +83,8 @@ func (t *TankRefuel) UpdateKilometrage(db DBExecutor, kilometrage int64) error {
 		UPDATE tank_refuels SET current_kilometrage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, kilometrage, t.Id)
 	if err != nil {
-		return fmt.Errorf("ERR: updating kilometrage for tank_refuel %d: %w", t.Id, err)
+		errlog.ERR.Printf("ERR: updating kilometrage for tank_refuel %d: %v", t.Id, err)
+		return fmt.Errorf("ERR: updating kilometrage for tank_refuel %d: %v", t.Id, err)
 	}
 	t.CurrentKilometrage = kilometrage
 	return nil
@@ -89,7 +95,8 @@ func (t *TankRefuel) UpdateDiesel(db DBExecutor, diesel float64) error {
 		UPDATE tank_refuels SET diesel = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, diesel, t.Id)
 	if err != nil {
-		return fmt.Errorf("ERR: updating diesel for tank_refuel %d: %w", t.Id, err)
+		errlog.ERR.Printf("ERR: updating diesel for tank_refuel %d: %v", t.Id, err)
+		return fmt.Errorf("ERR: updating diesel for tank_refuel %d: %v", t.Id, err)
 	}
 	t.Diesel = diesel
 	return nil
@@ -100,7 +107,8 @@ func (t *TankRefuel) UpdateAdBlu(db DBExecutor, adBlu float64) error {
 		UPDATE tank_refuels SET adblu = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, adBlu, t.Id)
 	if err != nil {
-		return fmt.Errorf("ERR: updating adblu for tank_refuel %d: %w", t.Id, err)
+		errlog.ERR.Printf("ERR: updating adblu for tank_refuel %d: %v", t.Id, err)
+		return fmt.Errorf("ERR: updating adblu for tank_refuel %d: %v", t.Id, err)
 	}
 	t.AdBlu = adBlu
 	return nil
@@ -127,7 +135,7 @@ func GetAllTankRefuels(db DBExecutor) ([]TankRefuel, error) {
 		ORDER BY tr.created_at DESC
 	`)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: querying all tank_refuels: %w", err)
+		return nil, fmt.Errorf("ERR: querying all tank_refuels: %v", err)
 	}
 	defer rows.Close()
 
@@ -190,9 +198,9 @@ func GetTankRefuelById(db DBExecutor, id int) (*TankRefuel, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("ERR: tank refuel with id %d not found: %w", id, sql.ErrNoRows)
+			return nil, fmt.Errorf("ERR: tank refuel with id %d not found: %v", id, sql.ErrNoRows)
 		}
-		return nil, fmt.Errorf("ERR: scanning tank_refuel row for id %d: %w", id, err)
+		return nil, fmt.Errorf("ERR: scanning tank_refuel row for id %d: %v", id, err)
 	}
 
 	if updatedAtStr.Valid {
@@ -219,11 +227,11 @@ func GetTankRefuelById(db DBExecutor, id int) (*TankRefuel, error) {
 
 	d.Id, err = uuid.FromString(driverIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing driver id in tank_refuel scan: %w", err)
+		return nil, fmt.Errorf("ERR: parsing driver id in tank_refuel scan: %v", err)
 	}
 	d.UserId, err = uuid.FromString(userIdStr)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: parsing user id in tank_refuel scan: %w", err)
+		return nil, fmt.Errorf("ERR: parsing user id in tank_refuel scan: %v", err)
 	}
 
 	if carIdStr.Valid {
@@ -259,7 +267,7 @@ func GetTankRefuelsByDriver(db DBExecutor, driverID uuid.UUID) ([]TankRefuel, er
 		ORDER BY tr.created_at DESC
 	`, driverID.String())
 	if err != nil {
-		return nil, fmt.Errorf("ERR: querying tank_refuels for driver %s: %w", driverID, err)
+		return nil, fmt.Errorf("ERR: querying tank_refuels for driver %s: %v", driverID, err)
 	}
 	defer rows.Close()
 
@@ -269,7 +277,7 @@ func GetTankRefuelsByDriver(db DBExecutor, driverID uuid.UUID) ([]TankRefuel, er
 func GetAllFuelCards(db DBExecutor) ([]FuelCard, error) {
 	rows, err := db.Query(`SELECT id, name FROM fuel_cards ORDER BY name`)
 	if err != nil {
-		return nil, fmt.Errorf("ERR: querying all fuel_cards: %w", err)
+		return nil, fmt.Errorf("ERR: querying all fuel_cards: %v", err)
 	}
 	defer rows.Close()
 
@@ -277,12 +285,12 @@ func GetAllFuelCards(db DBExecutor) ([]FuelCard, error) {
 	for rows.Next() {
 		var fc FuelCard
 		if err := rows.Scan(&fc.Id, &fc.Name); err != nil {
-			return nil, fmt.Errorf("ERR: scanning fuel_card row: %w", err)
+			return nil, fmt.Errorf("ERR: scanning fuel_card row: %v", err)
 		}
 		cards = append(cards, fc)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("ERR: iterating fuel_card rows: %w", err)
+		return nil, fmt.Errorf("ERR: iterating fuel_card rows: %v", err)
 	}
 
 	return cards, nil
@@ -292,7 +300,7 @@ func GetFuelCardById(db DBExecutor, id int) (*FuelCard, error) {
 	fc := new(FuelCard)
 	row := db.QueryRow(`SELECT id, name FROM fuel_cards WHERE id = ?`, id)
 	if err := row.Scan(&fc.Id, &fc.Name); err != nil {
-		return nil, fmt.Errorf("ERR: scanning fuel_card row: %w", err)
+		return nil, fmt.Errorf("ERR: scanning fuel_card row: %v", err)
 	}
 	return fc, nil
 }
@@ -336,7 +344,7 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, nil
 			}
-			return nil, fmt.Errorf("ERR: scanning tank_refuel row: %w", err)
+			return nil, fmt.Errorf("ERR: scanning tank_refuel row: %v", err)
 		}
 
 		// parse updated_at string from SQLite
@@ -362,11 +370,11 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 
 		d.Id, err = uuid.FromString(driverIdStr)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing driver id in tank_refuel scan: %w", err)
+			return nil, fmt.Errorf("ERR: parsing driver id in tank_refuel scan: %v", err)
 		}
 		d.UserId, err = uuid.FromString(userIdStr)
 		if err != nil {
-			return nil, fmt.Errorf("ERR: parsing user id in tank_refuel scan: %w", err)
+			return nil, fmt.Errorf("ERR: parsing user id in tank_refuel scan: %v", err)
 		}
 		if carIdStr.Valid {
 			r.CarId = carIdStr.String
@@ -380,7 +388,7 @@ func scanRefuelRows(rows *sql.Rows) ([]TankRefuel, error) {
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("ERR: iterating tank_refuel rows: %w", err)
+		return nil, fmt.Errorf("ERR: iterating tank_refuel rows: %v", err)
 	}
 
 	return refuels, nil

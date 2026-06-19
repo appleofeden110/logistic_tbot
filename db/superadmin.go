@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"logistictbot/config"
+	"logistictbot/errlog"
 	"os"
 
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
@@ -33,6 +34,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 	var chatIds []int64
 	rows, err := exec.Query("SELECT chat_id FROM users where is_super_admin=1")
 	if err != nil {
+		errlog.ERR.Printf("ERR: getting superadmin's chatids: %v\n", err)
 		return fmt.Errorf("ERR: getting superadmin's chatids: %v\n", err)
 	}
 	defer rows.Close()
@@ -43,6 +45,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 		i++
 		err = rows.Scan(&temp)
 		if err != nil {
+			errlog.ERR.Printf("ERR: scanning rows (i: %d): %v\n", i, err)
 			return fmt.Errorf("ERR: scanning rows (i: %d): %v\n", i, err)
 		}
 		chatIds = append(chatIds, temp)
@@ -61,6 +64,7 @@ func (u *User) SendRequestToSuperAdmins(exec DBExecutor, bot *tgbotapi.BotAPI) e
 	}
 
 	if role == "" {
+		errlog.ERR.Printf("ERR: User does not have driver or manager id: %v\n", u)
 		return fmt.Errorf("ERR: User does not have driver or manager id: %v\n", u)
 	}
 
@@ -131,7 +135,7 @@ func GetDev(globalStorage *sql.DB, chat_id int64) (*DevSesh, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("not a dev")
 		}
-		return nil, fmt.Errorf("ERR: scanning user: %w", err)
+		return nil, fmt.Errorf("ERR: scanning user: %v", err)
 	}
 
 	if chat_id > 0 {

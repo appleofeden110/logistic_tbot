@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"logistictbot/errlog"
 	"reflect"
 	"strings"
 )
@@ -11,6 +12,7 @@ func validateStructTypes(data reflect.Type, fields ...string) error {
 		data = data.Elem()
 	}
 	if data.Kind() != reflect.Struct {
+		errlog.ERR.Printf("ERR: data must be a struct, got %v", data.Kind())
 		return fmt.Errorf("ERR: data must be a struct, got %v", data.Kind())
 	}
 
@@ -26,6 +28,7 @@ func validateStructTypes(data reflect.Type, fields ...string) error {
 	}
 
 	if len(fields) > 0 {
+		errlog.ERR.Printf("ERR: certain fields are not actually in the struct: %v", fields)
 		return fmt.Errorf("ERR: certain fields are not actually in the struct: %v", fields)
 	}
 	return nil
