@@ -2021,7 +2021,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
-
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
@@ -2069,7 +2072,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
-
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
@@ -2116,7 +2122,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
-
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
@@ -2163,7 +2172,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
-
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
@@ -2210,7 +2222,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			if err != nil {
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
-
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
@@ -2253,6 +2268,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 				return driver, fmt.Errorf("ERR: sending a message about a successful edit: %v\n", err)
 			}
 
+			delq.EnqueueToDelete(globalStorage, msg.Chat.ID, msg.MessageID, delq.Requirements{
+				Type:                 delq.TaskEdited,
+				TrackedEditMessageId: task.EditMessageId,
+			})
 			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
 				Type:                 delq.TaskEdited,
 				TrackedEditMessageId: task.EditMessageId,
