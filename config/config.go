@@ -1,6 +1,7 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/appleofeden110/telegram-bot-api/v5"
+	"github.com/joho/godotenv"
 )
 
 const maxLogSize = 20 * 1024 * 1024 // 20mb
@@ -24,6 +26,32 @@ func init() {
 	if err != nil {
 		log.Fatalf("ERR: loading Warsaw timezone: %v", err)
 	}
+}
+
+// usually used for testing, I do not reccomend to use it in actual production
+func LoadEverythingForTest() (int64, *tgbotapi.BotAPI, *sql.DB, error) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		return 0, nil, nil, err
+	}
+
+	chat_id_str := os.Getenv("LOG_BOT_CHAT_ID")
+	chat_id, err := strconv.ParseInt(chat_id_str, 10, 64)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("LOG_BOT_API"))
+	if err != nil {
+		return 0, nil, nil, err
+	}
+
+	globalStorage, err := sql.Open("sqlite3", "../bot.db")
+	if err != nil {
+		return 0, nil, nil, err
+	}
+
+	return chat_id, bot, globalStorage, nil
 }
 
 func GetOutDocsPath() string {

@@ -37,6 +37,14 @@ type User struct {
 	SuperAdminRole SARole    `db:"super_admin_role"`
 }
 
+// for this to work properly, the text in text message should be with ModeHTML under its msg.ParseMode
+func (u *User) TagPerson() string {
+	if len(u.TgTag) <= 1 {
+		return fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a>", u.ChatId, u.Name)
+	}
+	return "@" + u.TgTag
+}
+
 func GetAllUsers(globalStorage *sql.DB) ([]*User, error) {
 	query := `
 		SELECT

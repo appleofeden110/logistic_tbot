@@ -445,7 +445,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 	}
 
 	docMsg := tgbotapi.NewDocument(g.GroupChatId, tgbotapi.FileID(pm.FileId), g.LoadingTopicId)
-	docMsg.Caption = fmt.Sprintf("@%s, %s%s%s", driver.User.TgTag, config.Translate(config.GetLang(g.GroupChatId), "formTextAcceptTask"), config.Translate(config.GetLang(g.GroupChatId), "notes_from_manager"), pm.Caption)
+	docMsg.Caption = fmt.Sprintf("%s, %s%s%s", driver.User.TagPerson(), config.Translate(config.GetLang(g.GroupChatId), "formTextAcceptTask"), config.Translate(config.GetLang(g.GroupChatId), "notes_from_manager"), pm.Caption)
 	docMsg.ParseMode = tgbotapi.ModeHTML
 	docMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
