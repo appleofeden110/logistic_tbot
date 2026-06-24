@@ -11,6 +11,7 @@
   "gotta_be_group": "Повинно бути в групі, та всередині підгрупи де ви хочете призначити відповідний витяг (підгрупи: Tank, Document, Loading або Photo)",
   "notes_from_manager": "\n\nНотатки від логіста:\n\n",
   "task_already_started": "Завдання (id: %d) %s для відправлення %d вже розпочато",
+  "task_already_finished": "Завдання (id: %d) %s для відправлення %d вже закінченно",
   "shipment_already_exists": "Цей маршрут вже існує",
   "shipment_already_started": "Цей маршрут вже почався",
   "shipment_has_not_started": "Цей маршрут ще геть не почався, неможливо закінчити",

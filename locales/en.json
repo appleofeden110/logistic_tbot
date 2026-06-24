@@ -10,6 +10,7 @@
   "gotta_be_manager": "The user must be a manager to use this command",
   "notes_from_manager": "\n\nNotes from the logistician:\n\n",
   "task_already_started": "Task (id: %d) %s for shipment %d has already started",
+  "task_already_finished": "Task (id: %d) %s for shipment %d has already finished",
   "shipment_already_started": "This route has already been started",
   "shipment_has_not_started": "This route has not been started yet, it cannot be finished",
   "shipment_already_ended": "This route has already been finished",

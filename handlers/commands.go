@@ -1197,9 +1197,15 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", taskId, err)
 		}
 
+		if task.IsStarted() {
+			errlog.ERR.Printf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's started\n", driverSesh.User.Name, chatId, fromId, task.Id)
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_already_started", task.Id, task.Type, task.ShipmentId), loadingTopicId))
+			return fmt.Errorf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's started\n", driverSesh.User.Name, chatId, fromId, task.Id)
+		}
+
 		if task.IsFinished() {
 			errlog.ERR.Printf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's finished\n", driverSesh.User.Name, chatId, fromId, task.Id)
-			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_already_started", task.Id, task.Type, task.ShipmentId)))
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_already_finished", task.Id, task.Type, task.ShipmentId), loadingTopicId))
 			return fmt.Errorf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's finished\n", driverSesh.User.Name, chatId, fromId, task.Id)
 		}
 

@@ -739,6 +739,11 @@ func (s *Shipment) IsFinished() bool {
 	return !s.Started.IsZero() && !s.Finished.IsZero()
 }
 
+// not finished though
+func (t *TaskSection) IsStarted() bool {
+	return !t.Start.IsZero() && t.End.IsZero()
+}
+
 func (t *TaskSection) IsFinished() bool {
 	return !t.Start.IsZero() && !t.End.IsZero()
 }
