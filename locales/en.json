@@ -9,6 +9,7 @@
   "gotta_startday": "You must start your shift before performing any actions. You can do this through the menu (commands /start or /menu)",
   "gotta_be_manager": "The user must be a manager to use this command",
   "notes_from_manager": "\n\nNotes from the logistician:\n\n",
+  "task_already_started": "Task (id: %d) %s for shipment %d has already started",
   "shipment_already_started": "This route has already been started",
   "shipment_has_not_started": "This route has not been started yet, it cannot be finished",
   "shipment_already_ended": "This route has already been finished",
@@ -195,5 +196,6 @@
   "washing_changed": "✅ Car wash address successfully updated! <b>The Driver can now complete the task</b>",
   "cleaning_station:todriver": "❗ The manager has sent you a cleaning station in response to your request!\n\n%s\n\tAddress: %s\n\tCountry: %s\n\tCoordinates: %.5f, %.5f\n\tOpening hours: %s\n",
   "manager:cleaning_sent": "✅ Cleaning station has been sent to the driver",
+  "shipment_does_not_belong_to_you": "❗ This shipment is not for you, if you think that this is a mistake, contact the manager or developer (@pinkfloydfan)",
   "VERY_BAD": "Something went seriously wrong. If the bot does not respond to further actions – write or call the developer: @pinkfloydfan or +447990932300"
 }

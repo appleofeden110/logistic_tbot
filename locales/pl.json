@@ -10,6 +10,7 @@
   "gotta_be_manager": "Użytkownik musi być menedżerem, aby użyć tej komendy",
   "notes_from_manager": "\n\nNotatki od logistyka:\n\n",
   "tank_format": "Tank %s\nShipment  %d\n%s\n\n%dkm\n\nDiesel\n%.2fL\nAdblu\n%.2fL\n\n\n%s,\n%s",
+  "task_already_started": "Zadanie (id: %d) %s dla przesyłki %d zostało już rozpoczęte",
   "shipment_already_started": "Ta trasa już została rozpoczęta",
   "shipment_has_not_started": "Ta trasa jeszcze się nie rozpoczęła, nie można jej zakończyć",
   "shipment_already_ended": "Ta trasa została już zakończona",
@@ -195,5 +196,6 @@
   "washing_changed": "✅ Adres myjni został pomyślnie zmieniony! <b>Kierowca może zakończyć zadanie</b>",
   "cleaning_station:todriver": "❗ Menedżer wysłał Ci myjnię w odpowiedzi na Twoje zapytanie!\n\n%s\n\tAdres: %s\n\tKraj: %s\n\tWspółrzędne: %.5f, %.5f\n\tGodziny otwarcia: %s\n",
   "manager:cleaning_sent": "✅ Myjnia została wysłana do kierowcy",
+  "shipment_does_not_belong_to_you": "❗ Ta przesyłka nie jest dla Ciebie, jeśli uważasz, że to pomyłka, skontaktuj się z menedżerem lub deweloperem (@pinkfloydfan)",
   "VERY_BAD": "Coś poszło bardzo nie tak. Jeśli bot nie będzie reagował na dalsze działania – napisz lub zadzwoń do dewelopera: @pinkfloydfan lub +447990932300"
 }

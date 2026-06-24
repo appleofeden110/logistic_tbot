@@ -1197,6 +1197,12 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: getting task by id (%d): %v\n", taskId, err)
 		}
 
+		if task.IsFinished() {
+			errlog.ERR.Printf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's finished\n", driverSesh.User.Name, chatId, fromId, task.Id)
+			Bot.Send(tgbotapi.NewMessage(chatId, config.Translate(config.GetLang(chatId), "task_already_started", task.Id, task.Type, task.ShipmentId)))
+			return fmt.Errorf("Driver %s (in group %d, chat_id %d) tried to start task (%d) when it's finished\n", driverSesh.User.Name, chatId, fromId, task.Id)
+		}
+
 		switch task.Type {
 		case parser.TaskLoad:
 			driverSesh.State = db.StateLoad

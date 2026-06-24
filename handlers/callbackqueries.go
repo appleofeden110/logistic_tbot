@@ -219,6 +219,12 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
 		}
 
+		if shipment.DriverId != driver.Id {
+			errlog.INFO.Printf("The driver %s just tried to access %s's order", driver.User.Name, shipment.DriverName)
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_does_not_belong_to_you"), loadingTopicId))
+			return err
+		}
+
 		if !shipment.Started.IsZero() {
 			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_already_started"), loadingTopicId))
 			return err
