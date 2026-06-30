@@ -92,7 +92,6 @@ var DetailsKeywords = map[string][]string{
 var AllTaskKeywords []string
 
 func init() {
-	// Build a flat list of all task keywords
 	AllTaskKeywords = slices.Concat(
 		TaskKeywords[TaskUnload],
 		TaskKeywords[TaskLoad],
@@ -100,7 +99,6 @@ func init() {
 		TaskKeywords[TaskDropoff],
 		TaskKeywords[TaskCleaning],
 	)
-
 }
 
 func identifyShipmentId(line string) (shipmentId string, found bool) {
@@ -115,22 +113,48 @@ func identifyShipmentId(line string) (shipmentId string, found bool) {
 	return "", false
 }
 
+func leadingDigits(s string) string {
+	s = strings.TrimSpace(s)
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	return s[:end]
+}
+
 func (s *Shipment) IdentifyShipmentIdForDoc(docText string) (after string, found bool) {
 	lines := strings.Split(docText, "\n")
 	for i, line := range lines {
 		if a, f := strings.CutPrefix(line, "Shipment"); f {
 			a = strings.TrimSpace(a)
 			a, _ = strings.CutPrefix(a, ":")
-			if b, f := strings.CutSuffix(a, "Hoyer GmbH"); f {
-				a = b
+			a = strings.TrimSpace(a)
+
+			consumedUntil := i
+			// Defensive: some layouts may still push the value to a following
+			// line instead of keeping it on the "Shipment:" line.
+			for j := 0; a == "" && j < 3 && i+1+j < len(lines); j++ {
+				next := strings.TrimSpace(lines[i+1+j])
+				consumedUntil = i + 1 + j
+				if next == "" {
+					continue
+				}
+				a = next
 			}
-			shipmentId, err := strconv.ParseInt(strings.TrimSpace(a), 0, 64)
-			if err != nil {
-				log.Printf("Shipment id couldn't be made into an Integer: %s cannot be number\n", strings.TrimSpace(a))
+
+			numStr := leadingDigits(a)
+			if numStr == "" {
+				log.Printf("Shipment id couldn't be made into an Integer: %s cannot be number\n", a)
 				return docText, false
 			}
-			s.ShipmentId = shipmentId
-			after = strings.Join(lines[i+1:], "\n")
+
+			shipmentId, err := strconv.ParseInt(numStr, 0, 64)
+			if err != nil {
+				log.Printf("Shipment id couldn't be made into an Integer: %s cannot be number\n", numStr)
+				return docText, false
+			}
+			s.Id = shipmentId
+			after = strings.Join(lines[consumedUntil+1:], "\n")
 			return after, true
 		}
 	}
@@ -629,13 +653,11 @@ func parseTimeRange(dateStr string) (time.Time, time.Time, error) {
 
 	layout := "02/01/2006 15:04"
 
-	// Parse start time
 	startTime, err := time.Parse(layout, parts[0])
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 
-	// Parse end time (need to add date prefix)
 	endTimeStr := parts[0][:11] + parts[1] // "03/11/2025 " + "14:00"
 	endTime, err := time.Parse(layout, endTimeStr)
 	if err != nil {

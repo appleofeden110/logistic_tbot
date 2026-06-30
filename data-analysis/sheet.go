@@ -156,7 +156,7 @@ func CreateMonthlyStatement(month time.Month, year int, db *sql.DB) (string, err
 func ConvertShipmentToStatements(shipment *parser.Shipment) []ShipmentStatement {
 	statements := make([]ShipmentStatement, 0)
 
-	fmt.Printf("Processing shipment %d with %d tasks\n", shipment.ShipmentId, len(shipment.Tasks))
+	fmt.Printf("Processing shipment %d with %d tasks\n", shipment.Id, len(shipment.Tasks))
 
 	var startKm, endKm int64
 	var totalWeight string
@@ -190,7 +190,7 @@ func ConvertShipmentToStatements(shipment *parser.Shipment) []ShipmentStatement 
 				fmt.Printf("  Found unload task, creating statement\n")
 
 				statement := ShipmentStatement{
-					ShipmentId:     shipment.ShipmentId,
+					ShipmentId:     shipment.Id,
 					LoadAddress:    loadTask.Address,
 					LoadDatetime:   formatDateTimeRange(loadTask.Start, loadTask.End),
 					LoadDuration:   calculateDuration(loadTask.Start, loadTask.End),

@@ -496,7 +496,7 @@ func (comms *CommunicationMsg) createDriverMessage(text string, globalStorage *s
 		}
 		comms.Receiver = receiver
 
-		log.Println(text, receiver)
+		// log.Println(text, receiver)
 		res, err := globalStorage.Exec(
 			`INSERT INTO communication_messages
 			(sender_id, reciever_id, message_content) VALUES (?, ?, ?)`,

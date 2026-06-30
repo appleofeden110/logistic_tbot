@@ -14,8 +14,8 @@ func TestReadDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if shipment.ShipmentId != int64(4359172) {
-		t.Fatalf("shipment id should be 4359172, but it is: %d", shipment.ShipmentId)
+	if shipment.Id != int64(4359172) {
+		t.Fatalf("shipment id should be 4359172, but it is: %d", shipment.Id)
 	}
 
 	res, secRes := parser.ReadDoc(shipment)

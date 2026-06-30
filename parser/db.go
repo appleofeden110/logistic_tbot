@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"logistictbot/config"
 	"logistictbot/errlog"
 	"strconv"
@@ -26,7 +25,7 @@ func scanShipment(rows *sql.Rows) (*Shipment, error) {
 	var createdAt, updatedAt, started, finished sql.NullString
 
 	err := rows.Scan(
-		&shipment.ShipmentId,
+		&shipment.Id,
 		&docLang,
 		&instrType,
 		&shipment.CarId,
@@ -330,7 +329,7 @@ func queryShipments(db *sql.DB, query string, args ...interface{}) ([]*Shipment,
 			return nil, err
 		}
 
-		tasks, err := loadTasksForShipment(tx, shipment.ShipmentId)
+		tasks, err := loadTasksForShipment(tx, shipment.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -501,10 +500,10 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 			doc_id = excluded.doc_id,
 			updated_at = excluded.updated_at`
 
-	log.Println(s)
+	// log.Println(s)
 	_, err = tx.Exec(
 		query,
-		s.ShipmentId,
+		s.Id,
 		string(s.DocLang),
 		string(s.InstructionType),
 		s.CarId,
@@ -555,13 +554,13 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		if task.Type == "" {
 			continue
 		}
-		task.ShipmentId = s.ShipmentId
+		task.ShipmentId = s.Id
 		task.ShipmentDocId = s.ShipmentDocId
 		fmt.Println(task)
 		result, err := tx.Exec(
 			taskQuery,
 			task.Type,
-			s.ShipmentId,
+			s.Id,
 			task.Content,
 			task.CustomerReference,
 			task.LoadReference,
@@ -626,7 +625,7 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 	var finished sql.NullTime
 
 	err = row.Scan(
-		&s.ShipmentId,
+		&s.Id,
 		&docLang,
 		&instrType,
 		&s.CarId,
@@ -681,12 +680,23 @@ func GetShipment(db *sql.DB, shipmentId int64) (*Shipment, error) {
 		s.Finished = finished.Time
 	}
 
-	s.Tasks, err = loadTasksForShipment(tx, s.ShipmentId)
+	s.Tasks, err = loadTasksForShipment(tx, s.Id)
 	if err != nil {
 		return nil, fmt.Errorf("ERR: getting tasks for the shipment: %v\n", err)
 	}
 
 	return s, nil
+}
+
+// all that is needed is the id
+func (s *Shipment) DeleteShipment(db *sql.DB) error {
+	_, err := db.Exec("DELETE from shipments WHERE id = ?", s.Id)
+	if err != nil {
+		errlog.ERR.Printf("deleting shipment by id (%d): %v\n", s.Id, err)
+		return fmt.Errorf("ERR: deleting shipment by id: %v\n", err)
+	}
+
+	return nil
 }
 
 func (s *Shipment) StartShipment(db *sql.DB) error {
@@ -698,7 +708,7 @@ func (s *Shipment) StartShipment(db *sql.DB) error {
 
 	s.Started = time.Now().In(config.WarsawLoc)
 
-	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
+	_, err := db.Exec(query, s.Started.Format("2006-01-02 15:04:05.999999999-07:00"), s.Id)
 	if err != nil {
 		errlog.ERR.Printf("ERR: starting shipment: %v\n", err)
 		return fmt.Errorf("ERR: starting shipment: %v\n", err)
@@ -716,7 +726,7 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 	s.Finished = time.Now().In(config.WarsawLoc)
 
-	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.ShipmentId)
+	_, err := db.Exec(query, s.Finished.Format("2006-01-02 15:04:05.999999999-07:00"), s.Id)
 	if err != nil {
 		errlog.ERR.Printf("ERR: finishing shipment: %v\n", err)
 		return fmt.Errorf("ERR: finishing shipment: %v\n", err)
@@ -727,10 +737,10 @@ func (s *Shipment) FinishShipment(db *sql.DB) error {
 
 func (s *Shipment) UnfinishShipment(db *sql.DB) error {
 	query := `UPDATE shipments SET finished = NULL WHERE id = ?`
-	_, err := db.Exec(query, s.ShipmentId)
+	_, err := db.Exec(query, s.Id)
 	if err != nil {
-		errlog.ERR.Printf("ERR: unfinish shipment %d: %v", s.ShipmentId, err)
-		return fmt.Errorf("ERR: unfinish shipment %d: %v", s.ShipmentId, err)
+		errlog.ERR.Printf("ERR: unfinish shipment %d: %v", s.Id, err)
+		return fmt.Errorf("ERR: unfinish shipment %d: %v", s.Id, err)
 	}
 	return nil
 }

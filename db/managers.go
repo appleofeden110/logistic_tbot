@@ -450,7 +450,7 @@ func (pm *PendingMessage) SendDocToDriver(exec *sql.DB, bot *tgbotapi.BotAPI) er
 			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(pm.ToChatId), "btn:readdoc"), fmt.Sprintf("readdoc:%d", f.Id)),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(pm.ToChatId), "btn:shipment:start"), fmt.Sprintf("shipment:accept:%d", shipment.ShipmentId)),
+			tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(pm.ToChatId), "btn:shipment:start"), fmt.Sprintf("shipment:accept:%d", shipment.Id)),
 		),
 	)
 

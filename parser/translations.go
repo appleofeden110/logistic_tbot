@@ -16,7 +16,7 @@ import (
 type EditStatus string
 
 type Shipment struct {
-	ShipmentId      int64
+	Id              int64
 	DocLang         Language
 	InstructionType InstructionType
 	Tasks           []*TaskSection
@@ -252,7 +252,7 @@ func ReadDoc(details *Shipment) (header string, taskByType map[string]string) {
 
 	taskByType = make(map[string]string)
 
-	header += fmt.Sprintf("<b>Номер маршрут</b>:	%d\n", details.ShipmentId)
+	header += fmt.Sprintf("<b>Номер маршрут</b>:	%d\n", details.Id)
 	header += fmt.Sprintf("<b>Тип інструкції</b>:		%s\n", details.InstructionType)
 	header += fmt.Sprintf("<b>Мова документу</b>:		%s\n", details.DocLang)
 	header += fmt.Sprintf("<b>№ Авто</b>:				%s\n", details.CarId)
@@ -384,7 +384,7 @@ func (s *Shipment) ExtractTaskSections(docText string) []*TaskSection {
 			}
 
 			currentSection = &TaskSection{
-				ShipmentId: s.ShipmentId,
+				ShipmentId: s.Id,
 				Type:       taskType,
 				Content:    line + "\n",
 				Lines:      []string{line},

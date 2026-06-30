@@ -54,9 +54,8 @@ func HandleShipmentDetails(chatId, shipmentId int64, topicId int, globalStorage 
 
 	msg := tgbotapi.NewDocument(chatId, tgbotapi.FileID(f.TgFileId), topicId)
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.Caption = fmt.Sprintf("<b><i>Shipment</i></b> №%d:\n<b>Водій</b>: %s (@%s) - %s\nЗавдання:\n\n", shipment.ShipmentId, driver.User.Name, driver.User.TgTag, driver.CarId)
+	msg.Caption = fmt.Sprintf("<b><i>Shipment</i></b> №%d:\n<b>Водій</b>: %s (@%s) - %s\nЗавдання:\n\n", shipment.Id, driver.User.Name, driver.User.TgTag, driver.CarId)
 
-	log.Println(shipment.Tasks)
 	for i, task := range shipment.Tasks {
 		msg.Caption += fmt.Sprintf("%d. <b><i>%s</i></b>\n<b>Адреса в документі</b>: %s\n\n", i+1, strings.ToUpper(string(task.Type[0]))+task.Type[1:], task.Address)
 	}
@@ -1011,7 +1010,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 
 		addressMsg := tgbotapi.NewMessage(chatId,
-			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.ShipmentId), loadingTopicId)
+			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.Id), loadingTopicId)
 		btn := tgbotapi.InlineKeyboardButton{
 			Text:                         config.Translate(config.GetLang(chatId), "btn:choose_address"),
 			SwitchInlineQueryCurrentChat: new(string),
@@ -1057,7 +1056,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 		}
 
 		addressMsg := tgbotapi.NewMessage(chatId,
-			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.ShipmentId), loadingTopicId)
+			managerList+config.Translate(config.GetLang(chatId), "driver:washing", driverSesh.User.Name, shipment.Id), loadingTopicId)
 		btn := tgbotapi.NewInlineKeyboardButtonData(
 			config.Translate(config.GetLang(chatId), "btn:choose_address_for_task"),
 			"manager:choose_cleaning:"+_idString, // in this situation _idString is taskId
@@ -1144,7 +1143,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 			return fmt.Errorf("ERR: getting latest shipment by driver id: %v\n", err)
 		}
 
-		tr := &db.TankRefuel{Driver: driverSesh, CarId: driverSesh.CarId, FuelCardId: cardId, ShipmentId: &s.ShipmentId}
+		tr := &db.TankRefuel{Driver: driverSesh, CarId: driverSesh.CarId, FuelCardId: cardId, ShipmentId: &s.Id}
 
 		err = tr.StoreTankRefuel(globalStorage)
 		if err != nil {
@@ -2446,7 +2445,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 						if len(msgs) > 0 {
 							picsAttachedMsg := tgbotapi.NewMessage(
 								msg.Chat.ID,
-								fmt.Sprintf(config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs))),
+								config.Translate(config.GetLang(msg.Chat.ID), "driver:pics_attached", len(msgs)),
 								loadingTopicId,
 							)
 							picsAttachedMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
@@ -2553,7 +2552,7 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			Bot.Send(pin)
 
-			driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.ShipmentId, driver.CarId)
+			driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.Id, driver.CarId)
 			startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
 
 			/*managerSessionsMu.Lock()

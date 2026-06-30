@@ -18,8 +18,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var TestManagerChatId int64 = 2042374598
-
 func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) error {
 
 	var err error
@@ -186,12 +184,14 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 	case strings.HasPrefix(cbq.Data, "createform:"):
 		err = HandleCommand(cbq.Message.Chat.ID, cbq.From, fmt.Sprintf("/%s", cbq.Data), globalStorage, cbq.From.LanguageCode, topicId)
 	case strings.HasPrefix(cbq.Data, "shipment:accept:"):
+		defer recover()
 
 		driverSessionsMu.Lock()
 		driver, exists := driverSessions[cbq.From.ID]
 		driverSessionsMu.Unlock()
 
 		if !exists {
+
 			msg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "gotta_register"), topicId)
 			msg.ParseMode = tgbotapi.ModeHTML
 			_, err = Bot.Send(msg)
@@ -250,8 +250,9 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
 		markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:end_shipment"), "shipment:end:"+shipmentIdString)))
 
+		log.Println("stuff")
 		for _, task := range shipment.Tasks {
-			msg.Text += fmt.Sprintf(config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header", task.Type))
+			msg.Text += config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header", task.Type)
 			msg.Text += parser.ReadTaskShort(task)
 			markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:start_task")+task.Type, "driver:begintask:"+strconv.Itoa(task.Id))))
 		}
@@ -303,7 +304,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 		endMsg := tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_end", shipmentId), loadingTopicId)
 		endMsg.ParseMode = tgbotapi.ModeHTML
-		endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "get_shipment_back"), "shipment:unend:"+strconv.Itoa(int(shipment.ShipmentId)))))
+		endMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "get_shipment_back"), "shipment:unend:"+strconv.Itoa(int(shipment.Id)))))
 		_, err = Bot.Send(endMsg)
 		return err
 

@@ -47,7 +47,7 @@ func FormatShipmentForList(s *parser.Shipment, index int, lang config.LangCode) 
 
 	return config.Translate(lang,
 		"shipment_format",
-		index+1, s.ShipmentId,
+		index+1, s.Id,
 		status,
 		s.CarId,
 		s.Container,
@@ -176,7 +176,7 @@ func CreateShipmentListMessage(shipments []*parser.Shipment, page int, chatId in
 			rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
 					config.Translate(config.GetLang(chatId), "shipment_details", i+1),
-					fmt.Sprintf("shipment:details:%d", shipments[i].ShipmentId),
+					fmt.Sprintf("shipment:details:%d", shipments[i].Id),
 				),
 			))
 		}
