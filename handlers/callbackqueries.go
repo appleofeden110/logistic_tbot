@@ -226,6 +226,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		if !shipment.Started.IsZero() {
+			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprint(shipment.Started.IsZero), loadingTopicId))
 			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_already_started"), loadingTopicId))
 			return err
 		}
