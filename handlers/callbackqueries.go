@@ -219,6 +219,7 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 			return fmt.Errorf("ERR: getting shipment by id: %v\n", err)
 		}
 
+		fmt.Printf("Shipment started? %t", shipment.Started.IsZero())
 		if shipment.DriverId != driver.Id {
 			errlog.INFO.Printf("The driver %s just tried to access %s's order", driver.User.Name, shipment.DriverName)
 			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_does_not_belong_to_you"), loadingTopicId))
@@ -226,15 +227,16 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		}
 
 		if !shipment.Started.IsZero() {
-			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, fmt.Sprint(shipment.Started.IsZero), loadingTopicId))
 			_, err = Bot.Send(tgbotapi.NewMessage(cbq.Message.Chat.ID, config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment_already_started"), loadingTopicId))
 			return err
 		}
 
-		err = shipment.StartShipment(globalStorage)
-		if err != nil {
-			errlog.ERR.Printf("ERR: starting shipment: %v\n", err)
-			return fmt.Errorf("ERR: starting shipment: %v\n", err)
+		if shipment.Started.IsZero() {
+			err = shipment.StartShipment(globalStorage)
+			if err != nil {
+				errlog.ERR.Printf("ERR: starting shipment: %v\n", err)
+				return fmt.Errorf("ERR: starting shipment: %v\n", err)
+			}
 		}
 
 		shipment.Tasks, err = parser.GetAllTasksByShipmentId(globalStorage, shipmentId)
