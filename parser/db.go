@@ -556,7 +556,7 @@ func (s *Shipment) StoreShipment(db *sql.DB) error {
 		}
 		task.ShipmentId = s.Id
 		task.ShipmentDocId = s.ShipmentDocId
-		fmt.Println(task)
+		fmt.Println(task.Product)
 		result, err := tx.Exec(
 			taskQuery,
 			task.Type,

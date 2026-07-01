@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"regexp"
 	"slices"
@@ -111,6 +112,10 @@ func identifyShipmentId(line string) (shipmentId string, found bool) {
 		return strings.TrimSpace(a), f
 	}
 	return "", false
+}
+
+func esc(s string) string {
+	return html.EscapeString(s)
 }
 
 func leadingDigits(s string) string {
@@ -641,6 +646,17 @@ func (t *TaskSection) getTaskDetails() bool {
 
 		}
 	}
+
+	t.TankStatus = esc(t.TankStatus)
+	t.CustomerReference = esc(t.CustomerReference)
+	t.LoadReference = esc(t.LoadReference)
+	t.UnloadReference = esc(t.UnloadReference)
+	t.Weight = esc(t.Weight)
+	t.Volume = esc(t.Volume)
+	t.Temperature = esc(t.Temperature)
+	t.Remark = esc(t.Remark)
+	t.Product = esc(t.Product)
+
 	return false
 }
 
