@@ -250,7 +250,6 @@ func HandleCallbackQuery(cbq *tgbotapi.CallbackQuery, globalStorage *sql.DB) err
 		markup := make([][]tgbotapi.InlineKeyboardButton, 0)
 		markup = append(markup, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(config.Translate(config.GetLang(cbq.Message.Chat.ID), "btn:end_shipment"), "shipment:end:"+shipmentIdString)))
 
-		log.Println("stuff")
 		for _, task := range shipment.Tasks {
 			msg.Text += config.Translate(config.GetLang(cbq.Message.Chat.ID), "shipment:task_header", task.Type)
 			msg.Text += parser.ReadTaskShort(task)

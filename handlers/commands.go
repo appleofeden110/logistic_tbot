@@ -205,11 +205,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
-		msg := tgbotapi.NewMessage(chatId, "TEST DELETION")
-		message, _ := Bot.Send(msg)
-
-		delq.ScheduleForDeletion(message.Chat.ID, message.MessageID, globalStorage)
-
+		tgbotapi.Web
 	case "createform:driver_registration":
 		d := db.Driver{User: &db.User{ChatId: chatId}}
 		err := createForm(chatId, d, FormDriver(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:driver"), "driver's registration")
@@ -1336,7 +1332,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 				return err
 			}
 
-			driverInfo := config.Translate(config.GetLang(chatId), "manager:driver_finished", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
+			// driverInfo := config.Translate(config.GetLang(chatId), "manager:driver_finished", driverSesh.User.Name, driverSesh.User.TgTag, driverSesh.CarId)
 
 			endMsg, err := GenEndTaskMessage(chatId, task, globalStorage)
 			if err != nil {
@@ -1349,7 +1345,7 @@ func HandleDriverCommands(chatId int64, fromId int64, command string, messageId 
 					return err
 				}*/
 
-			endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
+			// endMsg.Text = strings.Join([]string{driverInfo, endMsg.Text}, "\n")
 
 			g := db.DriverGroup{CurrentCar: &db.Car{Id: driverSesh.CarId}}
 
@@ -2493,10 +2489,10 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 			return driver, fmt.Errorf("ERR: getting task by driver's id: %s\n", driver.Id.String())
 		}
 
-		shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
-		if err != nil {
-			return driver, fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
-		}
+		// shipment, err := parser.GetShipment(globalStorage, task.ShipmentId)
+		// if err != nil {
+		// 	return driver, fmt.Errorf("ERR: getting shipment from a task: %v\n", err)
+		// }
 
 		if task.CurrentKilometrage == 0 && task.Start.IsZero() {
 			km, err := db.ParseKilometrage(msg.Text)
@@ -2552,8 +2548,8 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			Bot.Send(pin)
 
-			driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.Id, driver.CarId)
-			startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
+			// driverInfo := config.Translate(config.GetLang(msg.Chat.ID), "manager:driver_started", driver.User.Name, driver.User.TgTag, task.Type, shipment.Id, driver.CarId)
+			// startTaskMsg.Text = strings.Join([]string{driverInfo, startTaskMsg.Text}, "\n")
 
 			/*managerSessionsMu.Lock()
 			defer managerSessionsMu.Unlock()
@@ -2561,24 +2557,24 @@ func HandleDriverInputState(driver *db.Driver, msg *tgbotapi.Message, globalStor
 
 			}*/
 
-			g := db.DriverGroup{CurrentCar: &db.Car{Id: driver.CarId}}
+			// g := db.DriverGroup{CurrentCar: &db.Car{Id: driver.CarId}}
 
-			err = g.GetDriverGroupByCar(globalStorage)
-			if err != nil {
-				return driver, fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
-			}
+			// err = g.GetDriverGroupByCar(globalStorage)
+			// if err != nil {
+			// 	return driver, fmt.Errorf("Cannot get driver group by the car id: %v\n", err)
+			// }
 
-			startTaskMsg.ReplyMarkup = nil
-			startTaskMsg.ChatID = g.GroupChatId
-			startTaskMsg.MessageThreadID = g.LoadingTopicId
-			sent, err := Bot.Send(startTaskMsg)
-			if err != nil {
-				return driver, fmt.Errorf("%d (g: %s) could not receive message: %v\n", g.GroupChatId, g.CurrentCar.Id, err)
-			}
-			delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
-				Type:          delq.TaskFinished,
-				TrackedTaskId: task.Id,
-			})
+			// startTaskMsg.ReplyMarkup = nil
+			// startTaskMsg.ChatID = g.GroupChatId
+			// startTaskMsg.MessageThreadID = g.LoadingTopicId
+			// sent, err := Bot.Send(startTaskMsg)
+			// if err != nil {
+			// 	return driver, fmt.Errorf("%d (g: %s) could not receive message: %v\n", g.GroupChatId, g.CurrentCar.Id, err)
+			// }
+			// delq.EnqueueToDelete(globalStorage, sent.Chat.ID, sent.MessageID, delq.Requirements{
+			// 	Type:          delq.TaskFinished,
+			// 	TrackedTaskId: task.Id,
+			// })
 			return driver, err
 		}
 	case db.StateWaitingWeight:

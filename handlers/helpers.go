@@ -29,6 +29,7 @@ func GenStartTaskMsg(chatId int64, task *parser.TaskSection, globalStorage *sql.
 
 	startTaskMsg := tgbotapi.NewMessage(chatId,
 		fmt.Sprintf(TaskSubmissionFormatText,
+			shipment.CarId,
 			task.ShipmentId,
 			strings.ToUpper(task.Type),
 			shipment.Chassis,
@@ -90,13 +91,14 @@ func GenEndTaskMessage(chatId int64, task *parser.TaskSection, globalStorage *sq
 	country, _ := parser.ExtractCountry(task.Address)
 
 	if task.Start.Day() != task.End.Day() {
-		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatTextDifferentDate,
+		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(TaskSubmissionFormatTextDifferentDate,
+			shipment.CarId,
 			task.ShipmentId,
 			strings.ToUpper(task.Type),
 			shipment.Chassis,
 			shipment.Container,
-			task.Start.In(config.WarsawLoc).Format("02.01.2006"),
-			task.End.In(config.WarsawLoc).Format("02.01.2006"),
+			task.Start.In(config.WarsawLoc).Format("02.01"),
+			task.End.In(config.WarsawLoc).Format("02.01"),
 			task.Start.In(config.WarsawLoc).Format("15:04"),
 			task.End.In(config.WarsawLoc).Format("15:04"),
 			db.FormatKilometrage(int(task.CurrentKilometrage)),
@@ -106,8 +108,10 @@ func GenEndTaskMessage(chatId int64, task *parser.TaskSection, globalStorage *sq
 			task.CurrentWeight,
 			task.CurrentTemperature),
 		)
+
 	} else {
-		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(config.Translate(config.GetLang(chatId), "driver:task_done")+TaskSubmissionFormatText,
+		endMsg = tgbotapi.NewMessage(chatId, fmt.Sprintf(TaskSubmissionFormatText,
+			shipment.CarId,
 			task.ShipmentId,
 			strings.ToUpper(task.Type),
 			shipment.Chassis,

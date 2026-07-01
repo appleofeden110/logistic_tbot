@@ -13,9 +13,9 @@ var (
 		tgbotapi.NewInlineKeyboardButtonData("finish dev sesh", "dev:finish"),
 	))
 
-	// shipment id, task name, container, chassis, date formatted as "02.01.2006", times as 17:15, kilometrage, address, country with country emoji, weight and temperature (done from form, needed usually only for load and unload)
-	TaskSubmissionFormatText              = "Shipment %d\n\n%s\n\n%s %s\n\n%s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
-	TaskSubmissionFormatTextDifferentDate = "Shipment %d\n\n%s\n\n%s %s\n\n%s - %s\n%s - %s\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
+	// Truck, shipment id, task name, container, chassis, date formatted as "02.01.2006", times as 17:15, kilometrage, address, country with country emoji, weight and temperature (done from form, needed usually only for load and unload)
+	TaskSubmissionFormatText              = "Truck: <b>%s</b>\n\nShipment: %d\n\n<b>%s</b>\n\n%s %s\n\n<b>%s</b>\n<i>%s - %s</i>\n\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
+	TaskSubmissionFormatTextDifferentDate = "Truck: <b>%s</b>\n\nShipment: <b>%d\n\n<b>%s</b>\n\n%s %s\n\n<b>%s - %s</b>\n<i>%s - %s</i>\n%s\n\n%s\n\n%s %s\n\n%d kg      %.2f ℃"
 )
 
 func DriverStartMarkupPause(lang config.LangCode) tgbotapi.InlineKeyboardMarkup {
