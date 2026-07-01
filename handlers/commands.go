@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"html"
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
@@ -205,26 +206,17 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
-		_, err := globalStorage.Exec(
-			"UPDATE shipments SET started = ? WHERE id = ?",
-			time.Time{}, // Go's zero value: 0001-01-01 00:00:00 +0000 UTC
-			4547689,
-		)
-		if err != nil {
-			log.Fatal(err)
+		btn := tgbotapi.KeyboardButton{
+			Text:   "Open App",
+			WebApp: &tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/"},
 		}
+		kb := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(btn))
 
-		// btn := tgbotapi.KeyboardButton{
-		// 	Text:   "Open App",
-		// 	WebApp: &tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/"},
-		// }
-		// kb := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(btn))
-
-		// msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("<b>Натисніть %s кнопку нижче що б перейти до форми:</b>", html.EscapeString("<2%>")))
-		// msg.ParseMode = tgbotapi.ModeHTML
-		// fmt.Println(msg.Text)
-		// msg.ReplyMarkup = kb
-		// fmt.Println(Bot.Send(msg))
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("<b>Натисніть %s кнопку нижче що б перейти до форми:</b>", html.EscapeString("<2%>")))
+		msg.ParseMode = tgbotapi.ModeHTML
+		fmt.Println(msg.Text)
+		msg.ReplyMarkup = kb
+		fmt.Println(Bot.Send(msg))
 	case "createform:driver_registration":
 		d := db.Driver{User: &db.User{ChatId: chatId}}
 		err := createForm(chatId, d, FormDriver(config.GetLang(chatId)), config.Translate(config.GetLang(chatId), "form:driver"), "driver's registration")
