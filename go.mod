@@ -6,6 +6,7 @@ require (
 	github.com/appleofeden110/telegram-bot-api/v5 v5.0.0-20260306181958-8731e7271cd0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/joho/godotenv v1.5.1
+	github.com/looplab/fsm v1.0.3
 	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/tiendc/go-deepcopy v1.7.2
 	github.com/xuri/excelize/v2 v2.10.1
