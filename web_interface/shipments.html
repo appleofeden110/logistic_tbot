@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shipment Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .chevron {
+            transition: transform 0.2s ease;
+        }
+
+        .task-card.open .chevron {
+            transform: rotate(180deg);
+        }
+
+        .task-card .task-body {
+            display: none;
+        }
+
+        .task-card.open .task-body {
+            display: block;
+        }
+
+        .nested-acc .nested-body {
+            display: none;
+        }
+
+        .nested-acc.open .nested-body {
+            display: block;
+        }
+
+        .nested-acc.open .nested-chevron {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+
+<body class="bg-[#f7f1f1] min-h-screen text-[#1c1113]">
+    <header class="bg-[#140a0d] text-[#f7ecec]">
+        <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-[#a67b82] mono">Shipment</p>
+                <h1 class="text-2xl font-semibold" id="shipment-title">Edit Shipment <span class="mono text-[#a67b82]"
+                        id="shipment-id-label">#—</span></h1>
+            </div>
+            <div class="text-right text-sm text-[#a67b82]">
+                <p>Status</p>
+                <p class="text-[#ff4d6d] font-medium" id="shipment-status">Loading…</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-8 space-y-8">
+
+        <!-- SHIPMENT (mostly read-only) -->
+        <section class="bg-white rounded-lg border border-[#e8d9da] shadow-sm">
+            <div class="px-6 py-4 border-b border-[#e8d9da] flex items-center justify-between">
+		    <h2 class="font-semibold text-[#170b0d]" id="shipment_id">Shipment details ()</h2>
+                <span class="text-xs text-[#a67b82] mono">read-only unless noted</span>
+            </div>
+
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Shipment ID</label>
+                    <input data-field="Id" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm mono cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Instruction type</label>
+                    <input data-field="InstructionType" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm capitalize cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Car ID</label>
+                    <input data-field="CarId" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm mono cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Driver</label>
+                    <input data-field="DriverName" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Started</label>
+                    <input data-field="Started" type="datetime-local"
+                        class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Finished</label>
+                    <input data-field="Finished" type="datetime-local"
+                        class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Container</label>
+                    <input data-field="Container" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm mono cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-[#3a2226] mb-1">Chassis</label>
+                    <input data-field="Chassis" type="text" disabled
+                        class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm mono cursor-not-allowed" />
+                </div>
+
+                <div class="sm:col-span-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium text-[#3a2226]">General remark</label>
+                        <button type="button" id="remark-edit-toggle"
+                            class="text-xs font-medium text-[#b3122f] hover:text-[#7a0d21]">Edit</button>
+                    </div>
+                    <p id="remark-display"
+                        class="rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#3a2226] px-3 py-2 text-sm min-h-[2.5rem]">
+                    </p>
+                    <textarea data-field="GeneralRemark" id="remark-input" rows="2"
+                        class="hidden w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]"></textarea>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TASKS -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-semibold text-[#170b0d] text-lg">Tasks</h2>
+                    <p class="text-sm text-[#6b4a4e]">Load, unload, collect, drop-off, and cleaning legs.</p>
+                </div>
+                <div class="relative">
+                    <button type="button" id="add-task"
+                        class="inline-flex items-center gap-1.5 rounded-md bg-[#140a0d] text-white text-sm font-medium px-4 py-2 hover:bg-[#3a1016] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#140a0d]">
+                        <span class="text-lg leading-none">+</span> Add task
+                    </button>
+                    <div id="add-task-menu"
+                        class="hidden absolute right-0 mt-2 w-44 rounded-md border border-[#e8d9da] bg-white shadow-lg z-10 overflow-hidden">
+                    </div>
+                </div>
+            </div>
+
+            <div id="tasks-container" class="space-y-4"></div>
+
+            <div id="empty-state"
+                class="hidden rounded-lg border border-dashed border-[#d9c3c5] bg-white py-10 text-center text-[#a67b82] text-sm">
+                No tasks yet. Add one to get started.
+            </div>
+        </section>
+
+        <div class="flex items-center justify-between pb-10">
+            <p class="text-sm text-[#a67b82]" id="task-count">0 tasks</p>
+            <div class="flex gap-3">
+                <button type="button" id="preview-json"
+                    class="rounded-md border border-[#d9c3c5] bg-white text-[#3a2226] text-sm font-medium px-4 py-2 hover:bg-[#f7eaeb] transition-colors">
+                    Preview data
+                </button>
+                <button type="button" id="save-all"
+                    class="rounded-md bg-[#b3122f] text-white text-sm font-medium px-5 py-2 hover:bg-[#8e0f26] transition-colors">
+                    Save changes
+                </button>
+            </div>
+        </div>
+
+        <pre id="json-output" class="hidden mono text-xs bg-[#140a0d] text-[#ff8fa3] rounded-lg p-4 overflow-x-auto">
+        </pre>
+
+    </main>
+
+    <!-- One task = one accordion. Header row is the "Edit task" control: near full width,
+         holds the Type select so it's reachable without expanding on a small screen. -->
+    <template id="task-template">
+        <div class="task-card bg-white rounded-lg border border-[#e8d9da] shadow-sm overflow-hidden">
+
+            <button type="button"
+                class="task-toggle w-full text-left px-4 py-3 flex items-center gap-3 bg-[#f7eaeb] hover:bg-[#f0dcde] transition-colors">
+                <select data-field="Type"
+                    class="task-type-select rounded-md border border-[#d9c3c5] bg-white px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]"
+                    onclick="event.stopPropagation()">
+                    <option value="load">Load</option>
+                    <option value="unload">Unload</option>
+                    <option value="collect">Collect</option>
+                    <option value="dropoff">Drop-off</option>
+                    <option value="cleaning">Cleaning</option>
+                </select>
+                <span class="flex-1 min-w-0 text-sm text-[#3a2226] truncate task-summary">New task</span>
+                <span
+                    class="edit-status-badge text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#e8d9da] text-[#6b4a4e]"></span>
+                <span class="chevron text-[#a67b82]">▾</span>
+            </button>
+
+            <div class="task-body border-t border-[#e8d9da]">
+                <div class="px-4 pt-3">
+                    <button type="button"
+                        class="remove-task text-xs font-medium text-[#b3122f] hover:text-[#7a0d21]">Remove this
+                        task</button>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Address</label>
+                        <input data-field="Address" type="text"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Destination address</label>
+                        <input data-field="DestinationAddress" type="text"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Original address <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="OriginalAddress" type="text" disabled placeholder="Unchanged"
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Company</label>
+                        <input data-field="Company" type="text"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div class="sm:col-span-2 border-t border-[#f0e2e3] pt-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-[#a67b82] mb-3">Cargo</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Product</label>
+                        <input data-field="Product" type="text"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Tank status</label>
+                        <select data-field="TankStatus"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]">
+                            <option value="">Select status</option>
+                            <option value="empty">Empty</option>
+                            <option value="full">Full</option>
+                            <option value="partial">Partial</option>
+                            <option value="cleaned">Cleaned</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Customer reference <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="CustomerReference" type="text" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm mono cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Compartment <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="Compartment" type="number" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Weight <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="Weight" type="text" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Volume <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="Volume" type="text" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Temperature <span
+                                class="text-[#a67b82] font-normal">(read-only)</span></label>
+                        <input data-field="Temperature" type="text" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div class="sm:col-span-2 border-t border-[#f0e2e3] pt-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-[#a67b82] mb-3">Timing</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Start</label>
+                        <input data-field="Start" type="datetime-local"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">End</label>
+                        <input data-field="End" type="datetime-local"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Remark</label>
+                        <textarea data-field="Remark" rows="2"
+                            class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]"></textarea>
+                    </div>
+
+                    <!-- LOAD-only optional fields -->
+                    <div class="load-fields nested-acc sm:col-span-2 border border-[#e8d9da] rounded-md">
+                        <button type="button"
+                            class="nested-toggle w-full flex items-center justify-between px-4 py-2.5 bg-[#f7eaeb] text-sm font-medium text-[#3a2226]">
+                            <span>Load details (optional)</span>
+                            <span class="nested-chevron text-[#a67b82] transition-transform">▾</span>
+                        </button>
+                        <div class="nested-body p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Load reference</label>
+                                <input data-field="LoadReference" type="text"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm mono focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                            <div></div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Load start</label>
+                                <input data-field="LoadStartDate" type="datetime-local"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Load end</label>
+                                <input data-field="LoadEndDate" type="datetime-local"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UNLOAD-only optional fields -->
+                    <div class="unload-fields nested-acc sm:col-span-2 border border-[#e8d9da] rounded-md">
+                        <button type="button"
+                            class="nested-toggle w-full flex items-center justify-between px-4 py-2.5 bg-[#f7eaeb] text-sm font-medium text-[#3a2226]">
+                            <span>Unload details (optional)</span>
+                            <span class="nested-chevron text-[#a67b82] transition-transform">▾</span>
+                        </button>
+                        <div class="nested-body p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Unload reference</label>
+                                <input data-field="UnloadReference" type="text"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm mono focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                            <div></div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Unload start</label>
+                                <input data-field="UnloadStartDate" type="datetime-local"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3a2226] mb-1">Unload end</label>
+                                <input data-field="UnloadEndDate" type="datetime-local"
+                                    class="w-full rounded-md border border-[#d9c3c5] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b3122f] focus:border-[#b3122f]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-2 border-t border-[#f0e2e3] pt-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-[#a67b82] mb-3">Live tracking <span
+                                class="font-normal normal-case">(read-only, driver-entered)</span></p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Current kilometrage</label>
+                        <input data-field="CurrentKilometrage" type="number" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Current weight</label>
+                        <input data-field="CurrentWeight" type="number" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3a2226] mb-1">Current temperature</label>
+                        <input data-field="CurrentTemperature" type="number" step="0.1" disabled
+                            class="w-full rounded-md border border-[#e8d9da] bg-[#f7eaeb] text-[#6b4a4e] px-3 py-2 text-sm cursor-not-allowed" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+
+	const url = new URL(window.location.href);
+	document.getElementById("shipment_id").innerHTML = "Shipment details (#"+ url.search.slice(4)+")";
+
+        const TASK_TYPES = ['load', 'unload', 'collect', 'dropoff', 'cleaning'];
+        const TYPE_LABELS = {load: 'Load', unload: 'Unload', collect: 'Collect', dropoff: 'Drop-off', cleaning: 'Cleaning'};
+
+        const tasksContainer = document.getElementById('tasks-container');
+        const taskTemplate = document.getElementById('task-template');
+        const emptyState = document.getElementById('empty-state');
+        const taskCountLabel = document.getElementById('task-count');
+        const addTaskBtn = document.getElementById('add-task');
+        const addTaskMenu = document.getElementById('add-task-menu');
+
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // ---------------------------------------------------------------
+        // Rendering helpers
+        // ---------------------------------------------------------------
+
+        function usedTypes() {
+            return Array.from(tasksContainer.querySelectorAll('.task-card')).map(
+                card => card.querySelector('[data-field="Type"]').value
+            );
+        }
+
+        function refreshAddTaskAvailability() {
+            const available = TASK_TYPES.filter(t => !usedTypes().includes(t));
+            addTaskBtn.disabled = available.length === 0;
+            addTaskMenu.innerHTML = available.map(t =>
+                `<button type="button" data-type="${t}" class="add-task-option w-full text-left px-4 py-2 text-sm hover:bg-[#f7eaeb]">${TYPE_LABELS[t]}</button>`
+            ).join('');
+        }
+
+        function updateTaskSummary(card) {
+            const type = card.querySelector('[data-field="Type"]').value;
+            const address = card.querySelector('[data-field="Address"]').value;
+            const product = card.querySelector('[data-field="Product"]').value;
+            const bits = [address, product].filter(Boolean);
+            card.querySelector('.task-summary').textContent = bits.length ? bits.join(' · ') : 'No details yet';
+
+            const badge = card.querySelector('.edit-status-badge');
+            const status = card.dataset.editStatus || 'original';
+            badge.textContent = status;
+            badge.className = 'edit-status-badge text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ' +
+                (status === 'edited' ? 'bg-[#fde3ea] text-[#b3122f]' :
+                    status === 'cancelled' ? 'bg-[#f0dcde] text-[#6b4a4e] line-through' :
+                        'bg-[#e8d9da] text-[#6b4a4e]');
+        }
+
+        function syncTaskTypeFields(card) {
+            const type = card.querySelector('[data-field="Type"]').value;
+            card.querySelector('.load-fields').classList.toggle('hidden', type !== 'load');
+            card.querySelector('.unload-fields').classList.toggle('hidden', type !== 'unload');
+        }
+
+        function updateTaskChrome() {
+            const cards = tasksContainer.querySelectorAll('.task-card');
+            taskCountLabel.textContent = cards.length + (cards.length === 1 ? ' task' : ' tasks');
+            emptyState.classList.toggle('hidden', cards.length !== 0);
+            refreshAddTaskAvailability();
+        }
+
+        function setField(card, field, value) {
+            const el = card.querySelector(`[data-field="${field}"]`);
+            if (el && value !== undefined && value !== null) el.value = value;
+        }
+
+        function buildTaskCard(task = {}) {
+            const node = taskTemplate.content.firstElementChild.cloneNode(true);
+
+            if (task.Type) node.querySelector('[data-field="Type"]').value = task.Type;
+            node.dataset.editStatus = task.EditStatus || 'original';
+
+            ['CustomerReference', 'LoadReference', 'UnloadReference', 'TankStatus', 'Product',
+                'Weight', 'Volume', 'Temperature', 'Compartment', 'Remark', 'Company', 'Address',
+                'DestinationAddress', 'OriginalAddress', 'CurrentKilometrage', 'CurrentWeight',
+                'CurrentTemperature', 'Start', 'End', 'LoadStartDate', 'LoadEndDate',
+                'UnloadStartDate', 'UnloadEndDate'
+            ].forEach(f => setField(node, f, task[f]));
+
+            // Header edit toggle
+            node.querySelector('.task-toggle').addEventListener('click', () => {
+                node.classList.toggle('open');
+            });
+
+            // Type change: any type allowed on an existing task, per spec
+            node.querySelector('[data-field="Type"]').addEventListener('change', () => {
+                syncTaskTypeFields(node);
+                updateTaskSummary(node);
+                refreshAddTaskAvailability();
+            });
+
+            // Live summary updates
+            ['Address', 'Product'].forEach(f => {
+                node.querySelector(`[data-field="${f}"]`).addEventListener('input', () => updateTaskSummary(node));
+            });
+
+            // Remove
+            node.querySelector('.remove-task').addEventListener('click', (e) => {
+                e.stopPropagation();
+                node.remove();
+                updateTaskChrome();
+            });
+
+            // Nested accordions (load / unload optional fields)
+            node.querySelectorAll('.nested-acc').forEach(acc => {
+                acc.querySelector('.nested-toggle').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    acc.classList.toggle('open');
+                });
+            });
+
+            syncTaskTypeFields(node);
+            updateTaskSummary(node);
+            return node;
+        }
+
+        function addTask(type, expand = true) {
+            const node = buildTaskCard({Type: type});
+            tasksContainer.appendChild(node);
+            if (expand) node.classList.add('open');
+            updateTaskChrome();
+            node.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+
+        // Add task dropdown (restricted to unused types)
+        addTaskBtn.addEventListener('click', () => {
+            addTaskMenu.classList.toggle('hidden');
+        });
+        addTaskMenu.addEventListener('click', (e) => {
+            const opt = e.target.closest('.add-task-option');
+            if (!opt) return;
+            addTask(opt.dataset.type);
+            addTaskMenu.classList.add('hidden');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#add-task') && !e.target.closest('#add-task-menu')) {
+                addTaskMenu.classList.add('hidden');
+            }
+        });
+
+        // General remark edit toggle
+        const remarkDisplay = document.getElementById('remark-display');
+        const remarkInput = document.getElementById('remark-input');
+        const remarkToggle = document.getElementById('remark-edit-toggle');
+        remarkToggle.addEventListener('click', () => {
+            const editing = !remarkInput.classList.contains('hidden');
+            if (editing) {
+                remarkDisplay.textContent = remarkInput.value || '—';
+                remarkInput.classList.add('hidden');
+                remarkDisplay.classList.remove('hidden');
+                remarkToggle.textContent = 'Edit';
+            } else {
+                remarkInput.classList.remove('hidden');
+                remarkDisplay.classList.add('hidden');
+                remarkInput.focus();
+                remarkToggle.textContent = 'Done';
+            }
+        });
+
+        // ---------------------------------------------------------------
+        // Collecting data back out
+        // ---------------------------------------------------------------
+
+        function collectShipment() {
+            const data = {};
+            document.querySelectorAll('#shipment-title, main > section:first-child [data-field]').forEach(el => {
+                data[el.dataset.field] = el.value;
+            });
+            data.GeneralRemark = remarkInput.value;
+            return data;
+        }
+
+        function collectTasks() {
+            return Array.from(tasksContainer.querySelectorAll('.task-card')).map(card => {
+                const task = {EditStatus: card.dataset.editStatus || 'original'};
+                card.querySelectorAll('[data-field]').forEach(el => {task[el.dataset.field] = el.value;});
+                return task;
+            });
+        }
+
+        document.getElementById('preview-json').addEventListener('click', () => {
+            const payload = {shipment: collectShipment(), tasks: collectTasks()};
+            const out = document.getElementById('json-output');
+            out.textContent = JSON.stringify(payload, null, 2);
+            out.classList.remove('hidden');
+        });
+
+        // ---------------------------------------------------------------
+        // Loading + saving against a real backend (see explanation in chat)
+        // ---------------------------------------------------------------
+
+        const API_BASE = 'https://your-api.example.com'; // TODO: point this at your backend
+
+        async function apiRequest(path, options = {}) {
+            const res = await fetch(API_BASE + path, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'tma ' + tg.initData, // backend verifies this against your bot token
+                    ...(options.headers || {})
+                }
+            });
+            if (!res.ok) throw new Error('Request failed: ' + res.status);
+            return res.json();
+        }
+
+        function applyShipment(shipment) {
+            document.getElementById('shipment-id-label').textContent = '#' + (shipment.Id ?? '—');
+            document.getElementById('shipment-status').textContent = shipment.InstructionType
+                ? TYPE_LABELS[shipment.InstructionType] || shipment.InstructionType
+                : 'Unknown';
+            Object.entries(shipment).forEach(([key, value]) => {
+                const el = document.querySelector(`main > section:first-child [data-field="${key}"]`);
+                if (el) el.value = value;
+            });
+            remarkInput.value = shipment.GeneralRemark || '';
+            remarkDisplay.textContent = shipment.GeneralRemark || '—';
+        }
+
+        async function init() {
+            let data;
+            try {
+                // Real usage: fetch the shipment (and its tasks) for the id passed via
+                // Telegram's start_param, e.g. /api/shipments/:id
+                const startParam = tg.initDataUnsafe?.start_param;
+                data = await apiRequest(`/api/shipments/${startParam || ''}`);
+            } catch (err) {
+                console.warn('Falling back to demo data (no backend reachable):', err);
+                data = {
+                    shipment: {
+                        Id: 1042, InstructionType: 'load', CarId: 'TRK-2291', DriverName: 'O. Kovalenko',
+                        Container: 'MSKU-772104-1', Chassis: 'CH-88213',
+                        Started: '2026-07-17T09:30', Finished: '2026-07-31T15:30',
+                        GeneralRemark: 'Standard route, no special handling required.'
+                    },
+                    tasks: [
+                        {
+                            Type: 'load', Address: 'Terminal 4, Rotterdam', DestinationAddress: 'Warehouse B, Antwerp',
+                            Company: 'NorthSea Logistics', Product: 'Ethanol', TankStatus: 'cleaned',
+                            CustomerReference: 'CUS-5521', Compartment: 3, Weight: '24,000 kg', Volume: '30,000 L',
+                            Temperature: '18°C', Start: '2026-07-17T09:30', End: '2026-07-17T13:00',
+                            LoadReference: 'LD-9911', LoadStartDate: '2026-07-17T09:30', LoadEndDate: '2026-07-17T12:00',
+                            CurrentKilometrage: 118234, CurrentWeight: 23980, CurrentTemperature: 17.8,
+                            EditStatus: 'original'
+                        }
+                    ]
+                };
+            }
+            applyShipment(data.shipment);
+            (data.tasks || []).forEach(t => tasksContainer.appendChild(buildTaskCard(t)));
+            updateTaskChrome();
+            document.getElementById('shipment-status').textContent =
+                (data.shipment.InstructionType ? TYPE_LABELS[data.shipment.InstructionType] : 'In progress') || 'In progress';
+        }
+
+        document.getElementById('save-all').addEventListener('click', async () => {
+            const payload = {shipment: collectShipment(), tasks: collectTasks()};
+            console.log('Save payload:', payload);
+            try {
+                await apiRequest(`/api/shipments/${payload.shipment.Id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+                tg.close();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('shipment-status').textContent = 'Save failed — check connection';
+            }
+        });
+
+        init();
+    </script>
+
+</body>
+
+</html>
