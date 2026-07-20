@@ -43,6 +43,10 @@ func HandleUpdate(update tgbotapi.Update, globalStorage *sql.DB) error {
 	switch {
 	case update.Message != nil:
 
+		if update.Message.WebAppData != nil {
+			webAppData := update.Message.WebAppData
+			fmt.Println(webAppData)
+		}
 		LogTelegramMessage(update.Message)
 		return HandleMessage(update.Message, globalStorage)
 	case update.EditedMessage != nil:

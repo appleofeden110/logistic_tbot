@@ -208,7 +208,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 	case "test":
 		btn := tgbotapi.KeyboardButton{
 			Text:   "Open App",
-			WebApp: &tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/"},
+			WebApp: &tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/shipments.html?=1059"},
 		}
 		kb := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(btn))
 

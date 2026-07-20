@@ -22,9 +22,18 @@ func main() {
 	var err error
 	err = godotenv.Load()
 
+	mux := http.NewServeMux()
+
 	errlog.WARN.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "WARN: ", 0)
 	errlog.ERR.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "ERR: ", 0)
 	errlog.INFO.Logger = log.New(errlog.NewLogWriter(errlog.API_URL+os.Getenv("LOG_BOT_API")+"/sendMessage"), "INFO: ", 0)
+
+	//handlers for the api
+
+	mux.HandleFunc("POST /telegram/", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Success")
+		w.WriteHeader(200)
+	})
 
 	err = config.LoadLocales()
 	if err != nil {
@@ -64,10 +73,18 @@ func main() {
 
 	updates := handlers.Bot.GetUpdatesChan(u)
 
-	_, err = tgbotapi.NewWebhook("")
-	if err != nil {
-		panic(err)
+	if os.Getenv("ENV") == "dev" {
+		_, err = handlers.Bot.Send(tgbotapi.DeleteWebhookConfig{})
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		_, err = tgbotapi.NewWebhook("")
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -81,7 +98,7 @@ func main() {
 		port = "8443"
 	}
 	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("ERR:Failed to start server: %v", err)
 	}
 }
