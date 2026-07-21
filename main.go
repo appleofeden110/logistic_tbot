@@ -30,9 +30,13 @@ func main() {
 
 	//handlers for the api
 
-	mux.HandleFunc("GET /telegram/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Success")
-		w.WriteHeader(200)
+	mux.HandleFunc("POST /telegram/{rest...}", func(w http.ResponseWriter, r *http.Request) {
+		rest := r.PathValue("rest")
+		log.Println("matched: ", rest)
+
+		switch rest {
+
+		}
 	})
 
 	err = config.LoadLocales()
