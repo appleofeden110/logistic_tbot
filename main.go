@@ -30,15 +30,6 @@ func main() {
 
 	//handlers for the api
 
-	mux.HandleFunc("POST /telegram/{rest...}", func(w http.ResponseWriter, r *http.Request) {
-		rest := r.PathValue("rest")
-		log.Println("matched: ", rest)
-
-		switch rest {
-
-		}
-	})
-
 	err = config.LoadLocales()
 	if err != nil {
 		errlog.ERR.Fatalf("loading the locales: %v\n", err)
@@ -101,6 +92,10 @@ func main() {
 	if port == "" {
 		port = "8443"
 	}
+
+	mux.HandleFunc("GET /api/shipments/{id}", handlers.WithAuth(globalStorage, handlers.Bot.Token, handlers.RequestShipment))
+	mux.HandleFunc("PUT /api/shipments/{id}", handlers.WithAuth(globalStorage, handlers.Bot.Token, handlers.RequestUpdateShipment))
+
 	log.Printf("Listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("ERR:Failed to start server: %v", err)

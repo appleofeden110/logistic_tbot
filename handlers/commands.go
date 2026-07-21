@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"html"
 	"log"
 	"logistictbot/config"
 	"logistictbot/db"
@@ -206,13 +205,10 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
-		btn := tgbotapi.KeyboardButton{
-			Text:   "Open App",
-			WebApp: &tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/shipments.html?=1059"},
-		}
-		kb := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(btn))
+		btn := tgbotapi.NewInlineKeyboardButtonWebApp("Відкрити", tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/shipments.html?id=1059"})
+		kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
 
-		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("<b>Натисніть %s кнопку нижче що б перейти до форми:</b>", html.EscapeString("<2%>")))
+		msg := tgbotapi.NewMessage(chatId, "<b>Натисніть кнопку нижче що б перейти до форми:</b>")
 		msg.ParseMode = tgbotapi.ModeHTML
 		fmt.Println(msg.Text)
 		msg.ReplyMarkup = kb

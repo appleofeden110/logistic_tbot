@@ -62,7 +62,7 @@
         <!-- SHIPMENT (mostly read-only) -->
         <section class="bg-white rounded-lg border border-[#e8d9da] shadow-sm">
             <div class="px-6 py-4 border-b border-[#e8d9da] flex items-center justify-between">
-		    <h2 class="font-semibold text-[#170b0d]" id="shipment_id">Shipment details ()</h2>
+                <h2 class="font-semibold text-[#170b0d]" id="shipment_id">Shipment details ()</h2>
                 <span class="text-xs text-[#a67b82] mono">read-only unless noted</span>
             </div>
 
@@ -396,8 +396,8 @@
 
     <script>
 
-	const url = new URL(window.location.href);
-	document.getElementById("shipment_id").innerHTML = "Shipment details (#"+ url.search.slice(4)+")";
+        const url = new URL(window.location.href);
+        document.getElementById("shipment_id").innerHTML = "Shipment details (#" + url.search.slice(4) + ")";
 
         const TASK_TYPES = ['load', 'unload', 'collect', 'dropoff', 'cleaning'];
         const TYPE_LABELS = {load: 'Load', unload: 'Unload', collect: 'Collect', dropoff: 'Drop-off', cleaning: 'Cleaning'};
@@ -478,31 +478,26 @@
                 'UnloadStartDate', 'UnloadEndDate'
             ].forEach(f => setField(node, f, task[f]));
 
-            // Header edit toggle
             node.querySelector('.task-toggle').addEventListener('click', () => {
                 node.classList.toggle('open');
             });
 
-            // Type change: any type allowed on an existing task, per spec
             node.querySelector('[data-field="Type"]').addEventListener('change', () => {
                 syncTaskTypeFields(node);
                 updateTaskSummary(node);
                 refreshAddTaskAvailability();
             });
 
-            // Live summary updates
             ['Address', 'Product'].forEach(f => {
                 node.querySelector(`[data-field="${f}"]`).addEventListener('input', () => updateTaskSummary(node));
             });
 
-            // Remove
             node.querySelector('.remove-task').addEventListener('click', (e) => {
                 e.stopPropagation();
                 node.remove();
                 updateTaskChrome();
             });
 
-            // Nested accordions (load / unload optional fields)
             node.querySelectorAll('.nested-acc').forEach(acc => {
                 acc.querySelector('.nested-toggle').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -523,7 +518,6 @@
             node.scrollIntoView({behavior: 'smooth', block: 'center'});
         }
 
-        // Add task dropdown (restricted to unused types)
         addTaskBtn.addEventListener('click', () => {
             addTaskMenu.classList.toggle('hidden');
         });
@@ -539,7 +533,6 @@
             }
         });
 
-        // General remark edit toggle
         const remarkDisplay = document.getElementById('remark-display');
         const remarkInput = document.getElementById('remark-input');
         const remarkToggle = document.getElementById('remark-edit-toggle');
@@ -557,10 +550,6 @@
                 remarkToggle.textContent = 'Done';
             }
         });
-
-        // ---------------------------------------------------------------
-        // Collecting data back out
-        // ---------------------------------------------------------------
 
         function collectShipment() {
             const data = {};
@@ -586,11 +575,7 @@
             out.classList.remove('hidden');
         });
 
-        // ---------------------------------------------------------------
-        // Loading + saving against a real backend (see explanation in chat)
-        // ---------------------------------------------------------------
-
-        const API_BASE = 'https://your-api.example.com'; // TODO: point this at your backend
+        const API_BASE = 'https://nazarkan.dev/api';
 
         async function apiRequest(path, options = {}) {
             const res = await fetch(API_BASE + path, {
@@ -621,10 +606,8 @@
         async function init() {
             let data;
             try {
-                // Real usage: fetch the shipment (and its tasks) for the id passed via
-                // Telegram's start_param, e.g. /api/shipments/:id
                 const startParam = tg.initDataUnsafe?.start_param;
-                data = await apiRequest(`/api/shipments/${startParam || ''}`);
+                data = await apiRequest(`/shipments/${startParam || ''}`);
             } catch (err) {
                 console.warn('Falling back to demo data (no backend reachable):', err);
                 data = {
@@ -658,7 +641,7 @@
             const payload = {shipment: collectShipment(), tasks: collectTasks()};
             console.log('Save payload:', payload);
             try {
-                await apiRequest(`/api/shipments/${payload.shipment.Id}`, {
+                await apiRequest(`/shipments/${payload.shipment.Id}`, {
                     method: 'PUT',
                     body: JSON.stringify(payload)
                 });

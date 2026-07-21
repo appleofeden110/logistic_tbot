@@ -166,6 +166,161 @@ func scanTask(taskRows *sql.Rows) (*TaskSection, error) {
 	return task, nil
 }
 
+func (in UpdateShipmentInput) Validate() error {
+	if in.GeneralRemark != nil && len(*in.GeneralRemark) > 4000 {
+		return fmt.Errorf("general remark too long")
+	}
+
+	if in.Started != nil && in.Finished != nil &&
+		!in.Started.IsZero() && !in.Finished.IsZero() &&
+		in.Finished.Before(*in.Started) {
+		return fmt.Errorf("finished date cannot be before started date")
+	}
+
+	seenTypes := map[string]bool{}
+
+	for i, t := range in.Tasks {
+		if !validTaskTypes[t.Type] {
+			return fmt.Errorf("task %d: invalid task type %q", i, t.Type)
+		}
+
+		if seenTypes[t.Type] {
+			return fmt.Errorf("task %d: duplicate task type %q", i, t.Type)
+		}
+		seenTypes[t.Type] = true
+
+		if len(t.Address) > 500 {
+			return fmt.Errorf("task %d: address too long", i)
+		}
+		if len(t.DestinationAddress) > 500 {
+			return fmt.Errorf("task %d: destination address too long", i)
+		}
+		if len(t.Product) > 300 {
+			return fmt.Errorf("task %d: product too long", i)
+		}
+		if len(t.Remark) > 2000 {
+			return fmt.Errorf("task %d: remark too long", i)
+		}
+		if len(t.LoadReference) > 200 {
+			return fmt.Errorf("task %d: load reference too long", i)
+		}
+		if len(t.UnloadReference) > 200 {
+			return fmt.Errorf("task %d: unload reference too long", i)
+		}
+
+		if t.Start != nil && t.End != nil && !t.Start.IsZero() && !t.End.IsZero() &&
+			t.End.Before(*t.Start) {
+			return fmt.Errorf("task %d: end before start", i)
+		}
+
+		if t.Type != TaskLoad && (t.LoadReference != "" || t.LoadStartDate != nil || t.LoadEndDate != nil) {
+			return fmt.Errorf("task %d: load fields only valid on type %q", i, TaskLoad)
+		}
+		if t.Type != TaskUnload && (t.UnloadReference != "" || t.UnloadStartDate != nil || t.UnloadEndDate != nil) {
+			return fmt.Errorf("task %d: unload fields only valid on type %q", i, TaskUnload)
+		}
+	}
+
+	return nil
+}
+
+func UpdateShipment(db *sql.DB, shipmentId int64, in UpdateShipmentInput) (*Shipment, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %v", err)
+	}
+	defer tx.Rollback()
+
+	now := time.Now().UTC()
+
+	_, err = tx.Exec(
+		`UPDATE shipments SET started = ?, finished = ?, generalremark = ?, updated_at = ? WHERE id = ?`,
+		nullTime(in.Started), nullTime(in.Finished), in.GeneralRemark, now, shipmentId,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update shipment: %v", err)
+	}
+
+	// Existing task ids for this shipment, so we can delete ones the
+	// client removed rather than trusting a client-sent "delete" flag.
+	rows, err := tx.Query(`SELECT id FROM tasks WHERE shipment_id = ?`, shipmentId)
+	if err != nil {
+		return nil, fmt.Errorf("query existing tasks: %v", err)
+	}
+	existingIds := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		existingIds[id] = true
+	}
+	rows.Close()
+
+	keptIds := map[int64]bool{}
+
+	for _, t := range in.Tasks {
+		if t.Id != 0 && existingIds[t.Id] {
+			_, err = tx.Exec(`
+				UPDATE tasks SET type=?, address=?, destination_address=?, product=?,
+					tank_status=?, remark=?, start=?, end=?, load_ref=?, load_start_date=?,
+					load_end_date=?, unload_ref=?, unload_start_date=?, unload_end_date=?,
+					updated_at=?
+				WHERE id = ? AND shipment_id = ?`,
+				t.Type, t.Address, t.DestinationAddress, t.Product, t.TankStatus, t.Remark,
+				nullTime(t.Start), nullTime(t.End), t.LoadReference, nullTime(t.LoadStartDate),
+				nullTime(t.LoadEndDate), t.UnloadReference, nullTime(t.UnloadStartDate),
+				nullTime(t.UnloadEndDate), now, t.Id, shipmentId,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("update task %d: %v", t.Id, err)
+			}
+			keptIds[t.Id] = true
+		} else {
+			newId, err := uuid.NewV4() // TODO: confirm tasks.id is int64 not uuid — schema you showed suggests int64
+			_ = newId
+			res, err := tx.Exec(`
+				INSERT INTO tasks (type, shipment_id, address, destination_address, product,
+					tank_status, remark, start, end, load_ref, load_start_date, load_end_date,
+					unload_ref, unload_start_date, unload_end_date, created_at, updated_at, edit_status)
+				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+				t.Type, shipmentId, t.Address, t.DestinationAddress, t.Product, t.TankStatus,
+				t.Remark, nullTime(t.Start), nullTime(t.End), t.LoadReference, nullTime(t.LoadStartDate),
+				nullTime(t.LoadEndDate), t.UnloadReference, nullTime(t.UnloadStartDate),
+				nullTime(t.UnloadEndDate), now, now, "added",
+			)
+			if err != nil {
+				return nil, fmt.Errorf("insert task: %v", err)
+			}
+			newRowId, _ := res.LastInsertId()
+			keptIds[newRowId] = true
+		}
+	}
+
+	for id := range existingIds {
+		if !keptIds[id] {
+			_, err = tx.Exec(`DELETE FROM tasks WHERE id = ? AND shipment_id = ?`, id, shipmentId)
+			if err != nil {
+				return nil, fmt.Errorf("delete task %d: %v", id, err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %v", err)
+	}
+
+	return GetShipment(db, shipmentId)
+}
+
+func nullTime(t *time.Time) interface{} {
+	if t == nil || t.IsZero() {
+		return nil
+	}
+	return *t
+}
+
 func GetLatestShipmentByDriverId(db *sql.DB, driverId uuid.UUID) (*Shipment, error) {
 	query := `
 		SELECT id, document_language, instruction_type, car_id, driver_id,
