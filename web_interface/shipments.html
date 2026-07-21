@@ -397,7 +397,8 @@
     <script>
 
         const url = new URL(window.location.href);
-        document.getElementById("shipment_id").innerHTML = "Shipment details (#" + url.search.slice(4) + ")";
+        const shipment_id = url.search.slice(4)
+        document.getElementById("shipment_id").innerHTML = "Shipment details (#" + shipment_id + ")";
 
         const TASK_TYPES = ['load', 'unload', 'collect', 'dropoff', 'cleaning'];
         const TYPE_LABELS = {load: 'Load', unload: 'Unload', collect: 'Collect', dropoff: 'Drop-off', cleaning: 'Cleaning'};
@@ -606,8 +607,7 @@
         async function init() {
             let data;
             try {
-                const startParam = tg.initDataUnsafe?.start_param;
-                data = await apiRequest(`/shipments/${startParam || ''}`);
+                data = await apiRequest(`/shipments/${shipment_id || ''}`);
             } catch (err) {
                 console.warn('Falling back to demo data (no backend reachable):', err);
                 data = {

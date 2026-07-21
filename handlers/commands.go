@@ -205,7 +205,7 @@ func HandleCommand(chatId int64, user *tgbotapi.User, command string, globalStor
 		_, err := Bot.Send(msg)
 		return err
 	case "test":
-		btn := tgbotapi.NewInlineKeyboardButtonWebApp("Відкрити", tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/shipments.html?id=1059"})
+		btn := tgbotapi.NewInlineKeyboardButtonWebApp("Відкрити", tgbotapi.WebAppInfo{URL: "https://nazarkan.dev/testbot/shipments.html?id=4520728"})
 		kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
 
 		msg := tgbotapi.NewMessage(chatId, "<b>Натисніть кнопку нижче що б перейти до форми:</b>")
