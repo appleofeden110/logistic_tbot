@@ -30,7 +30,7 @@ func main() {
 
 	//handlers for the api
 
-	mux.HandleFunc("POST /telegram/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /telegram/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Success")
 		w.WriteHeader(200)
 	})
