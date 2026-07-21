@@ -397,11 +397,21 @@
     <script>
 
         const url = new URL(window.location.href);
-        const shipment_id = url.search.slice(4)
-        document.getElementById("shipment_id").innerHTML = "Shipment details (#" + shipment_id + ")";
+        const shipment_id = url.searchParams.get('id') || url.searchParams.get('shipment_id') || url.search.slice(4);
+        document.getElementById("shipment_id").textContent = "Shipment details (#" + (shipment_id || '—') + ")";
 
         const TASK_TYPES = ['load', 'unload', 'collect', 'dropoff', 'cleaning'];
-        const TYPE_LABELS = {load: 'Load', unload: 'Unload', collect: 'Collect', dropoff: 'Drop-off', cleaning: 'Cleaning'};
+        const TYPE_LABELS = {
+            load: 'Load',
+            unload: 'Unload',
+            collect: 'Collect',
+            dropoff: 'Drop-off',
+            cleaning: 'Cleaning',
+            'ANWEISUNG ENTLADE': 'Unload instruction'
+        };
+
+        const SHIPMENT_DATE_FIELDS = ['Started', 'Finished'];
+        const TASK_DATE_FIELDS = ['Start', 'End', 'LoadStartDate', 'LoadEndDate', 'UnloadStartDate', 'UnloadEndDate'];
 
         const tasksContainer = document.getElementById('tasks-container');
         const taskTemplate = document.getElementById('task-template');
@@ -409,8 +419,15 @@
         const taskCountLabel = document.getElementById('task-count');
         const addTaskBtn = document.getElementById('add-task');
         const addTaskMenu = document.getElementById('add-task-menu');
+        const taskOriginals = new WeakMap();
+        let currentShipment = {};
 
-        const tg = window.Telegram.WebApp;
+        const tg = window.Telegram?.WebApp || {
+            initData: '',
+            ready() {},
+            expand() {},
+            close() {}
+        };
         tg.ready();
         tg.expand();
 
@@ -450,8 +467,8 @@
 
         function syncTaskTypeFields(card) {
             const type = card.querySelector('[data-field="Type"]').value;
-            card.querySelector('.load-fields').classList.toggle('hidden', type !== 'load');
-            card.querySelector('.unload-fields').classList.toggle('hidden', type !== 'unload');
+            card.querySelector('.load-fields').classList.toggle('hidden', !['load', 'collect'].includes(type));
+            card.querySelector('.unload-fields').classList.toggle('hidden', !['unload', 'dropoff'].includes(type));
         }
 
         function updateTaskChrome() {
@@ -461,13 +478,38 @@
             refreshAddTaskAvailability();
         }
 
+        function isEmptyBackendDate(value) {
+            return !value || String(value).startsWith('0001-01-01');
+        }
+
+        function toDatetimeLocal(value) {
+            if (isEmptyBackendDate(value)) return '';
+            const match = String(value).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+            return match ? `${match[1]}T${match[2]}` : '';
+        }
+
+        function fromDatetimeLocal(value, originalValue = '') {
+            if (!value) return isEmptyBackendDate(originalValue) ? originalValue : '';
+            const original = String(originalValue || '');
+            const suffix = original.match(/([+-]\d{2}:\d{2}|Z)$/)?.[1] || '';
+            const seconds = original.match(/T\d{2}:\d{2}:(\d{2})/)?.[1] || '00';
+            return `${value}:${seconds}${suffix}`;
+        }
+
+        function formatFieldForInput(field, value) {
+            return [...SHIPMENT_DATE_FIELDS, ...TASK_DATE_FIELDS].includes(field)
+                ? toDatetimeLocal(value)
+                : value;
+        }
+
         function setField(card, field, value) {
             const el = card.querySelector(`[data-field="${field}"]`);
-            if (el && value !== undefined && value !== null) el.value = value;
+            if (el && value !== undefined && value !== null) el.value = formatFieldForInput(field, value);
         }
 
         function buildTaskCard(task = {}) {
             const node = taskTemplate.content.firstElementChild.cloneNode(true);
+            taskOriginals.set(node, {...task});
 
             if (task.Type) node.querySelector('[data-field="Type"]').value = task.Type;
             node.dataset.editStatus = task.EditStatus || 'original';
@@ -512,7 +554,16 @@
         }
 
         function addTask(type, expand = true) {
-            const node = buildTaskCard({Type: type});
+            const node = buildTaskCard({
+                Id: 0,
+                Type: type,
+                EditStatus: 'edited',
+                EditMessageId: 0,
+                ShipmentId: currentShipment.Id || Number(shipment_id) || 0,
+                ShipmentDocId: currentShipment.ShipmentDocId || 0,
+                CreatedAt: new Date().toISOString(),
+                UpdatedAt: new Date().toISOString()
+            });
             tasksContainer.appendChild(node);
             if (expand) node.classList.add('open');
             updateTaskChrome();
@@ -553,24 +604,34 @@
         });
 
         function collectShipment() {
-            const data = {};
-            document.querySelectorAll('#shipment-title, main > section:first-child [data-field]').forEach(el => {
-                data[el.dataset.field] = el.value;
+            const data = {...currentShipment};
+            document.querySelectorAll('main > section:first-child [data-field]').forEach(el => {
+                const originalValue = currentShipment[el.dataset.field];
+                data[el.dataset.field] = SHIPMENT_DATE_FIELDS.includes(el.dataset.field)
+                    ? fromDatetimeLocal(el.value, originalValue)
+                    : el.value;
             });
             data.GeneralRemark = remarkInput.value;
+            data.Tasks = collectTasks();
             return data;
         }
 
         function collectTasks() {
             return Array.from(tasksContainer.querySelectorAll('.task-card')).map(card => {
-                const task = {EditStatus: card.dataset.editStatus || 'original'};
-                card.querySelectorAll('[data-field]').forEach(el => {task[el.dataset.field] = el.value;});
+                const original = taskOriginals.get(card) || {};
+                const task = {...original, EditStatus: card.dataset.editStatus || original.EditStatus || 'original'};
+                card.querySelectorAll('[data-field]').forEach(el => {
+                    const field = el.dataset.field;
+                    task[field] = TASK_DATE_FIELDS.includes(field)
+                        ? fromDatetimeLocal(el.value, original[field])
+                        : el.value;
+                });
                 return task;
             });
         }
 
         document.getElementById('preview-json').addEventListener('click', () => {
-            const payload = {shipment: collectShipment(), tasks: collectTasks()};
+            const payload = collectShipment();
             const out = document.getElementById('json-output');
             out.textContent = JSON.stringify(payload, null, 2);
             out.classList.remove('hidden');
@@ -591,17 +652,24 @@
             return res.json();
         }
 
+        function normalizeShipmentResponse(data) {
+            if (data?.shipment) return {...data.shipment, Tasks: data.tasks || data.shipment.Tasks || []};
+            return data || {Tasks: []};
+        }
+
         function applyShipment(shipment) {
+            currentShipment = {...shipment, Tasks: shipment.Tasks || []};
             document.getElementById('shipment-id-label').textContent = '#' + (shipment.Id ?? '—');
             document.getElementById('shipment-status').textContent = shipment.InstructionType
                 ? TYPE_LABELS[shipment.InstructionType] || shipment.InstructionType
                 : 'Unknown';
             Object.entries(shipment).forEach(([key, value]) => {
                 const el = document.querySelector(`main > section:first-child [data-field="${key}"]`);
-                if (el) el.value = value;
+                if (el) el.value = formatFieldForInput(key, value);
             });
             remarkInput.value = shipment.GeneralRemark || '';
             remarkDisplay.textContent = shipment.GeneralRemark || '—';
+            document.getElementById("shipment_id").textContent = "Shipment details (#" + (shipment.Id ?? shipment_id ?? '—') + ")";
         }
 
         async function init() {
@@ -609,39 +677,23 @@
             try {
                 data = await apiRequest(`/shipments/${shipment_id || ''}`);
             } catch (err) {
-                console.warn('Falling back to demo data (no backend reachable):', err);
-                data = {
-                    shipment: {
-                        Id: 1042, InstructionType: 'load', CarId: 'TRK-2291', DriverName: 'O. Kovalenko',
-                        Container: 'MSKU-772104-1', Chassis: 'CH-88213',
-                        Started: '2026-07-17T09:30', Finished: '2026-07-31T15:30',
-                        GeneralRemark: 'Standard route, no special handling required.'
-                    },
-                    tasks: [
-                        {
-                            Type: 'load', Address: 'Terminal 4, Rotterdam', DestinationAddress: 'Warehouse B, Antwerp',
-                            Company: 'NorthSea Logistics', Product: 'Ethanol', TankStatus: 'cleaned',
-                            CustomerReference: 'CUS-5521', Compartment: 3, Weight: '24,000 kg', Volume: '30,000 L',
-                            Temperature: '18°C', Start: '2026-07-17T09:30', End: '2026-07-17T13:00',
-                            LoadReference: 'LD-9911', LoadStartDate: '2026-07-17T09:30', LoadEndDate: '2026-07-17T12:00',
-                            CurrentKilometrage: 118234, CurrentWeight: 23980, CurrentTemperature: 17.8,
-                            EditStatus: 'original'
-                        }
-                    ]
-                };
+                console.error('Couldn\'t get the shipment fetch working properly:', err);
+                data = {Tasks: []};
             }
-            applyShipment(data.shipment);
-            (data.tasks || []).forEach(t => tasksContainer.appendChild(buildTaskCard(t)));
+            const shipment = normalizeShipmentResponse(data);
+            applyShipment(shipment);
+            tasksContainer.innerHTML = '';
+            (shipment.Tasks || []).forEach(t => tasksContainer.appendChild(buildTaskCard(t)));
             updateTaskChrome();
             document.getElementById('shipment-status').textContent =
-                (data.shipment.InstructionType ? TYPE_LABELS[data.shipment.InstructionType] : 'In progress') || 'In progress';
+                (shipment.InstructionType ? TYPE_LABELS[shipment.InstructionType] || shipment.InstructionType : 'In progress') || 'In progress';
         }
 
         document.getElementById('save-all').addEventListener('click', async () => {
-            const payload = {shipment: collectShipment(), tasks: collectTasks()};
+            const payload = collectShipment();
             console.log('Save payload:', payload);
             try {
-                await apiRequest(`/shipments/${payload.shipment.Id}`, {
+                await apiRequest(`/shipments/${payload.Id || shipment_id}`, {
                     method: 'PUT',
                     body: JSON.stringify(payload)
                 });
