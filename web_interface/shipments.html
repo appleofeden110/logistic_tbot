@@ -630,6 +630,40 @@
             });
         }
 
+        function pickFields(source, fields) {
+            return fields.reduce((body, field) => {
+                if (source[field] !== undefined) body[field] = source[field];
+                return body;
+            }, {});
+        }
+
+        function collectUpdatePayload() {
+            const shipment = collectShipment();
+            return {
+                Started: shipment.Started,
+                Finished: shipment.Finished,
+                GeneralRemark: shipment.GeneralRemark,
+                Tasks: shipment.Tasks.map(task => pickFields(task, [
+                    'Type',
+                    'Address',
+                    'DestinationAddress',
+                    'Company',
+                    'Product',
+                    'TankStatus',
+                    'Start',
+                    'End',
+                    'Remark',
+                    'LoadReference',
+                    'LoadStartDate',
+                    'LoadEndDate',
+                    'UnloadReference',
+                    'UnloadStartDate',
+                    'UnloadEndDate',
+                    'EditStatus'
+                ]))
+            };
+        }
+
         document.getElementById('preview-json').addEventListener('click', () => {
             const payload = collectShipment();
             const out = document.getElementById('json-output');
@@ -690,10 +724,11 @@
         }
 
         document.getElementById('save-all').addEventListener('click', async () => {
-            const payload = collectShipment();
+            const shipment = collectShipment();
+            const payload = collectUpdatePayload();
             console.log('Save payload:', payload);
             try {
-                await apiRequest(`/shipments/${payload.Id || shipment_id}`, {
+                await apiRequest(`/shipments/${shipment.Id || shipment_id}`, {
                     method: 'PUT',
                     body: JSON.stringify(payload)
                 });
