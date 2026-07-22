@@ -171,9 +171,9 @@ func (in UpdateShipmentInput) Validate() error {
 		return fmt.Errorf("general remark too long")
 	}
 
-	if in.Started != nil && in.Finished != nil &&
+	if in.Started.Ptr() != nil && in.Finished.Ptr() != nil &&
 		!in.Started.IsZero() && !in.Finished.IsZero() &&
-		in.Finished.Before(*in.Started) {
+		in.Finished.Before(*in.Started.Ptr()) {
 		return fmt.Errorf("finished date cannot be before started date")
 	}
 
@@ -208,15 +208,15 @@ func (in UpdateShipmentInput) Validate() error {
 			return fmt.Errorf("task %d: unload reference too long", i)
 		}
 
-		if t.Start != nil && t.End != nil && !t.Start.IsZero() && !t.End.IsZero() &&
-			t.End.Before(*t.Start) {
+		if t.Start.Ptr != nil && t.End.Ptr != nil && !t.Start.IsZero() && !t.End.IsZero() &&
+			t.End.Before(*t.Start.Ptr()) {
 			return fmt.Errorf("task %d: end before start", i)
 		}
 
-		if t.Type != TaskLoad && (t.LoadReference != "" || t.LoadStartDate != nil || t.LoadEndDate != nil) {
+		if t.Type != TaskLoad && (t.LoadReference != "" || t.LoadStartDate.Ptr() != nil || t.LoadEndDate.Ptr() != nil) {
 			return fmt.Errorf("task %d: load fields only valid on type %q", i, TaskLoad)
 		}
-		if t.Type != TaskUnload && (t.UnloadReference != "" || t.UnloadStartDate != nil || t.UnloadEndDate != nil) {
+		if t.Type != TaskUnload && (t.UnloadReference != "" || t.UnloadStartDate.Ptr() != nil || t.UnloadEndDate.Ptr() != nil) {
 			return fmt.Errorf("task %d: unload fields only valid on type %q", i, TaskUnload)
 		}
 	}
@@ -235,7 +235,7 @@ func UpdateShipment(db *sql.DB, shipmentId int64, in UpdateShipmentInput) (*Ship
 
 	_, err = tx.Exec(
 		`UPDATE shipments SET started = ?, finished = ?, generalremark = ?, updated_at = ? WHERE id = ?`,
-		nullTime(in.Started), nullTime(in.Finished), in.GeneralRemark, now, shipmentId,
+		nullTime(in.Started.Ptr()), nullTime(in.Started.Ptr()), in.GeneralRemark, now, shipmentId,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update shipment: %v", err)
@@ -269,9 +269,9 @@ func UpdateShipment(db *sql.DB, shipmentId int64, in UpdateShipmentInput) (*Ship
 					updated_at=?
 				WHERE id = ? AND shipment_id = ?`,
 				t.Type, t.Address, t.DestinationAddress, t.Product, t.TankStatus, t.Remark,
-				nullTime(t.Start), nullTime(t.End), t.LoadReference, nullTime(t.LoadStartDate),
-				nullTime(t.LoadEndDate), t.UnloadReference, nullTime(t.UnloadStartDate),
-				nullTime(t.UnloadEndDate), now, t.Id, shipmentId,
+				nullTime(t.Start.Ptr()), nullTime(t.End.Ptr()), t.LoadReference, nullTime(t.LoadStartDate.Ptr()),
+				nullTime(t.LoadEndDate.Ptr()), t.UnloadReference, nullTime(t.UnloadStartDate.Ptr()),
+				nullTime(t.UnloadEndDate.Ptr()), now, t.Id, shipmentId,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("update task %d: %v", t.Id, err)
@@ -286,9 +286,9 @@ func UpdateShipment(db *sql.DB, shipmentId int64, in UpdateShipmentInput) (*Ship
 					unload_ref, unload_start_date, unload_end_date, created_at, updated_at, edit_status)
 				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 				t.Type, shipmentId, t.Address, t.DestinationAddress, t.Product, t.TankStatus,
-				t.Remark, nullTime(t.Start), nullTime(t.End), t.LoadReference, nullTime(t.LoadStartDate),
-				nullTime(t.LoadEndDate), t.UnloadReference, nullTime(t.UnloadStartDate),
-				nullTime(t.UnloadEndDate), now, now, "added",
+				t.Remark, nullTime(t.Start.Ptr()), nullTime(t.End.Ptr()), t.LoadReference, nullTime(t.LoadStartDate.Ptr()),
+				nullTime(t.LoadEndDate.Ptr()), t.UnloadReference, nullTime(t.UnloadStartDate.Ptr()),
+				nullTime(t.UnloadEndDate.Ptr()), now, now, "added",
 			)
 			if err != nil {
 				return nil, fmt.Errorf("insert task: %v", err)

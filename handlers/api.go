@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"logistictbot/db"
 	"logistictbot/errlog"
 	"logistictbot/parser"
@@ -68,6 +69,7 @@ func RequestUpdateShipment(w http.ResponseWriter, r *http.Request, u *db.User, g
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&payload); err != nil {
+		log.Printf("json decoder: %v+\n", payload)
 		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
 		return
 	}

@@ -409,7 +409,6 @@
             cleaning: 'Cleaning',
             'ANWEISUNG ENTLADE': 'Unload instruction'
         };
-
         const SHIPMENT_DATE_FIELDS = ['Started', 'Finished'];
         const TASK_DATE_FIELDS = ['Start', 'End', 'LoadStartDate', 'LoadEndDate', 'UnloadStartDate', 'UnloadEndDate'];
 
@@ -555,14 +554,10 @@
 
         function addTask(type, expand = true) {
             const node = buildTaskCard({
-                Id: 0,
                 Type: type,
                 EditStatus: 'edited',
-                EditMessageId: 0,
                 ShipmentId: currentShipment.Id || Number(shipment_id) || 0,
-                ShipmentDocId: currentShipment.ShipmentDocId || 0,
-                CreatedAt: new Date().toISOString(),
-                UpdatedAt: new Date().toISOString()
+                ShipmentDocId: currentShipment.ShipmentDocId || 0
             });
             tasksContainer.appendChild(node);
             if (expand) node.classList.add('open');
@@ -606,9 +601,9 @@
         function collectShipment() {
             const data = {...currentShipment};
             document.querySelectorAll('main > section:first-child [data-field]').forEach(el => {
-                const originalValue = currentShipment[el.dataset.field];
-                data[el.dataset.field] = SHIPMENT_DATE_FIELDS.includes(el.dataset.field)
-                    ? fromDatetimeLocal(el.value, originalValue)
+                const field = el.dataset.field;
+                data[field] = SHIPMENT_DATE_FIELDS.includes(field)
+                    ? fromDatetimeLocal(el.value, currentShipment[field])
                     : el.value;
             });
             data.GeneralRemark = remarkInput.value;
@@ -665,7 +660,10 @@
         }
 
         document.getElementById('preview-json').addEventListener('click', () => {
-            const payload = collectShipment();
+            const payload = {
+                fullShipment: collectShipment(),
+                updateBody: collectUpdatePayload()
+            };
             const out = document.getElementById('json-output');
             out.textContent = JSON.stringify(payload, null, 2);
             out.classList.remove('hidden');
@@ -682,7 +680,10 @@
                     ...(options.headers || {})
                 }
             });
-            if (!res.ok) throw new Error('Request failed: ' + res.status);
+            if (!res.ok) {
+                const message = await res.text();
+                throw new Error(message || 'Request failed: ' + res.status);
+            }
             return res.json();
         }
 
@@ -712,6 +713,7 @@
                 data = await apiRequest(`/shipments/${shipment_id || ''}`);
             } catch (err) {
                 console.error('Couldn\'t get the shipment fetch working properly:', err);
+                document.getElementById('shipment-status').textContent = 'Load failed';
                 data = {Tasks: []};
             }
             const shipment = normalizeShipmentResponse(data);
@@ -735,7 +737,7 @@
                 tg.close();
             } catch (err) {
                 console.error(err);
-                document.getElementById('shipment-status').textContent = 'Save failed — check connection';
+                document.getElementById('shipment-status').textContent = 'Save failed — ' + err.message;
             }
         });
 
