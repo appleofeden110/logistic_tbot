@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -49,17 +50,28 @@ func (ft *FlexTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	if s == "" {
+	if s == "" || s == "0001-01-01T00:00:00Z" {
 		ft.Valid = false
 		return nil
 	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return err
+
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
 	}
-	ft.Time = t
-	ft.Valid = true
-	return nil
+
+	var lastErr error
+	for _, f := range formats {
+		t, err := time.Parse(f, s)
+		if err == nil {
+			ft.Time = t
+			ft.Valid = true
+			return nil
+		}
+		lastErr = err
+	}
+	return fmt.Errorf("unable to parse time %q: %v", s, lastErr)
 }
 
 func (ft FlexTime) MarshalJSON() ([]byte, error) {
