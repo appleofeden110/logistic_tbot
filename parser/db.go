@@ -208,7 +208,7 @@ func (in UpdateShipmentInput) Validate() error {
 			return fmt.Errorf("task %d: unload reference too long", i)
 		}
 
-		if t.Start.Ptr != nil && t.End.Ptr != nil && !t.Start.IsZero() && !t.End.IsZero() &&
+		if !t.Start.IsZero() && !t.End.IsZero() &&
 			t.End.Before(*t.Start.Ptr()) {
 			return fmt.Errorf("task %d: end before start", i)
 		}

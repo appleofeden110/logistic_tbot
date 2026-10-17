@@ -20,6 +20,7 @@ var validTaskTypes = map[string]bool{
 }
 
 type UpdateShipmentInput struct {
+	Id            int64
 	Started       FlexTime          `json:"Started"`
 	Finished      FlexTime          `json:"Finished"`
 	GeneralRemark *string           `json:"GeneralRemark"`
@@ -27,22 +28,22 @@ type UpdateShipmentInput struct {
 }
 
 type UpdateTaskInput struct {
-	Id                 int64    `json:"Id"` // 0 / omitted = new task
-	Type               string   `json:"Type"`
-	Address            string   `json:"Address"`
-	DestinationAddress string   `json:"DestinationAddress"`
-	Product            string   `json:"Product"`
-	TankStatus         string   `json:"TankStatus"`
-	Remark             string   `json:"Remark"`
-	Start              FlexTime `json:"Start"`
-	End                FlexTime `json:"End"`
-	LoadReference      string   `json:"LoadReference"`
-	LoadStartDate      FlexTime `json:"LoadStartDate"`
-	LoadEndDate        FlexTime `json:"LoadEndDate"`
-	UnloadReference    string   `json:"UnloadReference"`
-	UnloadStartDate    FlexTime `json:"UnloadStartDate"`
-	UnloadEndDate      FlexTime `json:"UnloadEndDate"`
-	EditStatus         string   `json:"EditStatus"`
+	Id                 int64      `json:"Id"` // 0 / omitted = new task
+	Type               string     `json:"Type"`
+	Address            string     `json:"Address"`
+	DestinationAddress string     `json:"DestinationAddress"`
+	Product            string     `json:"Product"`
+	TankStatus         string     `json:"TankStatus"`
+	Remark             string     `json:"Remark"`
+	Start              FlexTime   `json:"Start"`
+	End                FlexTime   `json:"End"`
+	LoadReference      string     `json:"LoadReference"`
+	LoadStartDate      FlexTime   `json:"LoadStartDate"`
+	LoadEndDate        FlexTime   `json:"LoadEndDate"`
+	UnloadReference    string     `json:"UnloadReference"`
+	UnloadStartDate    FlexTime   `json:"UnloadStartDate"`
+	UnloadEndDate      FlexTime   `json:"UnloadEndDate"`
+	EditStatus         EditStatus `json:"EditStatus"`
 }
 
 func (ft *FlexTime) UnmarshalJSON(data []byte) error {

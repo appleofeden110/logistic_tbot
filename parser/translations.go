@@ -186,6 +186,35 @@ func ReadTaskShort(section *TaskSection) string {
 
 	return result
 }
+func ReadDocAndStringify(filePath string) (string, error) {
+	var result string
+
+	fullPath, err := filepath.Abs(filePath)
+	if err != nil {
+		errlog.ERR.Printf("ERR: get absolute path: %v", err)
+		return "", fmt.Errorf("ERR: get absolute path: %v", err)
+	}
+
+	shipment, err := GetSequenceOfTasks(fullPath)
+	if err != nil {
+		errlog.ERR.Printf("ERR: get sequence of tasks: %v", err)
+		return "", fmt.Errorf("ERR: get sequence of tasks: %v", err)
+	}
+
+	res, secRes := ReadDoc(shipment)
+
+	result = fmt.Sprintf("\n\n\nFILE: %s\n\n\n", filePath)
+	result += res
+
+	for k, v := range secRes {
+		result += fmt.Sprintf("Завдання: %s\n\n", k)
+		for line := range strings.SplitSeq(v, "\n") {
+			result += fmt.Sprintf("%s\n", line)
+		}
+	}
+
+	return result, err
+}
 
 func ReadDocAndPrint(filePath string) error {
 	var result string
